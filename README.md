@@ -183,6 +183,8 @@ Provider credentials can be set via environment variables or through the Setting
 
 **Model tiers.** Tasks and conversations use a two-tier model system (standard and cheap). Configure each tier with a provider and model name via the Settings page.
 
+**Social sign-in.** To enable "Sign in with Google", set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`. Create OAuth 2.0 credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and add your callback URL (`http://localhost:8484/api/auth/google/callback`) as an authorized redirect URI. The macOS desktop app injects these at build time via ldflags; Docker and CLI builds read them from environment variables.
+
 
 ## Workspace layout
 

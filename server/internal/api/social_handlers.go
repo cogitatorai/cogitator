@@ -27,6 +27,9 @@ type pendingSocialAuth struct {
 	claimID        string // client-generated ID used to poll for auth result
 	inviteCode     string // invite code for registration via social login
 	redirectScheme string // custom URL scheme for mobile app redirects (e.g., "cogitator")
+	source         string // "web" when initiated from the browser dashboard (enables redirect-back)
+	origin         string // scheme+host of the initiating page (for redirect-back to the correct host)
+	redirectURI    string // OAuth redirect_uri used in the authorization request (reused in token exchange)
 }
 
 // socialOAuthStates stores pending social OAuth state parameters.
@@ -353,6 +356,12 @@ func (r *Router) googleCallbackURI(req *http.Request) string {
 	if origin := req.Header.Get("Origin"); origin != "" {
 		return origin + "/api/auth/google/callback"
 	}
+	// Referer is present on full-page navigations (e.g. window.location.href).
+	if ref := req.Header.Get("Referer"); ref != "" {
+		if u, err := url.Parse(ref); err == nil && u.Host != "" {
+			return fmt.Sprintf("%s://%s/api/auth/google/callback", u.Scheme, u.Host)
+		}
+	}
 	if host := req.Host; host != "" {
 		scheme := "http"
 		if req.TLS != nil {
@@ -385,9 +394,17 @@ func (r *Router) handleGoogleAuthStart(w http.ResponseWriter, req *http.Request)
 	claimID := req.URL.Query().Get("claim_id")
 	inviteCode := req.URL.Query().Get("invite_code")
 	redirectScheme := req.URL.Query().Get("redirect_scheme")
+	source := req.URL.Query().Get("source")
 	if purpose == "" {
 		purpose = "login"
 	}
+
+	// Capture the origin of the initiating page so we can redirect back to
+	// the correct host after the OAuth callback (important when the dashboard
+	// dev server and Go server run on different ports).
+	origin := requestOrigin(req)
+
+	redirectURI := r.googleCallbackURI(req)
 
 	socialOAuthStates.Lock()
 	socialOAuthStates.m[state] = &pendingSocialAuth{
@@ -397,6 +414,9 @@ func (r *Router) handleGoogleAuthStart(w http.ResponseWriter, req *http.Request)
 		claimID:        claimID,
 		inviteCode:     inviteCode,
 		redirectScheme: redirectScheme,
+		source:         source,
+		origin:         origin,
+		redirectURI:    redirectURI,
 	}
 	socialOAuthStates.Unlock()
 
@@ -407,8 +427,6 @@ func (r *Router) handleGoogleAuthStart(w http.ResponseWriter, req *http.Request)
 		delete(socialOAuthStates.m, state)
 		socialOAuthStates.Unlock()
 	}()
-
-	redirectURI := r.googleCallbackURI(req)
 
 	params := fmt.Sprintf(
 		"client_id=%s&redirect_uri=%s&response_type=code&scope=openid+email+profile&state=%s&access_type=online&prompt=select_account",
@@ -443,9 +461,10 @@ func (r *Router) handleGoogleCallback(w http.ResponseWriter, req *http.Request) 
 	}
 
 	// Exchange the code for tokens (including id_token).
-	redirectURI := r.googleCallbackURI(req)
-
-	idToken, err := r.exchangeGoogleCode(req.Context(), code, redirectURI)
+	// Reuse the redirect_uri from the authorization request; recomputing it
+	// from the callback request would produce a different value when a dev
+	// proxy sits between the browser and the server.
+	idToken, err := r.exchangeGoogleCode(req.Context(), code, pending.redirectURI)
 	if err != nil {
 		socialErrorPage(w, "Failed to exchange authorization code: "+err.Error(), pending.returnTo)
 		return
@@ -485,13 +504,17 @@ func (r *Router) handleGoogleCallback(w http.ResponseWriter, req *http.Request) 
 			}
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = io.WriteString(w, `<!DOCTYPE html>
-<html><head><title>Connected</title></head>
-<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#18181b;color:#e4e4e7">
-<p>Google account connected successfully. You can close this window.</p>
-</body></html>`)
+		// Web dashboard: redirect back to the app.
+		if pending.source == "web" {
+			returnTo := pending.returnTo
+			if returnTo == "" {
+				returnTo = "account"
+			}
+			http.Redirect(w, req, pending.origin+"/#"+returnTo, http.StatusFound)
+			return
+		}
+
+		oauthBrandedPage(w, "Google account connected successfully.", "You can close this window.")
 		return
 	}
 
@@ -524,18 +547,22 @@ func (r *Router) handleGoogleCallback(w http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		// Desktop: show a static success page.
-		msg := "Signed in successfully. You can close this window."
-		if result.Error != "" {
-			msg = result.Error
+		// Web dashboard: redirect back to the app so claim polling picks up tokens.
+		if pending.source == "web" {
+			returnTo := pending.returnTo
+			if returnTo == "" {
+				returnTo = "login"
+			}
+			http.Redirect(w, req, pending.origin+"/#"+returnTo, http.StatusFound)
+			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `<!DOCTYPE html>
-<html><head><title>Sign In</title></head>
-<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#18181b;color:#e4e4e7">
-<p>%s</p>
-</body></html>`, msg)
+
+		// Desktop: show a branded page the user can close.
+		if result.Error != "" {
+			oauthBrandedPage(w, "Sign-in failed.", result.Error)
+		} else {
+			oauthBrandedPage(w, "Signed in successfully.", "You can close this window.")
+		}
 		return
 	}
 
@@ -595,13 +622,59 @@ func socialErrorPage(w http.ResponseWriter, msg, returnTo string) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `<!DOCTYPE html>
-<html><head><title>Sign-in Error</title></head>
-<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#18181b;color:#e4e4e7;flex-direction:column">
-<p>%s</p>
-<a href="/#%s" style="color:#ea580c;margin-top:1rem">Go back</a>
-</body></html>`, msg, returnTo)
+	fmt.Fprintf(w, oauthPageTemplate,
+		"Sign-in Error",
+		fmt.Sprintf(`<p style="color:#c0beb9">%s</p>
+<a href="/#%s" style="color:#ea580c;margin-top:1rem;text-decoration:none">Go back</a>`, msg, returnTo))
 }
+
+// oauthBrandedPage renders a Cogitator-branded page for OAuth callbacks that
+// cannot redirect (e.g. desktop app flows where the browser is external).
+func oauthBrandedPage(w http.ResponseWriter, heading, detail string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, oauthPageTemplate,
+		"Cogitator",
+		fmt.Sprintf(`<p style="font-size:1.1rem;color:#f5f4f1">%s</p>
+<p style="color:#9b9894;margin-top:0.25rem">%s</p>`, heading, detail))
+}
+
+// requestOrigin extracts the scheme+host the request originated from.
+// Checks Origin, then Referer, then falls back to Host.
+func requestOrigin(req *http.Request) string {
+	if origin := req.Header.Get("Origin"); origin != "" {
+		return origin
+	}
+	if ref := req.Header.Get("Referer"); ref != "" {
+		if u, err := url.Parse(ref); err == nil && u.Host != "" {
+			return u.Scheme + "://" + u.Host
+		}
+	}
+	if host := req.Host; host != "" {
+		scheme := "http"
+		if req.TLS != nil {
+			scheme = "https"
+		}
+		if fwd := req.Header.Get("X-Forwarded-Proto"); fwd != "" {
+			scheme = fwd
+		}
+		return scheme + "://" + host
+	}
+	return ""
+}
+
+// oauthPageTemplate is a minimal branded HTML shell used for OAuth callback pages.
+// It accepts two format args: page title and inner HTML content.
+const oauthPageTemplate = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>%s</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600&display=swap" rel="stylesheet">
+</head>
+<body style="font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#141413;color:#d4d2cd;flex-direction:column">
+<div style="text-align:center">
+<p style="font-family:'Rajdhani',system-ui,sans-serif;font-weight:600;font-size:1.5rem;letter-spacing:0.15em;text-transform:uppercase;color:#f5f4f1;margin-bottom:1.5rem">COGITATOR</p>
+%s
+</div>
+</body></html>`
 
 // completeSocialLogin verifies the id_token, finds or creates the user, and
 // returns auth tokens (or an error) as a pendingAuthResult.

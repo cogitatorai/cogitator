@@ -167,19 +167,19 @@ func (m *Manager) Status(connectorName, userID string) bool {
 
 // StartAuth begins the OAuth flow for a connector. Returns the consent URL.
 // clientID and clientSecret must be provided by the caller (from secrets).
-func (m *Manager) StartAuth(connectorName, userID, clientID, clientSecret, redirectScheme, callbackURL string) (string, error) {
+func (m *Manager) StartAuth(connectorName, userID, clientID, clientSecret, redirectScheme, source, origin, callbackURL string) (string, error) {
 	m.mu.RLock()
 	c, ok := m.connectors[connectorName]
 	m.mu.RUnlock()
 	if !ok {
 		return "", fmt.Errorf("unknown connector: %s", connectorName)
 	}
-	return m.oauth.StartAuth(connectorName, userID, c.Auth, clientID, clientSecret, redirectScheme, callbackURL)
+	return m.oauth.StartAuth(connectorName, userID, c.Auth, clientID, clientSecret, redirectScheme, source, origin, callbackURL)
 }
 
 // HandleCallback exchanges an auth code for tokens.
-// Returns (connectorName, userID, redirectScheme, error).
-func (m *Manager) HandleCallback(code, state string) (string, string, string, error) {
+// Returns (connectorName, userID, redirectScheme, source, origin, error).
+func (m *Manager) HandleCallback(code, state string) (string, string, string, string, string, error) {
 	return m.oauth.HandleCallback(code, state)
 }
 

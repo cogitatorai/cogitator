@@ -25,8 +25,8 @@ var builtinCredentials = map[string][2]string{
 type ConnectorManager interface {
 	List() []connector.ConnectorInfo
 	Status(connectorName, userID string) bool
-	StartAuth(connectorName, userID, clientID, clientSecret, redirectScheme, callbackURL string) (string, error)
-	HandleCallback(code, state string) (string, string, string, error)
+	StartAuth(connectorName, userID, clientID, clientSecret, redirectScheme, source, origin, callbackURL string) (string, error)
+	HandleCallback(code, state string) (string, string, string, string, string, error)
 	Revoke(connectorName, userID string) error
 	ConnectorStatuses(userID string) map[string]bool
 	Settings() *connector.SettingsStore
@@ -99,13 +99,15 @@ func (r *Router) handleConnectorAuthStart(w http.ResponseWriter, req *http.Reque
 		writeError(w, http.StatusBadRequest, "invalid redirect_scheme")
 		return
 	}
+	source := req.URL.Query().Get("source")
+	origin := requestOrigin(req)
 	// Only derive callback URL from request for mobile (redirect_scheme set).
 	// Desktop uses the default localhost URL which is already registered with Google.
 	var callbackURL string
 	if redirectScheme != "" {
 		callbackURL = r.connectorCallbackURL(req)
 	}
-	url, err := r.connectors.StartAuth(name, userID, clientID, clientSecret, redirectScheme, callbackURL)
+	url, err := r.connectors.StartAuth(name, userID, clientID, clientSecret, redirectScheme, source, origin, callbackURL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -124,7 +126,7 @@ func (r *Router) handleConnectorCallback(w http.ResponseWriter, req *http.Reques
 		writeError(w, http.StatusBadRequest, "missing code or state")
 		return
 	}
-	connectorName, userID, redirectScheme, err := r.connectors.HandleCallback(code, state)
+	connectorName, userID, redirectScheme, source, origin, err := r.connectors.HandleCallback(code, state)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -143,13 +145,14 @@ func (r *Router) handleConnectorCallback(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, `<!DOCTYPE html>
-<html><head><title>Connected</title></head>
-<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#18181b;color:#e4e4e7">
-<p>Connected successfully. You can now close this tab.</p>
-</body></html>`)
+	// Web dashboard: redirect back to connectors page.
+	if source == "web" {
+		http.Redirect(w, req, origin+"/#connectors", http.StatusFound)
+		return
+	}
+
+	// Desktop: show a branded page the user can close.
+	oauthBrandedPage(w, connectorName+" connected successfully.", "You can close this window.")
 }
 
 func (r *Router) handleConnectorDisconnect(w http.ResponseWriter, req *http.Request) {

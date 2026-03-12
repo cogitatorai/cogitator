@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { fetchAuthProviders, fetchVersionInfo } from '../api';
+import { fetchAuthProviders, fetchVersionInfo, isWebBrowser } from '../api';
 import type { AuthProviders } from '../api';
 // TODO: re-enable when Apple Sign-In is fully supported in the desktop app
 // import { getAppleIdToken } from '../social-sdk';
@@ -94,7 +94,8 @@ export default function Login() {
   const handleGoogleSignIn = useCallback(() => {
     const claimID = crypto.randomUUID();
     localStorage.setItem(LS_PENDING_CLAIM, claimID);
-    window.location.href = `/api/auth/google/start?return_to=login&purpose=login&claim_id=${claimID}`;
+    const src = isWebBrowser ? '&source=web' : '';
+    window.location.href = `/api/auth/google/start?return_to=login&purpose=login&claim_id=${claimID}${src}`;
   }, []);
 
   // TODO: re-enable when Apple Sign-In is fully supported in the desktop app

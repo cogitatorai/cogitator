@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { registerAPI, fetchAuthProviders, fetchVersionInfo } from '../api';
+import { registerAPI, fetchAuthProviders, fetchVersionInfo, isWebBrowser } from '../api';
 import type { AuthProviders } from '../api';
 // TODO: re-enable when Apple Sign-In is fully supported in the desktop app
 // import { getAppleIdToken } from '../social-sdk';
@@ -112,7 +112,8 @@ export default function Register() {
     const claimID = crypto.randomUUID();
     localStorage.setItem(LS_PENDING_CLAIM, claimID);
     const ic = encodeURIComponent(inviteCode);
-    window.location.href = `/api/auth/google/start?return_to=register&purpose=login&claim_id=${claimID}&invite_code=${ic}`;
+    const src = isWebBrowser ? '&source=web' : '';
+    window.location.href = `/api/auth/google/start?return_to=register&purpose=login&claim_id=${claimID}&invite_code=${ic}${src}`;
   }, [inviteCode]);
 
   // TODO: re-enable when Apple Sign-In is fully supported in the desktop app

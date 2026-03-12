@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.31.1 (2026-03-12)
+
+### Features
+
+- Branded Cogitator callback pages for OAuth flows in the desktop app (4c58843)
+- Web OAuth flows redirect back to the dashboard instead of showing a close-me page (4c58843)
+- Social sign-in credentials fall back to GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET env vars for Docker (4c58843)
+
+### Fixes
+
+- OAuth redirect_uri mismatch when a dev proxy sits between the browser and server (4c58843)
+- Desktop app no longer loads a full dashboard in the system browser after OAuth (4c58843)
+
 ## 0.31.0 (2026-03-12)
 
 ### Features

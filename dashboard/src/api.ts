@@ -2,6 +2,9 @@ import React from 'react';
 
 const BASE = '';
 
+/** True when running in a browser (not inside the desktop WKWebView). */
+export const isWebBrowser = !navigator.userAgent.includes('Cogitator-Desktop');
+
 declare global {
   interface Window {
     __COGITATOR_AUTH_TOKEN__?: string;
@@ -490,7 +493,8 @@ export function fetchConnectorStatus(name: string): Promise<{ connected: boolean
 }
 
 export function startConnectorAuth(name: string): Promise<{ url: string }> {
-  return fetchJSON(`/api/connectors/${encodeURIComponent(name)}/auth/start`);
+  const src = isWebBrowser ? '?source=web' : '';
+  return fetchJSON(`/api/connectors/${encodeURIComponent(name)}/auth/start${src}`);
 }
 
 export async function disconnectConnector(name: string): Promise<void> {

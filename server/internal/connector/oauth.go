@@ -32,6 +32,8 @@ type pendingAuth struct {
 	userID         string
 	config         *oauth2.Config
 	redirectScheme string
+	source         string // "web" when initiated from the browser dashboard
+	origin         string // scheme+host for redirect-back
 }
 
 // OAuthRuntime manages OAuth2 flows and token storage for all connectors.
@@ -62,7 +64,7 @@ func tokenKey(connectorName, userID string) string {
 
 // StartAuth begins an OAuth flow. Returns the provider consent URL.
 // callbackURL is the full URL for the OAuth callback (derived from the request by the caller).
-func (o *OAuthRuntime) StartAuth(connectorName, userID string, auth AuthConfig, clientID, clientSecret, redirectScheme, callbackURL string) (string, error) {
+func (o *OAuthRuntime) StartAuth(connectorName, userID string, auth AuthConfig, clientID, clientSecret, redirectScheme, source, origin, callbackURL string) (string, error) {
 	state, err := randomState()
 	if err != nil {
 		return "", err
@@ -89,6 +91,8 @@ func (o *OAuthRuntime) StartAuth(connectorName, userID string, auth AuthConfig, 
 		userID:         userID,
 		config:         cfg,
 		redirectScheme: redirectScheme,
+		source:         source,
+		origin:         origin,
 	}
 	o.mu.Unlock()
 
@@ -97,8 +101,8 @@ func (o *OAuthRuntime) StartAuth(connectorName, userID string, auth AuthConfig, 
 }
 
 // HandleCallback exchanges the authorization code for tokens.
-// Returns (connectorName, userID, redirectScheme, error).
-func (o *OAuthRuntime) HandleCallback(code, state string) (string, string, string, error) {
+// Returns (connectorName, userID, redirectScheme, source, origin, error).
+func (o *OAuthRuntime) HandleCallback(code, state string) (string, string, string, string, string, error) {
 	o.mu.Lock()
 	pending, ok := o.states[state]
 	if ok {
@@ -107,7 +111,7 @@ func (o *OAuthRuntime) HandleCallback(code, state string) (string, string, strin
 	o.mu.Unlock()
 
 	if !ok {
-		return "", "", "", errors.New("unknown or expired OAuth state")
+		return "", "", "", "", "", errors.New("unknown or expired OAuth state")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -115,7 +119,7 @@ func (o *OAuthRuntime) HandleCallback(code, state string) (string, string, strin
 
 	token, err := pending.config.Exchange(ctx, code)
 	if err != nil {
-		return "", "", "", fmt.Errorf("token exchange: %w", err)
+		return "", "", "", "", "", fmt.Errorf("token exchange: %w", err)
 	}
 
 	info := &TokenInfo{
@@ -133,9 +137,9 @@ func (o *OAuthRuntime) HandleCallback(code, state string) (string, string, strin
 	o.mu.Unlock()
 
 	if err := o.saveToken(key, info); err != nil {
-		return "", "", "", fmt.Errorf("persist tokens: %w", err)
+		return "", "", "", "", "", fmt.Errorf("persist tokens: %w", err)
 	}
-	return pending.connectorName, pending.userID, pending.redirectScheme, nil
+	return pending.connectorName, pending.userID, pending.redirectScheme, pending.source, pending.origin, nil
 }
 
 // Status returns whether a user has a connector connected.

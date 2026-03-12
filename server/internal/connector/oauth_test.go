@@ -18,7 +18,7 @@ func TestOAuth_StartAuth(t *testing.T) {
 		Scopes:   []string{"calendar.readonly"},
 	}
 
-	url, err := o.StartAuth("google", "user1", cfg, "test-client-id", "test-client-secret", "", "")
+	url, err := o.StartAuth("google", "user1", cfg, "test-client-id", "test-client-secret", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestOAuth_Status_Disconnected(t *testing.T) {
 func TestOAuth_HandleCallback_InvalidState(t *testing.T) {
 	dir := t.TempDir()
 	o := NewOAuthRuntime(secretstore.NewFileStore(dir), 8484)
-	_, _, _, err := o.HandleCallback("somecode", "badstate")
+	_, _, _, _, _, err := o.HandleCallback("somecode", "badstate")
 	if err == nil {
 		t.Fatal("expected error for invalid state")
 	}

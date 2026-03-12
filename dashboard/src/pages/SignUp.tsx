@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { setupAPI, fetchAuthProviders, fetchVersionInfo } from '../api';
+import { setupAPI, fetchAuthProviders, fetchVersionInfo, isWebBrowser } from '../api';
 import type { AuthProviders } from '../api';
 import StripedButton from '../components/StripedButton';
 
@@ -94,7 +94,8 @@ export default function SignUp() {
   const handleGoogleSignIn = useCallback(() => {
     const claimID = crypto.randomUUID();
     localStorage.setItem(LS_PENDING_CLAIM, claimID);
-    window.location.href = `/api/auth/google/start?return_to=signup&purpose=login&claim_id=${claimID}`;
+    const src = isWebBrowser ? '&source=web' : '';
+    window.location.href = `/api/auth/google/start?return_to=signup&purpose=login&claim_id=${claimID}${src}`;
   }, []);
 
   const busy = submitting || socialLoading !== null;

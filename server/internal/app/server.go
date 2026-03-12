@@ -657,9 +657,19 @@ func New(opts Options) (*Server, error) {
 		drainMgr = drain.New()
 	}
 
+	// Social sign-in credentials: prefer build-time ldflags, fall back to env vars.
+	googleClientID := connector.GoogleClientID
+	googleClientSecret := connector.GoogleClientSecret
+	if googleClientID == "" {
+		googleClientID = os.Getenv("GOOGLE_CLIENT_ID")
+	}
+	if googleClientSecret == "" {
+		googleClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
+	}
+
 	appleAudiences := []string{social.AppleServicesID, social.AppleMobileBundleID}
 	appleAudiences = append(appleAudiences, debugAppleAudiences...)
-	socialVerifier := social.NewVerifier(connector.GoogleClientID, appleAudiences...)
+	socialVerifier := social.NewVerifier(googleClientID, appleAudiences...)
 
 	routerCfg := api.RouterConfig{
 		Agent:           a,
@@ -694,8 +704,8 @@ func New(opts Options) (*Server, error) {
 		Connectors:      connectorMgr,
 		Store:           secretStore,
 		SocialVerifier:  socialVerifier,
-		GoogleClientID:     connector.GoogleClientID,
-		GoogleClientSecret: connector.GoogleClientSecret,
+		GoogleClientID:     googleClientID,
+		GoogleClientSecret: googleClientSecret,
 		AppleServicesID:    social.AppleServicesID,
 		MetricsRing:        metricsRing,
 		InternalSecret:     internalSecret,

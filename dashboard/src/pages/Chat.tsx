@@ -9,7 +9,6 @@ import { Lock, Paperclip, ListTodo } from 'lucide-react';
 import Panel from '../components/Panel';
 import PageHeader from '../components/PageHeader';
 import SessionSidebar from '../components/SessionSidebar';
-import StripedButton from '../components/StripedButton';
 import { sendNotification } from '../hooks/useDesktopNotifications';
 
 interface ResolvedTools {
@@ -120,7 +119,7 @@ export default function Chat() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadGenRef = useRef(0);
 
@@ -418,6 +417,7 @@ export default function Chat() {
       timestamp: new Date(),
     }]);
     setInput('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
     const file = selectedFile;
     setSelectedFile(null);
     setActivity({ status: 'thinking' });
@@ -672,56 +672,65 @@ export default function Chat() {
               )}
 
               {/* Input */}
-              <div className="flex gap-2 mt-4">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ACCEPTED_FILE_TYPES}
-                  className="absolute w-0 h-0 overflow-hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      if (file.size > MAX_FILE_SIZE) {
-                        alert('File must be under 10MB');
-                        return;
-                      }
-                      setSelectedFile(file);
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_FILE_TYPES}
+                className="absolute w-0 h-0 overflow-hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > MAX_FILE_SIZE) {
+                      alert('File must be under 10MB');
+                      return;
                     }
-                    e.target.value = '';
-                  }}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-3 bg-zinc-900 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 cursor-pointer"
-                  title="Attach file"
-                >
-                  <Paperclip size={16} />
-                </button>
-                <input
+                    setSelectedFile(file);
+                  }
+                  e.target.value = '';
+                }}
+              />
+              <div className="mt-4 bg-zinc-900 border border-zinc-700 overflow-hidden focus-within:border-orange-600 focus-within:ring-1 focus-within:ring-orange-600/20 transition-colors">
+                <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    const el = e.target;
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                  }}
                   onKeyDown={handleKeyDown}
+                  rows={1}
                   placeholder={!sessionKey ? 'Select or create a session...' : connected ? 'Type a message...' : 'Waiting for connection...'}
                   disabled={!connected || !sessionKey}
-                  className="flex-1 bg-zinc-900 border border-zinc-700 p-3 text-zinc-100 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none disabled:opacity-50"
+                  className="w-full bg-transparent px-4 pt-3 pb-2 text-zinc-100 text-base resize-none focus:outline-none disabled:opacity-50 placeholder:text-zinc-500"
+                  style={{ minHeight: '40px', maxHeight: '160px' }}
                 />
-                {activity ? (
+                <div className="flex items-center justify-between px-2 pb-2">
                   <button
-                    onClick={cancelRequest}
-                    className="px-6 bg-red-900/40 border border-red-600/50 text-red-400 hover:bg-red-900/60 hover:text-red-300 text-[12px] uppercase tracking-widest font-medium cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 cursor-pointer transition-colors"
+                    title="Attach file"
                   >
-                    Stop
+                    <Paperclip size={18} />
                   </button>
-                ) : (
-                  <StripedButton
-                    onClick={send}
-                    disabled={!connected || !sessionKey || (!input.trim() && !selectedFile)}
-                    className="px-6"
-                  >
-                    Send
-                  </StripedButton>
-                )}
+                  {activity ? (
+                    <button
+                      onClick={cancelRequest}
+                      className="px-4 py-1.5 bg-red-900/40 border border-red-600/50 text-red-400 hover:bg-red-900/60 hover:text-red-300 text-[12px] uppercase tracking-widest font-medium cursor-pointer transition-colors"
+                    >
+                      Stop
+                    </button>
+                  ) : (
+                    <button
+                      onClick={send}
+                      disabled={!connected || !sessionKey || (!input.trim() && !selectedFile)}
+                      className="px-4 py-1.5 bg-orange-600 text-white text-[12px] uppercase tracking-widest font-medium hover:bg-orange-500 disabled:bg-zinc-800 disabled:text-zinc-600 cursor-pointer disabled:cursor-default transition-colors"
+                    >
+                      Send
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -914,7 +923,7 @@ const MessageBubble = memo(function MessageBubble({ message, onDelete }: { messa
   if (message.role === 'system') {
     return (
       <div className="flex justify-start group">
-        <div className="max-w-[75%] bg-zinc-800/30 border border-zinc-700 p-3">
+        <div className="max-w-[80%] bg-zinc-800/30 border border-zinc-700 p-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[12px] uppercase tracking-widest font-medium text-blue-400">Task Result</span>
             <span className="text-[12px] text-zinc-600">{time}</span>
@@ -933,7 +942,7 @@ const MessageBubble = memo(function MessageBubble({ message, onDelete }: { messa
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} group`}>
-      <div className={`max-w-[75%] ${
+      <div className={`max-w-[80%] ${
         isUser
           ? 'bg-orange-900/20 border border-orange-600/30'
           : 'bg-zinc-800/50 border border-zinc-700'

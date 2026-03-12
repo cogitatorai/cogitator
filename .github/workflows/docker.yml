@@ -37,5 +37,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            cogitatorai/cogitator:${{ steps.version.outputs.version }}
-            cogitatorai/cogitator:latest
+            deiu/cogitator:${{ steps.version.outputs.version }}
+            deiu/cogitator:latest

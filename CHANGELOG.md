@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.31.0 (2026-03-12)
+
+### Features
+
+- Reflector worker classifies behavioral signals from conversations and feeds the enrichment pipeline (7925523)
+- Update banner uses proper semver comparison; Docker/CLI installs show "View Release" instead of "Update Now" (fe6c88f)
+- Version displayed on login, register, and signup pages; version endpoint is now public (43c79a3)
+
+### Fixes
+
+- Delete task_runs and token_usage when removing a user, preventing FK constraint 500 errors (cc27a44)
+- Docker image now stamps the version via ldflags at build time (83d8819)
+- Docker Compose workspace path uses HOME instead of tilde and sets COGITATOR_WORKSPACE_PATH inside the container (83d8819)
+- Warm color palette and improved font readability across light and dark themes (80b7289)
+
 ## 0.30.0 (2026-03-12)
 
 ### Features

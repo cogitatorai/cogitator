@@ -344,6 +344,41 @@ func TestDeleteUser_CantDeleteLastAdmin(t *testing.T) {
 	}
 }
 
+func TestDeleteUser_WithTaskRuns(t *testing.T) {
+	router, store := setupUserRouter(t)
+
+	admin, adminTok := createTestUserWithToken(t, router, store, "admin@test.com", user.RoleAdmin)
+	alice, _ := createTestUserWithToken(t, router, store, "alice@test.com", user.RoleUser)
+	_ = admin
+
+	// Create a task owned by alice.
+	if _, err := router.db.Exec(`INSERT INTO tasks (id, name, prompt, cron_expr, user_id) VALUES (1, 'test', 'do stuff', '0 * * * *', ?)`, alice.ID); err != nil {
+		t.Fatalf("insert task: %v", err)
+	}
+	// Create task_runs referencing alice (FK: task_runs.user_id -> users.id).
+	if _, err := router.db.Exec(`INSERT INTO task_runs (task_id, status, trigger, user_id) VALUES (1, 'success', 'manual', ?)`, alice.ID); err != nil {
+		t.Fatalf("insert task_run 1: %v", err)
+	}
+	if _, err := router.db.Exec(`INSERT INTO task_runs (task_id, status, trigger, user_id) VALUES (1, 'failed', 'manual', ?)`, alice.ID); err != nil {
+		t.Fatalf("insert task_run 2: %v", err)
+	}
+	// Create token_usage referencing alice (FK: token_usage.user_id -> users.id).
+	if _, err := router.db.Exec(`INSERT INTO token_usage (model_tier, model_name, tokens_in, tokens_out, user_id) VALUES ('standard', 'gpt-4', 100, 50, ?)`, alice.ID); err != nil {
+		t.Fatalf("insert token_usage: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, authReq("DELETE", "/api/users/"+alice.ID, nil, adminTok))
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify user is gone.
+	if _, err := store.Get(alice.ID); err == nil {
+		t.Error("expected user to be deleted")
+	}
+}
+
 func TestGetMe(t *testing.T) {
 	router, store := setupUserRouter(t)
 

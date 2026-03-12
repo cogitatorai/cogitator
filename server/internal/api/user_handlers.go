@@ -170,6 +170,8 @@ func (r *Router) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
 	// and orphaned invite codes that reference this user.
 	if r.db != nil {
 		cleanupQueries := []string{
+			`DELETE FROM token_usage WHERE user_id = ?`,
+			`DELETE FROM task_runs WHERE user_id = ?`,
 			`DELETE FROM edges WHERE user_id = ?`,
 			`DELETE FROM nodes WHERE user_id = ?`,
 			`DELETE FROM messages WHERE user_id = ?`,

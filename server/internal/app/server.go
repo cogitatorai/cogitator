@@ -72,9 +72,11 @@ type Server struct {
 	// Subsystems that need graceful shutdown.
 	db            *database.DB
 	eventBus      *bus.Bus
-	enricher      *worker.Enricher
-	profiler      *worker.Profiler
-	consolidator  *worker.Consolidator
+	enricher          *worker.Enricher
+	profiler          *worker.Profiler
+	consolidator      *worker.Consolidator
+	reflector         *worker.Reflector
+	reflectionTrigger *worker.ReflectionTrigger
 	webChannel    *channel.WebChannel
 	teleChannel   *channel.TelegramChannel
 	taskScheduler *task.Scheduler
@@ -260,6 +262,19 @@ func New(opts Options) (*Server, error) {
 		Scale:        cfg.Memory.ConsolidationScale,
 	})
 	consolidator.Start(context.Background())
+
+	// ReflectionTrigger: monitors sessions and emits reflection events after
+	// a message count threshold or idle timeout.
+	reflectionTrigger := worker.NewReflectionTrigger(worker.TriggerConfig{
+		EventBus: eventBus,
+		Logger:   slog.Default(),
+	})
+	reflectionTrigger.Start(context.Background())
+
+	// Reflector: classifies behavioral signals from conversations and creates
+	// episode nodes that feed the enricher -> consolidator -> profiler pipeline.
+	reflector := worker.NewReflector(sessionStore, memoryStore, contentManager, nil, eventBus, "", 0, slog.Default())
+	reflector.Start(context.Background())
 
 	toolsRegistry := tools.NewRegistry(ws.CustomToolsDir(), slog.Default())
 	toolsRegistry.LoadCustomTools()
@@ -502,6 +517,7 @@ func New(opts Options) (*Server, error) {
 			enricher.SetProvider(cheapP, cheapModel)
 			profiler.SetProvider(stdP, cfg.Models.Standard.Model)
 			consolidator.SetProvider(cheapP, cheapModel)
+			reflector.SetProvider(cheapP, cheapModel)
 		}
 	}
 
@@ -705,9 +721,11 @@ func New(opts Options) (*Server, error) {
 		configStore:   configStore,
 		db:            db,
 		eventBus:      eventBus,
-		enricher:      enricher,
-		profiler:      profiler,
-		consolidator:  consolidator,
+		enricher:          enricher,
+		profiler:          profiler,
+		consolidator:      consolidator,
+		reflector:         reflector,
+		reflectionTrigger: reflectionTrigger,
 		webChannel:    webChannel,
 		teleChannel:   telegramChannel,
 		taskScheduler: taskScheduler,
@@ -798,6 +816,8 @@ func (s *Server) Shutdown(ctx context.Context) {
 	s.enricher.Stop()
 	s.profiler.Stop()
 	s.consolidator.Stop()
+	s.reflector.Stop()
+	s.reflectionTrigger.Stop()
 	if s.mcpManager != nil {
 		s.mcpManager.StopAll()
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
@@ -34,6 +35,8 @@ type Reflector struct {
 	msgWindow int
 	logger    *slog.Logger
 	cancel    context.CancelFunc
+
+	mu sync.Mutex
 }
 
 // NewReflector constructs a Reflector. Pass msgWindow <= 0 to use the default
@@ -91,6 +94,14 @@ func (r *Reflector) Stop() {
 	if r.cancel != nil {
 		r.cancel()
 	}
+}
+
+// SetProvider hot-swaps the LLM provider and model used for reflection.
+func (r *Reflector) SetProvider(p provider.Provider, model string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.provider = p
+	r.model = model
 }
 
 // reflectionSignal is one classified behavioral signal from the LLM.
@@ -188,6 +199,13 @@ func (r *Reflector) shouldStore(sig reflectionSignal) bool {
 
 // classify sends the conversation messages to the LLM and parses the response.
 func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]reflectionSignal, error) {
+	r.mu.Lock()
+	prov, model := r.provider, r.model
+	r.mu.Unlock()
+	if prov == nil {
+		return nil, fmt.Errorf("no provider configured")
+	}
+
 	prompt := buildReflectionPrompt(msgs)
 
 	provMsgs := []provider.Message{
@@ -198,7 +216,7 @@ func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]ref
 		{Role: "user", Content: prompt},
 	}
 
-	resp, err := r.provider.Chat(ctx, provMsgs, nil, r.model, nil)
+	resp, err := prov.Chat(ctx, provMsgs, nil, model, nil)
 	if err != nil {
 		return nil, err
 	}

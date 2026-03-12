@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.31.2 (2026-03-12)
+
+### Fixes
+
+- Remove VOLUME directive from Dockerfile that caused stale anonymous volumes to shadow bind mounts (f1660ce)
+- Vite dev proxy reads server port from .env instead of hardcoding 8484 (f1660ce)
+- Remove stale embedded dashboard dist files checked into the repo (ddfa238)
+
 ## 0.31.1 (2026-03-12)
 
 ### Features

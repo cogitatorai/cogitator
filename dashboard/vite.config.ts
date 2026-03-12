@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+import path from 'path'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -12,40 +13,47 @@ console.error = (...args: unknown[]) => {
   origConsoleError.apply(console, args);
 };
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  server: {
-    proxy: {
-      '/api/ollama/pull': {
-        target: 'http://127.0.0.1:8484',
-        changeOrigin: true,
-        headers: { 'Accept': 'text/event-stream' },
-        configure: (proxy) => {
-          proxy.on('error', () => {});
-          proxy.on('proxyRes', (proxyRes) => {
-            // Disable buffering for SSE responses.
-            proxyRes.headers['x-accel-buffering'] = 'no';
-            proxyRes.headers['cache-control'] = 'no-cache';
-          });
+export default defineConfig(({ mode }) => {
+  // Load COGITATOR_* vars from the parent directory's .env file.
+  const env = loadEnv(mode, path.resolve(__dirname, '..'), 'COGITATOR_')
+  const port = env.COGITATOR_SERVER_PORT || '8484'
+  const backend = `http://127.0.0.1:${port}`
+
+  return {
+    plugins: [react(), tailwindcss()],
+    server: {
+      proxy: {
+        '/api/ollama/pull': {
+          target: backend,
+          changeOrigin: true,
+          headers: { 'Accept': 'text/event-stream' },
+          configure: (proxy) => {
+            proxy.on('error', () => {});
+            proxy.on('proxyRes', (proxyRes) => {
+              // Disable buffering for SSE responses.
+              proxyRes.headers['x-accel-buffering'] = 'no';
+              proxyRes.headers['cache-control'] = 'no-cache';
+            });
+          },
         },
-      },
-      '/api': {
-        target: 'http://127.0.0.1:8484',
-        changeOrigin: true,
-        configure: (proxy) => {
-          proxy.on('error', () => {});
+        '/api': {
+          target: backend,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('error', () => {});
+          },
         },
-      },
-      '/ws': {
-        target: 'ws://127.0.0.1:8484',
-        ws: true,
-        configure: (proxy) => {
-          proxy.on('error', () => {});
-          proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
-            socket.on('error', () => {});
-          });
+        '/ws': {
+          target: `ws://127.0.0.1:${port}`,
+          ws: true,
+          configure: (proxy) => {
+            proxy.on('error', () => {});
+            proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
+              socket.on('error', () => {});
+            });
+          },
         },
       },
     },
-  },
+  }
 })

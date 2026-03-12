@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.33.0 (2026-03-12)
+
+### Features
+
+- Chat input redesigned as auto-resizing composer with inline attach and send buttons; chat bubbles widened to 80% (d4684ed)
+
+### Improvements
+
+- Docker image published to Docker Hub automatically on release (6571489)
+- Removed legacy orchestrator code from public repo (1f4bd49)
+
 ## 0.32.0 (2026-03-12)
 
 ### Features

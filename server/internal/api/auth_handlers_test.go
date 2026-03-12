@@ -2,7 +2,9 @@ package api
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -205,6 +207,65 @@ func TestRegister_MissingFields(t *testing.T) {
 
 			if w.Code != http.StatusBadRequest {
 				t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestRegister_Base64InviteCode(t *testing.T) {
+	router, store := setupAuthRouter(t)
+
+	admin := createTestUser(t, store, "admin@test.com", "admin-pass", user.RoleAdmin)
+	code := createTestInviteCode(t, store, admin.ID, user.RoleUser)
+
+	// Wrap the raw code in the base64 format used by mobile clients: base64("url|code").
+	mobileCode := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("http://localhost:8888|%s", code)))
+
+	payload, _ := json.Marshal(registerRequest{
+		Email:      "carol@example.com",
+		Name:       "Carol",
+		Password:   "secret123",
+		InviteCode: mobileCode,
+	})
+
+	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp authResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.User == nil {
+		t.Fatal("expected user in response")
+	}
+	if resp.User.Email != "carol@example.com" {
+		t.Errorf("expected email 'carol@example.com', got %q", resp.User.Email)
+	}
+}
+
+func TestParseInviteCode(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"raw code", "53C4-B1A3-74B0", "53C4-B1A3-74B0"},
+		{"base64 with url", base64.StdEncoding.EncodeToString([]byte("http://localhost:8888|53C4-B1A3-74B0")), "53C4-B1A3-74B0"},
+		{"base64 with https url", base64.StdEncoding.EncodeToString([]byte("https://my.server.com|ABCD-EFGH-IJKL")), "ABCD-EFGH-IJKL"},
+		{"invalid base64", "not-valid-base64!!!", "not-valid-base64!!!"},
+		{"base64 without pipe returns original", base64.StdEncoding.EncodeToString([]byte("nopipe")), base64.StdEncoding.EncodeToString([]byte("nopipe"))},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseInviteCode(tc.input)
+			if got != tc.want {
+				t.Errorf("parseInviteCode(%q) = %q, want %q", tc.input, got, tc.want)
 			}
 		})
 	}

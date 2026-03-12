@@ -227,7 +227,7 @@ function AppShell() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const showBanner = status !== null && !status.provider_configured;
+  const showBanner = isAdmin && status !== null && !status.provider_configured;
 
   // Auth loading state: centered spinner.
   if (authLoading) {

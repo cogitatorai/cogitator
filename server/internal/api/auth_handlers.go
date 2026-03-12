@@ -1,13 +1,30 @@
 package api
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/mail"
+	"strings"
 
 	"github.com/cogitatorai/cogitator/server/internal/user"
 )
+
+// parseInviteCode extracts the raw invite code from a value that may be
+// either the raw code itself (e.g. "53C4-B1A3-74B0") or a base64-encoded
+// composite string used by mobile clients (e.g. base64("https://host|53C4-B1A3-74B0")).
+// If decoding fails or no "|" separator is found, the original value is returned.
+func parseInviteCode(v string) string {
+	decoded, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		return v
+	}
+	if i := strings.LastIndex(string(decoded), "|"); i >= 0 {
+		return string(decoded[i+1:])
+	}
+	return v
+}
 
 // registerRequest is the JSON body for POST /api/auth/register.
 type registerRequest struct {
@@ -82,7 +99,7 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Step 2: Redeem the invite code (validates and marks as used).
-	ic, err := r.users.RedeemInviteCode(body.InviteCode, u.ID)
+	ic, err := r.users.RedeemInviteCode(parseInviteCode(body.InviteCode), u.ID)
 	if err != nil {
 		// Cleanup the user we just created.
 		_ = r.users.Delete(u.ID)

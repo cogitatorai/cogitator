@@ -610,8 +610,21 @@ func New(opts Options) (*Server, error) {
 
 	// Determine the dashboard serving source.
 	dashboardDir := opts.DashboardDir
-	if isSaaS && dashboardDir == "" {
-		dashboardDir = defaultSaaSDashboardDir
+	if dashboardDir == "" {
+		if v := os.Getenv("COGITATOR_DASHBOARD_DIR"); v != "" {
+			dashboardDir = v
+		} else if isSaaS {
+			dashboardDir = defaultSaaSDashboardDir
+		}
+	}
+	// Auto-detect: try ../cogitator/dashboard/dist relative to the executable.
+	if dashboardDir == "" && opts.DashboardFS == nil {
+		if exe, err := os.Executable(); err == nil {
+			candidate := filepath.Join(filepath.Dir(exe), "..", "cogitator", "dashboard", "dist")
+			if info, err := os.Stat(filepath.Join(candidate, "index.html")); err == nil && !info.IsDir() {
+				dashboardDir = candidate
+			}
+		}
 	}
 
 	// SaaS-specific subsystems: metrics collection, drain manager, internal auth.

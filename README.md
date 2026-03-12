@@ -34,7 +34,10 @@ cd cogitator
 cd dashboard && npm ci && npm run build && cd ..
 
 # Build the server
-cd server && go build -trimpath -o ../../cogitator ./cmd/cogitator && cd ..
+cd server && go build -trimpath -o ../cogitator ./cmd/cogitator && cd ..
+
+# Copy the .env file (recommended to set the JWT param to enable persistent sessions)
+cp .env.example .env
 
 # Run
 ./cogitator
@@ -73,12 +76,10 @@ If you are building from the parent monorepo (which includes platform wrappers, 
 ## Docker
 
 ```sh
-cd server
-docker build -t cogitator .
-docker run -p 8484:8484 -v cogitator-data:/data cogitator
+docker compose up
 ```
 
-The container exposes port 8484 and persists all state to the `/data` volume. Configure via environment variables.
+The container exposes port 8484 by default and persists state to `~/.cogitator` on the host (configurable via `COGITATOR_WORKSPACE_PATH` in `.env`). Copy `.env.example` to `.env` before starting.
 
 
 ## Architecture
@@ -145,7 +146,7 @@ dashboard/
 | `web_search` | Search the web via DuckDuckGo, Brave, or Mojeek |
 | `start_mcp_server` | Start a configured MCP server by name |
 
-Custom tools are defined as YAML files in the workspace `tools/` directory with a name, description, parameters schema, and shell command template.
+Custom tools are defined as YAML files in the `tools/` directory (within the defined workspace) with a name, description, parameters schema, and shell command template.
 
 ### MCP servers
 
@@ -166,7 +167,9 @@ Pages: Chat, Tasks, Memory, Skills, Connectors, MCP Servers, History, Resources,
 
 ## Configuration
 
-Cogitator uses a `cogitator.yaml` config file with environment variable overrides. The config is auto-saved to the workspace directory so dashboard settings persist across restarts.
+Cogitator also uses a `cogitator.yaml` config file with environment variable overrides. The config is auto-saved to the workspace directory so dashboard settings persist across restarts.
+
+The precedence is: env vars > cogitator.yaml > defaults.
 
 ```sh
 # Environment variables (.env or export)
@@ -297,8 +300,15 @@ All endpoints require JWT authentication. The WebSocket endpoint is at `/ws`.
 **Bare metal.** The Go binary runs anywhere Go compiles. Point it at a workspace directory and go.
 
 
+## Contributing
+
+Contributions are welcome. Bug fixes, new channel adapters, connectors, dashboard improvements, and test coverage can go straight to a pull request. For anything that touches the agent loop, memory system, or security model, open a discussion first.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guidelines.
+
+
 ## License
 
-AGPL-3.0. See [LICENSE](LICENSE).
+AGPL-3.0. See [LICENSE.md](LICENSE.md).
 
 The server and dashboard source code are free to use, modify, and distribute under the terms of the GNU Affero General Public License v3.0. If you run a modified version as a network service, you must make your source code available to users of that service.

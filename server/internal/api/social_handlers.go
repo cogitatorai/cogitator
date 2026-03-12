@@ -159,7 +159,7 @@ func (r *Router) handleSocialAuth(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Redeem the invite code.
-	ic, err := r.users.RedeemInviteCode(body.InviteCode, newUser.ID)
+	ic, err := r.users.RedeemInviteCode(parseInviteCode(body.InviteCode), newUser.ID)
 	if err != nil {
 		_ = r.users.Delete(newUser.ID)
 		switch {
@@ -657,7 +657,7 @@ func (r *Router) completeSocialLogin(ctx context.Context, provider, idToken, inv
 	}
 
 	if !isSetup {
-		ic, err := r.users.RedeemInviteCode(inviteCode, newUser.ID)
+		ic, err := r.users.RedeemInviteCode(parseInviteCode(inviteCode), newUser.ID)
 		if err != nil {
 			_ = r.users.Delete(newUser.ID)
 			switch {

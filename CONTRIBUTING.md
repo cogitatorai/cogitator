@@ -34,33 +34,6 @@ Bug fixes, documentation improvements, and small quality-of-life changes can go 
 - Telemetry or analytics that phone home without explicit user consent
 
 
-## Development setup
-
-```sh
-git clone https://github.com/cogitatorai/cogitator.git
-cd cogitator
-
-# Dashboard
-cd dashboard && npm ci && cd ..
-
-# Run in dev mode (hot reload for dashboard, rebuild server manually)
-cd server && go build -trimpath -o ../../cogitator ./cmd/cogitator && cd ..
-trap 'kill 0' EXIT && ./cogitator & cd dashboard && npm run dev
-```
-
-### Running tests
-
-```sh
-cd server && go test ./... -count=1
-```
-
-### Linting
-
-```sh
-cd server && go vet ./...
-```
-
-
 ## Pull request guidelines
 
 1. **One concern per PR.** A bug fix is one PR. A new feature is another. Mixing them makes review harder.

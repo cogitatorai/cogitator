@@ -23,7 +23,7 @@ export default function Resources() {
 
   if (loading && !status) {
     return (
-      <div className="min-h-full p-2">
+      <div className="min-h-full">
         <HudHeader />
         <p className="text-base text-zinc-600 animate-pulse mt-8 ml-2">Connecting to daemon...</p>
       </div>
@@ -32,7 +32,7 @@ export default function Resources() {
 
   if (error && !status) {
     return (
-      <div className="min-h-full p-2">
+      <div className="min-h-full">
         <HudHeader />
         <div className="hud-panel mt-8">
           <p className="text-red-500 text-base">{error}</p>
@@ -48,7 +48,7 @@ export default function Resources() {
   const stats = usageData?.stats ?? [];
 
   return (
-    <div className="min-h-full p-2 relative overflow-hidden">
+    <div className="min-h-full relative overflow-hidden">
       <HudHeader />
 
       {/* Status bar */}

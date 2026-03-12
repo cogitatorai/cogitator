@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.30.0 (2026-03-12)
+
+### Features
+
+- Multi-stage Docker build bundles the dashboard into the image (29ee25c)
+- Auto-detect dashboard dist directory in CLI mode relative to the binary (cf147e7)
+- Docker Compose configuration with env var support for port and workspace path (29ee25c)
+
+### Fixes
+
+- Parse base64-encoded invite codes in all registration endpoints (da00136)
+- LLM provider banner only shown to admin users (4281543)
+- LLM provider banner navigates to Admin instead of Settings (3e8675f)
+- Swift wrapper binary moved to bin/ to avoid macOS case-insensitive collision (25e48df)
+- Resources page padding now matches other dashboard pages (f2ecb28)
+
+### Improvements
+
+- Server and dashboard moved into cogitator/ directory for public repo distribution (ce1887a)
+- Go build outputs consolidated into bin/ directory (d4e218d)
+
 ## 0.29.0 (2026-03-11)
 
 ### Features

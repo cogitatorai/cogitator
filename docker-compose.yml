@@ -1,0 +1,11 @@
+services:
+  cogitator:
+    image: cogitator
+    build: .
+    ports:
+      - "${COGITATOR_SERVER_PORT:-8484}:${COGITATOR_SERVER_PORT:-8484}"
+    volumes:
+      - ${COGITATOR_WORKSPACE_PATH:-~/.cogitator}:/data
+    env_file:
+      - .env
+    restart: unless-stopped

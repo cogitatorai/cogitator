@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.32.0 (2026-03-12)
+
+### Features
+
+- macOS app minimizes to the status bar when closed via the window button or Cmd+W; the server keeps running in the background and the window can be restored from the status bar menu; Cmd+Q still fully quits
+
+### Fixes
+
+- Agent file read/write tools now block access to cogitator.db and mcp.json as sensitive paths
+- IsSensitivePath now matches bare filename patterns (cogitator.yaml, secrets.yaml, cogitator.db, mcp.json) by basename, fixing a bug where these were only enforced for shell commands but not for read_file/write_file
+
 ## 0.31.2 (2026-03-12)
 
 ### Fixes

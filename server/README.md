@@ -170,6 +170,8 @@ The release target produces two artifacts: a zip (used by the auto-updater) and 
 
 On first launch, the app presents an onboarding screen with two options: "Set up your own Cogitator" (runs a local server) or "Join an existing Cogitator" (connects to a remote instance via invite code). The chosen mode is saved to `~/.cogitator/desktop.json`. Use the "Switch Mode..." menu item to return to onboarding.
 
+**Status bar**: Closing the window (red X or Cmd+W) hides the app to the macOS status bar instead of quitting. The server continues running in the background. Click the status bar icon to reopen the window, or use Cmd+Q to fully quit.
+
 The app targets macOS 13.0+ and is signed with a Developer ID certificate by default. For notarization, store credentials once:
 
 ```sh

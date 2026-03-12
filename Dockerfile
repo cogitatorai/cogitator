@@ -6,12 +6,17 @@ COPY dashboard/ .
 RUN npm run build
 
 FROM golang:1.25-alpine AS builder
+RUN apk add --no-cache git
 ARG BUILD_TAGS=""
 WORKDIR /build
+COPY .git .git
 COPY server/go.mod server/go.sum ./
 RUN go mod download
 COPY server/ .
-RUN CGO_ENABLED=0 go build -tags "${BUILD_TAGS}" -o cogitator ./cmd/cogitator/
+RUN VERSION=$(git describe --tags --match 'v[0-9]*' --always 2>/dev/null || echo dev) && \
+  CGO_ENABLED=0 go build -tags "${BUILD_TAGS}" \
+  -ldflags "-s -w -X github.com/cogitatorai/cogitator/server/internal/version.Version=${VERSION}" \
+  -o cogitator ./cmd/cogitator/
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates

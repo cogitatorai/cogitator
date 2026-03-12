@@ -76,10 +76,11 @@ If you are building from the parent monorepo (which includes platform wrappers, 
 ## Docker
 
 ```sh
+docker pull deiu/cogitator
 docker compose up
 ```
 
-The container exposes port 8484 by default and persists state to `~/.cogitator` on the host (configurable via `COGITATOR_WORKSPACE_PATH` in `.env`). Copy `.env.example` to `.env` before starting.
+Pre-built images for amd64 and arm64 are published to [Docker Hub](https://hub.docker.com/r/deiu/cogitator) on every release. The container exposes port 8484 by default and persists state to `~/.cogitator` on the host (configurable via `COGITATOR_WORKSPACE_PATH` in `.env`). Copy `.env.example` to `.env` before starting.
 
 
 ## Architecture

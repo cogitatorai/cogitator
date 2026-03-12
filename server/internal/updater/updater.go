@@ -42,6 +42,7 @@ type Status struct {
 	Current         string       `json:"current"`
 	Latest          *ReleaseInfo `json:"latest,omitempty"`
 	UpdateAvailable bool         `json:"update_available"`
+	CanAutoUpdate   bool         `json:"can_auto_update"`
 	Checking        bool         `json:"checking"`
 	Downloading     bool         `json:"downloading"`
 	Ready           bool         `json:"ready"`
@@ -71,6 +72,7 @@ type Updater struct {
 // New creates an Updater. It loads any cached release info from disk so the
 // dashboard can show the update banner immediately on restart.
 func New(cfg Config) *Updater {
+	_, appErr := appBundlePath()
 	u := &Updater{
 		cfg:    cfg,
 		client: &http.Client{Timeout: 15 * time.Second},
@@ -78,6 +80,7 @@ func New(cfg Config) *Updater {
 		status: Status{
 			Current:        cfg.Current,
 			SkippedVersion: cfg.SkippedVersion,
+			CanAutoUpdate:  appErr == nil,
 		},
 		stop: make(chan struct{}),
 	}

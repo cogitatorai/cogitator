@@ -377,6 +377,7 @@ export interface VersionInfo {
   current: string;
   latest?: VersionReleaseInfo;
   update_available: boolean;
+  can_auto_update: boolean;
   checking: boolean;
   downloading: boolean;
   ready: boolean;

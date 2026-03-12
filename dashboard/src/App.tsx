@@ -25,11 +25,24 @@ import NotificationBell from './components/NotificationBell';
 
 type Page = 'tasks' | 'history' | 'resources' | 'chat' | 'memory' | 'skills' | 'connectors' | 'settings' | 'account' | 'admin' | 'users' | 'register';
 
-/** Strip leading "v" so "v0.3.1" and "0.3.1" compare equal. */
+/** Strip leading "v" and any pre-release suffix so "v0.3.1" and "0.3.1" compare equal. */
 function bareVersion(v: string): string {
   const s = v.startsWith('v') ? v.slice(1) : v;
   const dash = s.indexOf('-');
   return dash >= 0 ? s.slice(0, dash) : s;
+}
+
+/** Return true if version a is strictly newer than version b (semver comparison). */
+function isNewer(a: string, b: string): boolean {
+  const pa = bareVersion(a).split('.').map(Number);
+  const pb = bareVersion(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] ?? 0;
+    const nb = pb[i] ?? 0;
+    if (na > nb) return true;
+    if (na < nb) return false;
+  }
+  return false;
 }
 
 const PAGES = new Set<Page>(['tasks', 'history', 'resources', 'chat', 'memory', 'skills', 'connectors', 'settings', 'account', 'admin', 'users', 'register']);
@@ -323,7 +336,7 @@ function AppShell() {
 
       {/* Content */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden hud-grid-bg">
-        {(showBanner || (versionInfo?.latest && bareVersion(versionInfo.current) !== bareVersion(versionInfo.latest.tag) &&
+        {(showBanner || (versionInfo?.latest && isNewer(versionInfo.latest.tag, versionInfo.current) &&
           bareVersion(versionInfo.latest.tag) !== bareVersion(versionInfo.skipped_version ?? ''))) && (
           <div className="shrink-0 px-6 pt-6 space-y-4">
             {showBanner && (
@@ -340,7 +353,7 @@ function AppShell() {
               </button>
             )}
 
-            {versionInfo?.latest && bareVersion(versionInfo.current) !== bareVersion(versionInfo.latest.tag) &&
+            {versionInfo?.latest && isNewer(versionInfo.latest.tag, versionInfo.current) &&
               bareVersion(versionInfo.latest.tag) !== bareVersion(versionInfo.skipped_version ?? '') && (
               <div className="w-full border border-orange-600/40 bg-orange-950/30 p-4 flex items-center justify-between">
                 <div>
@@ -353,21 +366,34 @@ function AppShell() {
                   </p>
                 </div>
                 <div className="flex items-center shrink-0 ml-4">
-                  {versionInfo.ready ? (
-                    <button
-                      onClick={handleRestart}
-                      className="px-4 py-2 text-sm font-medium uppercase tracking-widest bg-green-600 text-white hover:bg-green-500 transition-colors cursor-pointer"
-                    >
-                      Restart
-                    </button>
+                  {versionInfo.can_auto_update ? (
+                    <>
+                      {versionInfo.ready ? (
+                        <button
+                          onClick={handleRestart}
+                          className="px-4 py-2 text-sm font-medium uppercase tracking-widest bg-green-600 text-white hover:bg-green-500 transition-colors cursor-pointer"
+                        >
+                          Restart
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleDownload}
+                          disabled={localDownloading || versionInfo.downloading}
+                          className="px-4 py-2 text-sm font-medium uppercase tracking-widest bg-orange-600 text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          {localDownloading || versionInfo.downloading ? 'Downloading...' : 'Update Now'}
+                        </button>
+                      )}
+                    </>
                   ) : (
-                    <button
-                      onClick={handleDownload}
-                      disabled={localDownloading || versionInfo.downloading}
-                      className="px-4 py-2 text-sm font-medium uppercase tracking-widest bg-orange-600 text-white hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    <a
+                      href={versionInfo.latest.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 text-sm font-medium uppercase tracking-widest bg-orange-600 text-white hover:bg-orange-400 transition-colors"
                     >
-                      {localDownloading || versionInfo.downloading ? 'Downloading...' : 'Update Now'}
-                    </button>
+                      View Release
+                    </a>
                   )}
                   <button
                     onClick={handleSkip}

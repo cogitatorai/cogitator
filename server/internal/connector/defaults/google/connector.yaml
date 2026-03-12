@@ -1,0 +1,149 @@
+name: google
+display_name: Google
+description: Google Calendar and Gmail (read-only)
+version: 1.0.0
+
+auth:
+  type: oauth2
+  auth_url: https://accounts.google.com/o/oauth2/auth
+  token_url: https://oauth2.googleapis.com/token
+  scopes:
+    - https://www.googleapis.com/auth/calendar.readonly
+    - https://www.googleapis.com/auth/gmail.readonly
+
+tools:
+  - name: calendar_list
+    description: >
+      List Google Calendar events for a date range. Returns event summaries,
+      times, and locations. The user must have Google connected in Connectors.
+      Always pass the timezone parameter (e.g. "Europe/Paris", "America/New_York")
+      to get accurate results for the user's local day.
+    parameters:
+      - name: start_date
+        type: string
+        required: true
+        description: "Start date in YYYY-MM-DD format"
+      - name: end_date
+        type: string
+        required: true
+        description: "End date in YYYY-MM-DD format"
+      - name: timezone
+        type: string
+        description: "IANA timezone (e.g. Europe/Paris, America/New_York). Determines day boundaries."
+    request:
+      method: GET
+      url: https://www.googleapis.com/calendar/v3/calendars/primary/events
+      query:
+        timeMin: '{{localtime .start_date "00:00:00" (.timezone | default "UTC")}}'
+        timeMax: '{{localtime .end_date "23:59:59" (.timezone | default "UTC")}}'
+        timeZone: "{{.timezone | default `UTC`}}"
+        singleEvents: "true"
+        orderBy: startTime
+        maxResults: "50"
+    response:
+      root: ".items"
+      fields:
+        id: ".id"
+        summary: ".summary"
+        description: ".description"
+        location: ".location"
+        start: ".start.dateTime // .start.date"
+        end: ".end.dateTime // .end.date"
+
+  - name: calendar_search
+    description: >
+      Search Google Calendar events by text query within an optional date range.
+      Returns matching event summaries, times, and locations.
+      Always pass the timezone parameter to get accurate results.
+    parameters:
+      - name: query
+        type: string
+        required: true
+        description: "Search text to match against event titles and descriptions"
+      - name: start_date
+        type: string
+        description: "Start date in YYYY-MM-DD format (defaults to today)"
+      - name: end_date
+        type: string
+        description: "End date in YYYY-MM-DD format (defaults to 30 days from start)"
+      - name: timezone
+        type: string
+        description: "IANA timezone (e.g. Europe/Paris, America/New_York). Determines day boundaries."
+    request:
+      method: GET
+      url: https://www.googleapis.com/calendar/v3/calendars/primary/events
+      query:
+        q: "{{.query}}"
+        timeMin: '{{localtime (.start_date | default "") "00:00:00" (.timezone | default "UTC")}}'
+        timeMax: '{{localtime (.end_date | default "") "23:59:59" (.timezone | default "UTC")}}'
+        timeZone: "{{.timezone | default `UTC`}}"
+        singleEvents: "true"
+        orderBy: startTime
+        maxResults: "50"
+    response:
+      root: ".items"
+      fields:
+        id: ".id"
+        summary: ".summary"
+        description: ".description"
+        location: ".location"
+        start: ".start.dateTime // .start.date"
+        end: ".end.dateTime // .end.date"
+
+  - name: email_search
+    description: >
+      Search Gmail using Gmail query syntax (e.g., 'from:alice subject:meeting',
+      'is:unread', 'newer_than:2d'). Returns message IDs, subjects, senders,
+      dates, and snippets.
+    parameters:
+      - name: query
+        type: string
+        required: true
+        description: "Gmail search query (same syntax as Gmail search bar)"
+      - name: max_results
+        type: integer
+        description: "Maximum number of results (1-20, default 10)"
+    request:
+      method: GET
+      url: https://www.googleapis.com/gmail/v1/users/me/messages
+      query:
+        q: "{{.query}}"
+        maxResults: "{{.max_results | default 10}}"
+    fetch_each:
+      id_path: ".messages[].id"
+      request:
+        method: GET
+        url: "https://www.googleapis.com/gmail/v1/users/me/messages/{{.id}}"
+        query:
+          format: full
+      response:
+        fields:
+          id: ".id"
+          from: '.payload.headers[] | select(.name=="From") | .value'
+          subject: '.payload.headers[] | select(.name=="Subject") | .value'
+          date: '.payload.headers[] | select(.name=="Date") | .value'
+          snippet: ".snippet"
+
+  - name: email_read
+    description: >
+      Read a specific Gmail message by its ID. Returns the full message with
+      subject, sender, date, and body text. Use google_email_search first to
+      find message IDs.
+    parameters:
+      - name: message_id
+        type: string
+        required: true
+        description: "The Gmail message ID (from google_email_search results)"
+    request:
+      method: GET
+      url: "https://www.googleapis.com/gmail/v1/users/me/messages/{{.message_id}}"
+      query:
+        format: full
+    response:
+      fields:
+        id: ".id"
+        from: '.payload.headers[] | select(.name=="From") | .value'
+        subject: '.payload.headers[] | select(.name=="Subject") | .value'
+        date: '.payload.headers[] | select(.name=="Date") | .value'
+        snippet: ".snippet"
+        body: ".payload.body.data"

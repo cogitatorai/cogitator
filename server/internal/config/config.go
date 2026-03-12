@@ -1,0 +1,269 @@
+package config
+
+import (
+	"log"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	Server     ServerConfig              `yaml:"server"`
+	Models     ModelsConfig              `yaml:"models"`
+	Providers  map[string]ProviderConfig `yaml:"providers"`
+	Resources  ResourcesConfig           `yaml:"resources"`
+	Memory     MemoryConfig              `yaml:"memory"`
+	Reflection ReflectionConfig          `yaml:"reflection"`
+	Tasks      TasksConfig               `yaml:"tasks"`
+	Workspace  WorkspaceConfig           `yaml:"workspace"`
+	Channels   ChannelsConfig            `yaml:"channels"`
+	Security   SecurityConfig            `yaml:"security"`
+	Update     UpdateConfig              `yaml:"update"`
+}
+
+type UpdateConfig struct {
+	SkippedVersion string `yaml:"skipped_version,omitempty"`
+}
+
+type SecurityConfig struct {
+	SensitivePaths    []string `yaml:"sensitive_paths"`
+	DangerousCommands []string `yaml:"dangerous_commands"`
+	AllowedDomains    []string `yaml:"allowed_domains"`
+	Sandbox           string   `yaml:"sandbox"`
+	MaxOutputBytes    int      `yaml:"max_output_bytes"`
+}
+
+type ServerConfig struct {
+	Port      int    `yaml:"port"`
+	Host      string `yaml:"host"`
+	PublicURL string `yaml:"public_url,omitempty"`
+}
+
+type ModelEntry struct {
+	Provider string `yaml:"provider"`
+	Model    string `yaml:"model"`
+}
+
+type ModelsConfig struct {
+	Standard ModelEntry `yaml:"standard"`
+	Cheap    ModelEntry `yaml:"cheap"`
+}
+
+type ProviderConfig struct {
+	APIKey string `yaml:"api_key,omitempty"`
+}
+
+// ProviderAPIKey looks up the API key for the given provider name.
+func (c *Config) ProviderAPIKey(name string) string {
+	if c.Providers == nil {
+		return ""
+	}
+	return c.Providers[name].APIKey
+}
+
+// SetProviderAPIKey sets the API key for the given provider name,
+// initializing the map if needed.
+func (c *Config) SetProviderAPIKey(name, key string) {
+	if c.Providers == nil {
+		c.Providers = make(map[string]ProviderConfig)
+	}
+	c.Providers[name] = ProviderConfig{APIKey: key}
+}
+
+type ResourcesConfig struct {
+	Mode               string `yaml:"mode"`
+	MaxConcurrentTasks int    `yaml:"max_concurrent_tasks"`
+	// Budget and rate limit fields are reserved for the upcoming plans system.
+	// They are excluded from YAML serialization so stale config values are ignored.
+	CheapModelRPM       int `yaml:"-"`
+	StandardModelRPM    int `yaml:"-"`
+	DailyBudgetCheap    int `yaml:"-"`
+	DailyBudgetStandard int `yaml:"-"`
+}
+
+type MemoryConfig struct {
+	RetrievalTopK       int     `yaml:"retrieval_top_k"`
+	MaxRetrievalHops    int     `yaml:"max_retrieval_hops"`
+	ConfidenceDecayDays int     `yaml:"confidence_decay_days"`
+	EmbeddingModel      string  `yaml:"embedding_model"`
+	RecencyAlpha        float64 `yaml:"recency_alpha"`
+	RecencyLambda       float64 `yaml:"recency_lambda"`
+	ContextWindow       int     `yaml:"context_window"`
+	ProfileRegenThresh  int     `yaml:"profile_regen_threshold"`
+	ConsolidationMin    int     `yaml:"consolidation_min"`
+	ConsolidationMax    int     `yaml:"consolidation_max"`
+	ConsolidationScale  int     `yaml:"consolidation_scale"`
+}
+
+type ReflectionConfig struct {
+	MessageInterval     int    `yaml:"message_interval"`
+	IdleTimeoutMinutes  int    `yaml:"idle_timeout_minutes"`
+	ProfileRevisionCron string `yaml:"profile_revision_cron"`
+}
+
+type TasksConfig struct {
+	MaxConcurrent  int `yaml:"max_concurrent"`
+	DefaultTimeout int `yaml:"default_timeout"`
+	MaxRetries     int `yaml:"max_retries"`
+}
+
+type WorkspaceConfig struct {
+	Path string `yaml:"path"`
+}
+
+type ChannelsConfig struct {
+	Web      WebChannelConfig      `yaml:"web"`
+	Telegram TelegramChannelConfig `yaml:"telegram"`
+	WhatsApp WhatsAppChannelConfig `yaml:"whatsapp"`
+}
+
+type WebChannelConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+type TelegramChannelConfig struct {
+	Enabled        bool    `yaml:"enabled"`
+	BotToken       string  `yaml:"bot_token,omitempty"`
+	AllowedChatIDs []int64 `yaml:"allowed_chat_ids"`
+}
+
+type WhatsAppChannelConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Provider string `yaml:"provider"`
+}
+
+func Default() *Config {
+	return &Config{
+		Server: ServerConfig{
+			Port: 8484,
+			Host: "0.0.0.0",
+		},
+		Resources: ResourcesConfig{
+			Mode:               "local",
+			MaxConcurrentTasks: 2,
+		},
+		Memory: MemoryConfig{
+			RetrievalTopK:       10,
+			MaxRetrievalHops:    1,
+			ConfidenceDecayDays: 30,
+			EmbeddingModel:      "text-embedding-3-small",
+			RecencyAlpha:        0.5,
+			RecencyLambda:       0.01,
+			ContextWindow:       5,
+			ProfileRegenThresh:  5,
+			ConsolidationMin:    5,
+			ConsolidationMax:    50,
+			ConsolidationScale:  20,
+		},
+		Reflection: ReflectionConfig{
+			MessageInterval:     5,
+			IdleTimeoutMinutes:  60,
+			ProfileRevisionCron: "0 3 * * *",
+		},
+		Tasks: TasksConfig{
+			MaxConcurrent:  2,
+			DefaultTimeout: 300,
+			MaxRetries:     3,
+		},
+		Workspace: WorkspaceConfig{
+			Path: "./data",
+		},
+		Channels: ChannelsConfig{
+			Web: WebChannelConfig{Enabled: true},
+		},
+	}
+}
+
+func Load(path string) (*Config, error) {
+	cfg := Default()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// providerEnvKeys maps provider names to the standard environment variable
+// names that hold their API keys (e.g. OPENAI_API_KEY for "openai").
+var providerEnvKeys = map[string]string{
+	"openai":     "OPENAI_API_KEY",
+	"anthropic":  "ANTHROPIC_API_KEY",
+	"groq":       "GROQ_API_KEY",
+	"together":   "TOGETHER_API_KEY",
+	"openrouter": "OPENROUTER_API_KEY",
+}
+
+// LoadDotEnv loads variables from a .env file if it exists.
+// It does not override variables already set in the shell environment.
+func LoadDotEnv() {
+	if err := godotenv.Load(); err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("warning: failed to load .env file: %v", err)
+		}
+	}
+}
+
+func (c *Config) ApplyEnv() {
+	if v := os.Getenv("COGITATOR_SERVER_PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			c.Server.Port = port
+		}
+	}
+	if v := os.Getenv("COGITATOR_SERVER_HOST"); v != "" {
+		c.Server.Host = v
+	}
+	if v := os.Getenv("COGITATOR_RESOURCES_MODE"); v != "" {
+		c.Resources.Mode = v
+	}
+	if v := os.Getenv("COGITATOR_WORKSPACE_PATH"); v != "" {
+		c.Workspace.Path = v
+	}
+
+	// Model configuration from environment.
+	if v := os.Getenv("COGITATOR_MODEL_PROVIDER"); v != "" {
+		c.Models.Standard.Provider = v
+	}
+	if v := os.Getenv("COGITATOR_MODEL"); v != "" {
+		c.Models.Standard.Model = v
+	}
+
+	// Telegram bot token from environment.
+	if v := os.Getenv("COGITATOR_TELEGRAM_BOT_TOKEN"); v != "" {
+		c.Channels.Telegram.BotToken = v
+		c.Channels.Telegram.Enabled = true
+	}
+
+	// Sandbox mode from environment.
+	if v := os.Getenv("COGITATOR_SECURITY_SANDBOX"); v != "" {
+		c.Security.Sandbox = v
+	}
+	if v := os.Getenv("COGITATOR_SECURITY_MAX_OUTPUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Security.MaxOutputBytes = n
+		}
+	}
+
+	// Provider API keys: check COGITATOR_<PROVIDER>_API_KEY first,
+	// then fall back to standard env vars (OPENAI_API_KEY, etc.).
+	// Only set if no key is already configured (file config takes precedence
+	// when a key is explicitly set there).
+	for name, stdEnv := range providerEnvKeys {
+		if c.ProviderAPIKey(name) != "" {
+			continue
+		}
+		key := os.Getenv("COGITATOR_" + strings.ToUpper(name) + "_API_KEY")
+		if key == "" {
+			key = os.Getenv(stdEnv)
+		}
+		if key != "" {
+			c.SetProviderAPIKey(name, key)
+		}
+	}
+
+}

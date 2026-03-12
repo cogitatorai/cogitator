@@ -1,0 +1,51 @@
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+vendor/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/dist-ssr/
+dashboard/*.local
+
+# Embedded dashboard (build artifact)
+server/internal/dashboard/dist/
+
+# Environment and secrets
+.env
+*.env.*
+secrets.yaml
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Workspace data
+data/
+
+# Fly.io deployment configs
+fly.*.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Logs
+*.log
+npm-debug.log*

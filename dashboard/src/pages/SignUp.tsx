@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { setupAPI, fetchAuthProviders } from '../api';
+import { setupAPI, fetchAuthProviders, fetchVersionInfo } from '../api';
 import type { AuthProviders } from '../api';
 import StripedButton from '../components/StripedButton';
 
@@ -16,9 +16,11 @@ export default function SignUp() {
   const [submitting, setSubmitting] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
   const [providers, setProviders] = useState<AuthProviders | null>(null);
+  const [version, setVersion] = useState('');
 
   useEffect(() => {
     fetchAuthProviders().then(setProviders).catch(() => {});
+    fetchVersionInfo().then((v) => { if (v.current && v.current !== 'dev') setVersion(v.current); }).catch(() => {});
   }, []);
 
   const tryClaim = useCallback(() => {
@@ -215,6 +217,12 @@ export default function SignUp() {
             Sign in
           </a>
         </p>
+
+        {version && (
+          <p className="text-center text-[12px] uppercase tracking-widest text-zinc-700 mt-4">
+            {version.startsWith('v') ? version : `v${version}`}
+          </p>
+        )}
       </form>
     </div>
   );

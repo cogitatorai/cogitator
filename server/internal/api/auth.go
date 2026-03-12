@@ -65,6 +65,10 @@ func isPublicEndpoint(method, path string) bool {
 	if method == http.MethodGet && path == "/api/connectors/callback" {
 		return true
 	}
+	// Version info (read-only, used by login/register pages to display current version).
+	if method == http.MethodGet && path == "/api/version" {
+		return true
+	}
 	return false
 }
 

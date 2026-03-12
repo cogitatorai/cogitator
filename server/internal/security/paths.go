@@ -20,6 +20,8 @@ var DefaultSensitivePaths = []string{
 	"/etc/passwd",
 	"secrets.yaml",
 	"cogitator.yaml",
+	"cogitator.db",
+	"mcp.json",
 }
 
 // ExpandHome replaces a leading ~ with the user's home directory.
@@ -58,14 +60,21 @@ func ContainsSensitivePath(s string, patterns []string) (bool, string) {
 	return false, ""
 }
 
-// IsSensitivePath checks whether abs falls under any sensitive directory.
-// abs must be a clean, absolute path. patterns may contain raw ~ forms;
-// expansion is done internally. Returns the original pattern that matched.
+// IsSensitivePath checks whether abs falls under any sensitive directory or
+// matches a sensitive filename. abs must be a clean, absolute path. Patterns
+// may contain raw ~ forms (expanded internally) or bare filenames like
+// "cogitator.db" which match by basename at any depth.
 func IsSensitivePath(abs string, patterns []string) (bool, string) {
 	for _, pat := range patterns {
 		expanded := ExpandHome(pat)
 		if abs == expanded || strings.HasPrefix(abs, expanded+string(filepath.Separator)) {
 			return true, pat
+		}
+		// Bare filename patterns (no path separator) match by basename.
+		if !strings.Contains(expanded, string(filepath.Separator)) {
+			if filepath.Base(abs) == expanded {
+				return true, pat
+			}
 		}
 	}
 	return false, ""

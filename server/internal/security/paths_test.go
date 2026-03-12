@@ -78,6 +78,18 @@ func TestContainsSensitivePath(t *testing.T) {
 			want:    true,
 			wantPat: "~/.gnupg",
 		},
+		{
+			name:    "cogitator database",
+			input:   "cat ../cogitator.db",
+			want:    true,
+			wantPat: "cogitator.db",
+		},
+		{
+			name:    "mcp config",
+			input:   "cat ../mcp.json",
+			want:    true,
+			wantPat: "mcp.json",
+		},
 	}
 
 	for _, tt := range tests {
@@ -136,6 +148,30 @@ func TestIsSensitivePath(t *testing.T) {
 			name: "partial match not triggered",
 			abs:  filepath.Join(home, ".sshconfig"),
 			want: false,
+		},
+		{
+			name:    "cogitator.yaml by basename",
+			abs:     filepath.Join(home, ".cogitator", "cogitator.yaml"),
+			want:    true,
+			wantPat: "cogitator.yaml",
+		},
+		{
+			name:    "secrets.yaml by basename",
+			abs:     "/data/workspace/secrets.yaml",
+			want:    true,
+			wantPat: "secrets.yaml",
+		},
+		{
+			name:    "cogitator.db by basename",
+			abs:     filepath.Join(home, ".cogitator", "cogitator.db"),
+			want:    true,
+			wantPat: "cogitator.db",
+		},
+		{
+			name:    "mcp.json by basename",
+			abs:     filepath.Join(home, ".cogitator", "mcp.json"),
+			want:    true,
+			wantPat: "mcp.json",
 		},
 	}
 

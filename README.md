@@ -185,6 +185,10 @@ COGITATOR_SERVER_PORT=8484
 COGITATOR_SERVER_HOST=0.0.0.0
 COGITATOR_WORKSPACE_PATH=~/.cogitator
 COGITATOR_JWT_SECRET=<random-hex-string>
+
+# Connectors and login (optional OAuth credentials)
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
 ```
 
 Provider credentials can be set via environment variables or through the Settings page. Credentials are stored in the OS keychain with automatic fallback to file.

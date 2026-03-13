@@ -155,6 +155,36 @@ func TestNullUserIDVisibleToAuthenticatedUsers(t *testing.T) {
 	}
 }
 
+func TestCreateWithSenderID(t *testing.T) {
+	store := NewStore(testDB(t))
+	n := &Notification{
+		UserID:   "user-1",
+		SenderID: "user-2",
+		TaskName: "Message from Alice",
+		Trigger:  "user_message",
+		Status:   "info",
+		Content:  "The build is ready",
+	}
+	id, err := store.Create(n)
+	if err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	list, _, err := store.List("user-1", 10, 0)
+	if err != nil {
+		t.Fatalf("List() error: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 notification, got %d", len(list))
+	}
+	if list[0].SenderID != "user-2" {
+		t.Errorf("expected sender_id 'user-2', got %q", list[0].SenderID)
+	}
+	if list[0].ID != id {
+		t.Errorf("expected ID %d, got %d", id, list[0].ID)
+	}
+}
+
 func TestPagination(t *testing.T) {
 	store := NewStore(testDB(t))
 	for i := 0; i < 5; i++ {

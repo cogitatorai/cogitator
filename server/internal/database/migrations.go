@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS token_usage (
 CREATE TABLE IF NOT EXISTS notifications (
 	id           INTEGER PRIMARY KEY AUTOINCREMENT,
 	user_id      TEXT,
+	sender_id    TEXT,
 	task_id      INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
 	task_name    TEXT NOT NULL,
 	run_id       INTEGER,

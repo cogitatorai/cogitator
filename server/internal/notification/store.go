@@ -10,6 +10,7 @@ import (
 type Notification struct {
 	ID        int64     `json:"id"`
 	UserID    string    `json:"user_id,omitempty"`
+	SenderID  string    `json:"sender_id,omitempty"`
 	TaskID    *int64    `json:"task_id,omitempty"`
 	TaskName  string    `json:"task_name"`
 	RunID     int64     `json:"run_id"`
@@ -33,14 +34,18 @@ func (s *Store) Create(n *Notification) (int64, error) {
 	if n.UserID != "" {
 		uid = n.UserID
 	}
+	var sid any
+	if n.SenderID != "" {
+		sid = n.SenderID
+	}
 	var tid any
 	if n.TaskID != nil {
 		tid = *n.TaskID
 	}
 	result, err := s.db.Exec(`INSERT INTO notifications
-		(user_id, task_id, task_name, run_id, trigger_type, status, content, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		uid, tid, n.TaskName, n.RunID, n.Trigger, n.Status, n.Content, time.Now())
+		(user_id, sender_id, task_id, task_name, run_id, trigger_type, status, content, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		uid, sid, tid, n.TaskName, n.RunID, n.Trigger, n.Status, n.Content, time.Now())
 	if err != nil {
 		return 0, err
 	}
@@ -59,7 +64,7 @@ func (s *Store) List(userID string, limit, offset int) ([]Notification, int, err
 		return nil, 0, err
 	}
 
-	query := `SELECT id, user_id, task_id, task_name, run_id, trigger_type, status, content, read, created_at
+	query := `SELECT id, user_id, sender_id, task_id, task_name, run_id, trigger_type, status, content, read, created_at
 		FROM notifications WHERE ` + where + ` ORDER BY id DESC LIMIT ? OFFSET ?`
 	rows, err := s.db.Query(query, append(args, limit, offset)...)
 	if err != nil {
@@ -121,14 +126,15 @@ func userWhere(userID string) (string, []any) {
 
 func scanNotification(scanner interface{ Scan(...any) error }) (*Notification, error) {
 	var n Notification
-	var uid sql.NullString
+	var uid, sid sql.NullString
 	var tid sql.NullInt64
-	err := scanner.Scan(&n.ID, &uid, &tid, &n.TaskName, &n.RunID,
+	err := scanner.Scan(&n.ID, &uid, &sid, &tid, &n.TaskName, &n.RunID,
 		&n.Trigger, &n.Status, &n.Content, &n.Read, &n.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	n.UserID = uid.String
+	n.SenderID = sid.String
 	if tid.Valid {
 		n.TaskID = &tid.Int64
 	}

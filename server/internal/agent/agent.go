@@ -212,7 +212,11 @@ func (a *Agent) RunTask(ctx context.Context, sessionKey, prompt, model, userID s
 	// the action directly instead of trying to schedule or delegate it.
 	taskPrompt := "[TASK EXECUTION] You are executing a scheduled task. " +
 		"Perform the following action directly and return the result. " +
-		"Do NOT use create_task, list_tasks, delete_task, or run_task.\n\n" +
+		"Do NOT use create_task, list_tasks, delete_task, or run_task. " +
+		"Your text response IS the notification delivered to the user " +
+		"(via push notification and in-app alert). You do not need any " +
+		"special notification tool. Just write the message you want the " +
+		"user to see.\n\n" +
 		prompt
 	resp, err := a.Chat(ctx, ChatRequest{
 		SessionKey:    sessionKey,

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.35.0 (2026-03-13)
+
+### Features
+
+- Admin task view: owner column with filter dropdown to see and filter tasks by user (013c55c)
+- Broadcast notifications: tasks with the broadcast flag now notify all registered users (e8355d5)
+
+### Fixes
+
+- User-friendly error messages replace raw HTTP status codes and "Failed to fetch" throughout the dashboard (1378fe7)
+- Task execution prompt clarifies that the agent's text response is delivered as the notification (6757b1a)
+- Button height alignment in server settings panel (2e139fe)
+
 ## 0.34.0 (2026-03-13)
 
 ### Features

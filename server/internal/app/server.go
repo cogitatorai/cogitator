@@ -530,6 +530,10 @@ func New(opts Options) (*Server, error) {
 	}()
 
 	notificationStore := notification.NewStore(db)
+	toolExecutor.SetUserNotifier(&tools.NotifierAdapter{
+		Notifications: notificationStore,
+		EventBus:      eventBus,
+	})
 	pushStore := push.NewStore(db)
 
 	// Web chat channel.

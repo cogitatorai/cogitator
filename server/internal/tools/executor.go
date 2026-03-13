@@ -47,9 +47,10 @@ type UserInfo struct {
 	Name string `json:"name"`
 }
 
-// UserLister provides a filtered list of users for the list_users tool.
+// UserLister provides user listing for the list_users and notify_user tools.
 type UserLister interface {
 	ListOtherUsers(callerID string) ([]UserInfo, error)
+	ListAllUsers() ([]UserInfo, error)
 }
 
 // SkillManager abstracts skill operations so the executor does not
@@ -74,6 +75,11 @@ type MemoryPrivacyToggler interface {
 	ToggleMemoryPrivacy(nodeID string, private bool, callerID string) error
 }
 
+// UserNotifier sends ad-hoc notifications to other users.
+type UserNotifier interface {
+	NotifyUser(senderID, senderName, recipientID, message string) error
+}
+
 // DomainAllowlister persists domain allowlist changes to the config store
 // and returns the merged list. Implemented by config.Store.
 type DomainAllowlister interface {
@@ -94,6 +100,7 @@ type Executor struct {
 	connectorCaller    ConnectorCaller
 	userLister         UserLister
 	memoryToggler      MemoryPrivacyToggler
+	userNotifier       UserNotifier
 	httpClient         *http.Client
 	searchCounter      uint64
 	logger             *slog.Logger
@@ -168,6 +175,9 @@ func (e *Executor) SetUserLister(ul UserLister) { e.userLister = ul }
 
 // SetMemoryToggler wires the memory privacy toggle layer.
 func (e *Executor) SetMemoryToggler(mt MemoryPrivacyToggler) { e.memoryToggler = mt }
+
+// SetUserNotifier wires the user notification layer.
+func (e *Executor) SetUserNotifier(un UserNotifier) { e.userNotifier = un }
 
 // SetShellDir sets the working directory for shell commands. This should
 // be a subdirectory of the workspace so that config and secrets files in
@@ -259,6 +269,8 @@ func (e *Executor) Execute(ctx context.Context, name string, arguments string) (
 		return e.webSearch(ctx, arguments)
 	case "list_users":
 		return e.listUsers(ctx)
+	case "notify_user":
+		return e.notifyUser(ctx, arguments)
 	case "toggle_memory_privacy":
 		return e.toggleMemoryPrivacy(ctx, arguments)
 	case "start_mcp_server":
@@ -820,6 +832,70 @@ func (e *Executor) listUsers(ctx context.Context) (string, error) {
 	}
 	data, _ := json.MarshalIndent(users, "", "  ")
 	return string(data), nil
+}
+
+func (e *Executor) notifyUser(ctx context.Context, args string) (string, error) {
+	if e.userNotifier == nil {
+		return "", fmt.Errorf("user notifications are not available")
+	}
+	if e.userLister == nil {
+		return "", fmt.Errorf("user listing is not available")
+	}
+
+	var p struct {
+		UserName string `json:"user_name"`
+		Message  string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(args), &p); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+	if p.UserName == "" {
+		return "", fmt.Errorf("user_name is required")
+	}
+	if p.Message == "" {
+		return "", fmt.Errorf("message is required")
+	}
+
+	// Resolve sender.
+	var senderID, senderName string
+	if scope, ok := ChatScopeFromContext(ctx); ok {
+		senderID = scope.UserID
+	}
+
+	allUsers, err := e.userLister.ListAllUsers()
+	if err != nil {
+		return "", fmt.Errorf("failed to list users: %w", err)
+	}
+
+	// Find sender name.
+	for _, u := range allUsers {
+		if u.ID == senderID {
+			senderName = u.Name
+			break
+		}
+	}
+
+	// Resolve recipient by exact name match.
+	var matches []UserInfo
+	for _, u := range allUsers {
+		if u.Name == p.UserName {
+			matches = append(matches, u)
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no user found matching '%s'", p.UserName)
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("multiple users match '%s'; please use their full name", p.UserName)
+	}
+
+	recipient := matches[0]
+	if err := e.userNotifier.NotifyUser(senderID, senderName, recipient.ID, p.Message); err != nil {
+		return "", fmt.Errorf("failed to send notification: %w", err)
+	}
+
+	return fmt.Sprintf("Notification sent to %s.", p.UserName), nil
 }
 
 func (e *Executor) toggleMemoryPrivacy(ctx context.Context, args string) (string, error) {

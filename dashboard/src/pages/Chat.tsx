@@ -248,6 +248,7 @@ export default function Chat() {
 
     const gen = ++loadGenRef.current;
     setMessages([]);
+    setActivity(null);
 
     fetchJSON<SessionDetail>(`/api/sessions/${encodeURIComponent(sessionKey)}`)
       .then((data) => {
@@ -276,6 +277,8 @@ export default function Chat() {
   useEffect(() => {
     const listener = (data: WsMessage) => {
       if (data.type === 'status') {
+        // Only show activity for the currently viewed session.
+        if (data.session_key && data.session_key !== sessionKeyRef.current) return;
         setActivity({
           status: data.status as 'thinking' | 'tool_calling',
           tool: data.tool || undefined,
@@ -327,6 +330,8 @@ export default function Chat() {
       }
 
       if (data.type === 'cancelled') {
+        // Only update UI for the currently viewed session.
+        if (data.session_key && data.session_key !== sessionKeyRef.current) return;
         setActivity(null);
         // Reload messages from server to show the [cancelled] system note.
         if (data.session_key === sessionKeyRef.current) {
@@ -344,7 +349,12 @@ export default function Chat() {
         return;
       }
 
-      // Response or error: clear activity indicator.
+      // Response or error: only apply to the currently viewed session.
+      if (data.session_key && data.session_key !== sessionKeyRef.current) {
+        // Not our session; trigger a sidebar refresh so unread indicator updates.
+        refreshSessionsRef.current();
+        return;
+      }
       setActivity(null);
 
       if (data.type === 'error') {

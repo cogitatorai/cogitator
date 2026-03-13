@@ -955,6 +955,10 @@ export function markAllNotificationsRead(): Promise<void> {
   return putJSON('/api/notifications/read-all', {});
 }
 
+export function markTaskNotificationsRead(): Promise<void> {
+  return putJSON('/api/notifications/read-tasks', {});
+}
+
 export function deleteNotification(id: number): Promise<void> {
   return deleteJSON(`/api/notifications/${id}`);
 }

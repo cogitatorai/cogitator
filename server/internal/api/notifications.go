@@ -75,6 +75,20 @@ func (r *Router) handleMarkAllNotificationsRead(w http.ResponseWriter, req *http
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+func (r *Router) handleMarkTaskNotificationsRead(w http.ResponseWriter, req *http.Request) {
+	userID := userIDFromRequest(req)
+
+	if err := r.notifications.MarkTaskNotificationsRead(userID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to mark task notifications read")
+		return
+	}
+
+	if r.eventBus != nil {
+		r.eventBus.Publish(bus.Event{Type: bus.NotificationsRead})
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func (r *Router) handleDeleteNotification(w http.ResponseWriter, req *http.Request) {
 	idStr := req.PathValue("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)

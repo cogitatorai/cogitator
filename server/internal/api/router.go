@@ -313,6 +313,7 @@ func (r *Router) registerRoutes() {
 
 	if r.notifications != nil {
 		r.mux.HandleFunc("PUT /api/notifications/read-all", r.handleMarkAllNotificationsRead)
+		r.mux.HandleFunc("PUT /api/notifications/read-tasks", r.handleMarkTaskNotificationsRead)
 		r.mux.HandleFunc("GET /api/notifications", r.handleListNotifications)
 		r.mux.HandleFunc("PUT /api/notifications/{id}/read", r.handleMarkNotificationRead)
 		r.mux.HandleFunc("DELETE /api/notifications/{id}", r.handleDeleteNotification)

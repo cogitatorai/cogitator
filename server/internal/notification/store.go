@@ -106,6 +106,17 @@ func (s *Store) MarkAllRead(userID string) error {
 	return err
 }
 
+// MarkTaskNotificationsRead marks only task-related notifications as read
+// (scheduled task results and user-to-user messages). Other notification
+// types that may be added in the future are left untouched.
+func (s *Store) MarkTaskNotificationsRead(userID string) error {
+	where, args := userWhere(userID)
+	_, err := s.db.Exec(
+		"UPDATE notifications SET read = 1 WHERE read = 0 AND (task_id IS NOT NULL OR trigger_type = 'user_message') AND "+where,
+		args...)
+	return err
+}
+
 func (s *Store) Delete(id int64) error {
 	_, err := s.db.Exec("DELETE FROM notifications WHERE id = ?", id)
 	return err

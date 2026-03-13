@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { fetchJSON, putJSON, deleteJSON, sendChatMessage, markAllNotificationsRead } from '../api';
+import { fetchJSON, putJSON, deleteJSON, sendChatMessage, markTaskNotificationsRead } from '../api';
 import type { Session, SessionDetail, PersistedMessage } from '../api';
 import { useWebSocket } from '../ws';
 import type { WsMessage } from '../ws';
@@ -184,7 +184,7 @@ export default function Chat() {
     if (sessionKey) {
       sessionStorage.setItem('chat-active-session', sessionKey);
       if (sessionKey === 'tasks:output') {
-        markAllNotificationsRead().catch(() => {});
+        markTaskNotificationsRead().catch(() => {});
       }
     }
   }, [sessionKey]);

@@ -1,5 +1,70 @@
 import React from 'react';
 
+/** Structured API error with a user-friendly message and raw detail for logging. */
+export class ApiError extends Error {
+  status: number;
+  detail: string;
+
+  constructor(status: number, userMessage: string, detail: string) {
+    super(userMessage);
+    this.name = 'ApiError';
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+const friendlyDefaults: Record<number, string> = {
+  400: 'Invalid request. Please check your input.',
+  401: 'Your session has expired. Please sign in again.',
+  403: 'You don\'t have permission to do that.',
+  404: 'The requested resource was not found.',
+  409: 'This conflicts with an existing resource.',
+  413: 'The file is too large.',
+  429: 'Too many requests. Please wait a moment.',
+  500: 'Something went wrong on our end. Please try again.',
+  502: 'The server is temporarily unavailable. Please try again.',
+  503: 'The server is temporarily unavailable. Please try again.',
+};
+
+/**
+ * Read the response body, extract a user-friendly message, and throw an ApiError.
+ * Prefers the server's JSON `error` field for 4xx (validation messages).
+ * Always uses a generic message for 5xx to avoid leaking internals.
+ */
+async function throwApiError(res: Response): Promise<never> {
+  const raw = await res.text().catch(() => '');
+  let serverMsg = '';
+  try {
+    const body = JSON.parse(raw);
+    if (typeof body.error === 'string') serverMsg = body.error;
+  } catch { /* not JSON */ }
+
+  let userMessage: string;
+  if (res.status >= 500) {
+    // Never expose server internals for 5xx.
+    userMessage = friendlyDefaults[res.status] || friendlyDefaults[500]!;
+  } else if (serverMsg) {
+    // Server provided a human-readable message (e.g. "email already exists").
+    userMessage = serverMsg;
+  } else {
+    userMessage = friendlyDefaults[res.status] || `Request failed (${res.status}).`;
+  }
+
+  console.warn(`[API ${res.status}] ${res.url}: ${raw}`);
+
+  throw new ApiError(res.status, userMessage, raw);
+}
+
+/** Wrap native fetch to turn network failures into a friendly ApiError. */
+async function safeFetch(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (err) {
+    console.warn('[API network error]', input, err);
+    throw new ApiError(0, 'Could not connect to the server.', String(err));
+  }
+}
+
 const LS_SERVER_URL = 'cogitator_server_url';
 
 /** Return the API base URL. Empty string for same-origin; a full URL for client-mode. */
@@ -47,13 +112,13 @@ export function authHeaders(): Record<string, string> {
 
 /** Perform a fetch, and on 401 attempt a token refresh + retry once. */
 async function fetchWithRetry(input: string, init?: RequestInit): Promise<Response> {
-  let res = await fetch(input, init);
+  let res = await safeFetch(input, init);
   if (res.status === 401 && _refreshFn) {
     const ok = await _refreshFn();
     if (ok) {
       // Rebuild headers with new token.
       const retryInit = { ...init, headers: { ...init?.headers, ...authHeaders() } };
-      res = await fetch(input, retryInit);
+      res = await safeFetch(input, retryInit);
     }
   }
   return res;
@@ -61,7 +126,7 @@ async function fetchWithRetry(input: string, init?: RequestInit): Promise<Respon
 
 export async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetchWithRetry(getBase() + path, { headers: { ...authHeaders() } });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -71,7 +136,7 @@ export async function postJSON<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -81,7 +146,7 @@ export async function putJSON<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -91,14 +156,14 @@ export async function patchJSON<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
 export async function deleteJSON(path: string): Promise<void> {
   const res = await fetchWithRetry(getBase() + path, { method: 'DELETE', headers: { ...authHeaders() } });
   if (!res.ok && res.status !== 204) {
-    throw new Error(`API ${res.status}: ${await res.text()}`);
+    await throwApiError(res);
   }
 }
 
@@ -205,6 +270,8 @@ export interface Task {
   cron_description?: string;
   total_runs: number;
   last_status?: string;
+  user_id?: string;
+  owner_name?: string;
 }
 
 export interface ToolCallRecord {
@@ -662,15 +729,12 @@ export async function sendChatMessage(
   if (file) form.append('file', file);
   if (isPrivate) form.append('private', 'true');
 
-  const res = await fetch(`${getBase()}/api/chat/message`, {
+  const res = await safeFetch(`${getBase()}/api/chat/message`, {
     method: 'POST',
     headers: authHeaders(),
     body: form,
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || res.statusText);
-  }
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -707,17 +771,17 @@ export interface AuthResponse {
 // Auth API (these bypass the 401 retry to avoid loops)
 
 export async function loginAPI(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(getBase() + '/api/auth/login', {
+  const res = await safeFetch(getBase() + '/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
 export async function fetchNeedsSetup(): Promise<{ needs_setup: boolean }> {
-  const res = await fetch(getBase() + '/api/auth/needs-setup');
+  const res = await safeFetch(getBase() + '/api/auth/needs-setup');
   if (!res.ok) return { needs_setup: false };
   return res.json();
 }
@@ -727,12 +791,12 @@ export async function setupAPI(
   name: string,
   password: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(getBase() + '/api/auth/setup', {
+  const res = await safeFetch(getBase() + '/api/auth/setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name, password }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -742,12 +806,12 @@ export async function registerAPI(
   password: string,
   inviteCode: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(getBase() + '/api/auth/register', {
+  const res = await safeFetch(getBase() + '/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name, password, invite_code: inviteCode }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -756,12 +820,12 @@ export async function socialLoginAPI(
   idToken: string,
   inviteCode?: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(getBase() + '/api/auth/social', {
+  const res = await safeFetch(getBase() + '/api/auth/social', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, id_token: idToken, invite_code: inviteCode }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 
@@ -794,7 +858,7 @@ export async function linkOAuth(provider: string, idToken: string): Promise<void
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ provider, id_token: idToken }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
 }
 
 export function unlinkOAuth(provider: string): Promise<void> {
@@ -802,12 +866,12 @@ export function unlinkOAuth(provider: string): Promise<void> {
 }
 
 export async function refreshTokenAPI(refreshToken: string): Promise<AuthResponse> {
-  const res = await fetch(getBase() + '/api/auth/refresh', {
+  const res = await safeFetch(getBase() + '/api/auth/refresh', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) await throwApiError(res);
   return res.json();
 }
 

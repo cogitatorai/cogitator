@@ -12,7 +12,7 @@ async function bulkDeleteRuns(ids: number[]): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids }),
   });
-  if (!res.ok) throw new Error(`API ${res.status}`);
+  if (!res.ok) throw new Error('Failed to delete runs. Please try again.');
 }
 
 function formatDuration(ms: number): string {

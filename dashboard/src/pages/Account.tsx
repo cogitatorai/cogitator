@@ -149,10 +149,7 @@ export default function Account() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to update account';
-      // Extract message from API error format "API 4xx: ..."
-      const match = msg.match(/API \d+: (.+)/);
-      setError(match ? match[1] : msg);
+      setError(err instanceof Error ? err.message : 'Failed to update account');
     } finally {
       setSaving(false);
     }

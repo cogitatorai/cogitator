@@ -579,3 +579,187 @@ func TestMultiUser_UserDeletion(t *testing.T) {
 		}
 	})
 }
+
+// TestMultiUser_RunIsolation verifies that regular users can only see runs
+// belonging to their own tasks when listing runs without a task_id filter.
+func TestMultiUser_RunIsolation(t *testing.T) {
+	router := setupMultiUserRouter(t)
+
+	_, adminToken := createUserWithToken(t, router, "admin@test.com", user.RoleAdmin)
+	alice, aliceToken := createUserWithToken(t, router, "alice@test.com", user.RoleUser)
+	bob, bobToken := createUserWithToken(t, router, "bob@test.com", user.RoleUser)
+
+	// Alice creates a task and a run.
+	var aliceTaskID int64
+	rec := doRequest(t, router, "POST", "/api/tasks", aliceToken, map[string]interface{}{
+		"name": "alice-task", "prompt": "do alice stuff", "allow_manual": true,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create alice task: %d %s", rec.Code, rec.Body.String())
+	}
+	var aliceTask task.Task
+	decodeJSON(t, rec, &aliceTask)
+	aliceTaskID = aliceTask.ID
+
+	_ = alice
+	aliceRunID, err := router.tasks.CreateRun(&task.Run{
+		TaskID:  &aliceTaskID,
+		Trigger: task.TriggerManual,
+		Status:  task.RunStatusCompleted,
+	})
+	if err != nil {
+		t.Fatalf("create alice run: %v", err)
+	}
+
+	// Bob creates a task and a run.
+	var bobTaskID int64
+	rec = doRequest(t, router, "POST", "/api/tasks", bobToken, map[string]interface{}{
+		"name": "bob-task", "prompt": "do bob stuff", "allow_manual": true,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create bob task: %d %s", rec.Code, rec.Body.String())
+	}
+	var bobTask task.Task
+	decodeJSON(t, rec, &bobTask)
+	bobTaskID = bobTask.ID
+
+	_ = bob
+	bobRunID, err := router.tasks.CreateRun(&task.Run{
+		TaskID:  &bobTaskID,
+		Trigger: task.TriggerManual,
+		Status:  task.RunStatusCompleted,
+	})
+	if err != nil {
+		t.Fatalf("create bob run: %v", err)
+	}
+
+	// Alice lists all runs (no task_id filter): should only see her own.
+	t.Run("alice_sees_only_own_runs", func(t *testing.T) {
+		rec := doRequest(t, router, "GET", "/api/runs", aliceToken, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var result task.RunListResult
+		decodeJSON(t, rec, &result)
+		if result.Total != 1 {
+			t.Errorf("expected total=1 for alice, got %d", result.Total)
+		}
+		if len(result.Runs) != 1 {
+			t.Fatalf("expected 1 run for alice, got %d", len(result.Runs))
+		}
+		if result.Runs[0].ID != aliceRunID {
+			t.Errorf("expected alice's run %d, got %d", aliceRunID, result.Runs[0].ID)
+		}
+	})
+
+	// Bob lists all runs: should only see his own.
+	t.Run("bob_sees_only_own_runs", func(t *testing.T) {
+		rec := doRequest(t, router, "GET", "/api/runs", bobToken, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var result task.RunListResult
+		decodeJSON(t, rec, &result)
+		if result.Total != 1 {
+			t.Errorf("expected total=1 for bob, got %d", result.Total)
+		}
+		if len(result.Runs) != 1 {
+			t.Fatalf("expected 1 run for bob, got %d", len(result.Runs))
+		}
+		if result.Runs[0].ID != bobRunID {
+			t.Errorf("expected bob's run %d, got %d", bobRunID, result.Runs[0].ID)
+		}
+	})
+
+	// Admin sees all runs.
+	t.Run("admin_sees_all_runs", func(t *testing.T) {
+		rec := doRequest(t, router, "GET", "/api/runs", adminToken, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var result task.RunListResult
+		decodeJSON(t, rec, &result)
+		if result.Total != 2 {
+			t.Errorf("expected total=2 for admin, got %d", result.Total)
+		}
+		if len(result.Runs) != 2 {
+			t.Fatalf("expected 2 runs for admin, got %d", len(result.Runs))
+		}
+	})
+}
+
+// TestMultiUser_AdminSeesAllTasks verifies that admins can see tasks created
+// by other users, while regular users only see their own.
+func TestMultiUser_AdminSeesAllTasks(t *testing.T) {
+	router := setupMultiUserRouter(t)
+
+	_, adminToken := createUserWithToken(t, router, "admin@test.com", user.RoleAdmin)
+	_, aliceToken := createUserWithToken(t, router, "alice@test.com", user.RoleUser)
+	_, bobToken := createUserWithToken(t, router, "bob@test.com", user.RoleUser)
+
+	// Alice creates a task.
+	rec := doRequest(t, router, "POST", "/api/tasks", aliceToken, map[string]any{
+		"name": "alice-task", "prompt": "alice prompt", "allow_manual": true,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create alice task: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// Bob creates a task.
+	rec = doRequest(t, router, "POST", "/api/tasks", bobToken, map[string]any{
+		"name": "bob-task", "prompt": "bob prompt", "allow_manual": true,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create bob task: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// Alice sees only her own task.
+	t.Run("alice_sees_own_tasks", func(t *testing.T) {
+		rec := doRequest(t, router, "GET", "/api/tasks", aliceToken, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		var tasks []task.Task
+		decodeJSON(t, rec, &tasks)
+		if len(tasks) != 1 {
+			t.Fatalf("expected 1 task for alice, got %d", len(tasks))
+		}
+		if tasks[0].Name != "alice-task" {
+			t.Errorf("expected 'alice-task', got %q", tasks[0].Name)
+		}
+	})
+
+	// Bob sees only his own task.
+	t.Run("bob_sees_own_tasks", func(t *testing.T) {
+		rec := doRequest(t, router, "GET", "/api/tasks", bobToken, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		var tasks []task.Task
+		decodeJSON(t, rec, &tasks)
+		if len(tasks) != 1 {
+			t.Fatalf("expected 1 task for bob, got %d", len(tasks))
+		}
+		if tasks[0].Name != "bob-task" {
+			t.Errorf("expected 'bob-task', got %q", tasks[0].Name)
+		}
+	})
+
+	// Admin sees all tasks with owner names populated.
+	t.Run("admin_sees_all_tasks", func(t *testing.T) {
+		rec := doRequest(t, router, "GET", "/api/tasks", adminToken, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		var tasks []task.Task
+		decodeJSON(t, rec, &tasks)
+		if len(tasks) != 2 {
+			t.Fatalf("expected 2 tasks for admin, got %d", len(tasks))
+		}
+		for _, tk := range tasks {
+			if tk.OwnerName == "" {
+				t.Errorf("expected owner_name to be populated for task %q, got empty", tk.Name)
+			}
+		}
+	})
+}

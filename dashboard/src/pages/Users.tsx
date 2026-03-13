@@ -461,7 +461,7 @@ function ServerSettingsSection({ publicUrl, onPublicUrlChange }: { publicUrl: st
             className={inputClass + ' w-full'}
           />
         </div>
-        <StripedButton onClick={handleSave} disabled={saving}>
+        <StripedButton onClick={handleSave} disabled={saving} className="h-[38px]">
           {saving ? 'Saving...' : 'Save'}
         </StripedButton>
       </div>

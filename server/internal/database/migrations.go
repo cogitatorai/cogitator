@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	allow_manual  BOOLEAN DEFAULT 1,
 	notify_chat   BOOLEAN DEFAULT 0,
 	broadcast     BOOLEAN DEFAULT 0,
+	notify_users  TEXT,
 	user_id       TEXT REFERENCES users(id),
 	created_by    TEXT,
 	created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

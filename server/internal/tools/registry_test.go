@@ -36,14 +36,14 @@ func TestRegistryBuiltins(t *testing.T) {
 
 	// List should return all built-in tools.
 	list := r.List()
-	if len(list) != 24 {
-		t.Errorf("List(): got %d tools, want 24", len(list))
+	if len(list) != 25 {
+		t.Errorf("List(): got %d tools, want 25", len(list))
 	}
 
 	// ProviderTools should return all built-in entries with non-empty names.
 	pt := r.ProviderTools()
-	if len(pt) != 24 {
-		t.Errorf("ProviderTools(): got %d tools, want 24", len(pt))
+	if len(pt) != 25 {
+		t.Errorf("ProviderTools(): got %d tools, want 25", len(pt))
 	}
 	for _, p := range pt {
 		if p.Name == "" {
@@ -105,9 +105,9 @@ command: "curl -s 'https://api.example.com/search?q={{.query}}'"
 		t.Error("custom tool should not have Builtin=true")
 	}
 
-	// List should now contain 24 tools (24 built-ins, custom web_search overrides the builtin).
-	if got := len(r.List()); got != 24 {
-		t.Errorf("List(): got %d tools, want 24", got)
+	// List should now contain 25 tools (25 built-ins, custom web_search overrides the builtin).
+	if got := len(r.List()); got != 25 {
+		t.Errorf("List(): got %d tools, want 25", got)
 	}
 
 	// ProviderTools should also reflect the custom tool.
@@ -173,8 +173,8 @@ func TestRegistryLoadSkipsMissingYaml(t *testing.T) {
 		t.Fatalf("LoadCustomTools returned unexpected error: %v", err)
 	}
 
-	// Only the 24 built-ins should be present; no extra tool from the empty dir.
-	if got := len(r.List()); got != 24 {
-		t.Errorf("List(): got %d tools, want 24 (only built-ins)", got)
+	// Only the 25 built-ins should be present; no extra tool from the empty dir.
+	if got := len(r.List()); got != 25 {
+		t.Errorf("List(): got %d tools, want 25 (only built-ins)", got)
 	}
 }

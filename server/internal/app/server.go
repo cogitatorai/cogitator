@@ -363,6 +363,7 @@ func New(opts Options) (*Server, error) {
 	if userStore != nil {
 		toolExecutor.SetUserLister(&userListerAdapter{store: userStore})
 		toolExecutor.SetMemoryToggler(memoryWriter)
+		taskAdapter.UserLister = &userListerAdapter{store: userStore}
 	}
 
 	retriever := memory.NewRetriever(memory.RetrieverConfig{
@@ -530,6 +531,10 @@ func New(opts Options) (*Server, error) {
 	}()
 
 	notificationStore := notification.NewStore(db)
+	toolExecutor.SetUserNotifier(&tools.NotifierAdapter{
+		Notifications: notificationStore,
+		EventBus:      eventBus,
+	})
 	pushStore := push.NewStore(db)
 
 	// Web chat channel.
@@ -928,6 +933,18 @@ func (a *userListerAdapter) ListOtherUsers(callerID string) ([]tools.UserInfo, e
 		}
 	}
 	return result, nil
+}
+
+func (a *userListerAdapter) ListAllUsers() ([]tools.UserInfo, error) {
+	users, err := a.store.List()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]tools.UserInfo, len(users))
+	for i, u := range users {
+		out[i] = tools.UserInfo{ID: u.ID, Name: u.Name}
+	}
+	return out, nil
 }
 
 // buildNameResolver returns a NameResolver that looks up user display names

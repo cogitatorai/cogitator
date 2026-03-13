@@ -40,7 +40,7 @@ func NewDispatcher(
 
 func (d *Dispatcher) Start() {
 	d.stop = make(chan struct{})
-	ch := d.eventBus.Subscribe(bus.TaskNotifyChat, bus.MessageResponded)
+	ch := d.eventBus.Subscribe(bus.TaskNotifyChat, bus.MessageResponded, bus.UserNotification)
 
 	go func() {
 		for {
@@ -57,6 +57,8 @@ func (d *Dispatcher) Start() {
 					d.handleTaskNotification(evt)
 				case bus.MessageResponded:
 					d.handleChatResponse(evt)
+				case bus.UserNotification:
+					d.handleUserNotification(evt)
 				}
 			}
 		}
@@ -76,7 +78,6 @@ func (d *Dispatcher) handleTaskNotification(evt bus.Event) {
 	}
 
 	result, _ := evt.Payload["result"].(string)
-	broadcast, _ := evt.Payload["broadcast"].(bool)
 
 	status := "completed"
 	if strings.HasPrefix(result, "Failed:") {
@@ -92,6 +93,24 @@ func (d *Dispatcher) handleTaskNotification(evt bus.Event) {
 
 	data := map[string]any{"page": "notifications"}
 
+	// Prefer notify_users over broadcast flag.
+	if notifyUsers, ok := evt.Payload["notify_users"].([]string); ok && len(notifyUsers) > 0 {
+		if len(notifyUsers) == 1 && notifyUsers[0] == "*" {
+			d.sender.SendToAll(title, body, "task", data)
+		} else {
+			for _, uid := range notifyUsers {
+				badge := 0
+				if d.notifications != nil {
+					badge, _ = d.notifications.UnreadCount(uid)
+				}
+				d.sender.SendToUser(uid, title, body, "task", badge, data)
+			}
+		}
+		return
+	}
+
+	// N-1 fallback: use broadcast flag.
+	broadcast, _ := evt.Payload["broadcast"].(bool)
 	if broadcast {
 		d.sender.SendToAll(title, body, "task", data)
 	} else {
@@ -101,6 +120,32 @@ func (d *Dispatcher) handleTaskNotification(evt bus.Event) {
 		}
 		d.sender.SendToUser(userID, title, body, "task", badge, data)
 	}
+}
+
+func (d *Dispatcher) handleUserNotification(evt bus.Event) {
+	recipientID, _ := evt.Payload["recipient_id"].(string)
+	senderName, _ := evt.Payload["sender_name"].(string)
+	if recipientID == "" {
+		return
+	}
+
+	title := "Message from " + senderName
+	if senderName == "" {
+		title = "New message"
+	}
+	body, _ := evt.Payload["content"].(string)
+	if len(body) > 100 {
+		body = body[:97] + "..."
+	}
+
+	badge := 0
+	if d.notifications != nil {
+		badge, _ = d.notifications.UnreadCount(recipientID)
+	}
+
+	d.sender.SendToUser(recipientID, title, body, "user_message", badge, map[string]any{
+		"page": "notifications",
+	})
 }
 
 func (d *Dispatcher) handleChatResponse(evt bus.Event) {

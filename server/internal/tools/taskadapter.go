@@ -18,19 +18,21 @@ type TaskScheduler interface {
 }
 
 type TaskStoreAdapter struct {
-	Store     *task.Store
-	Executor  *task.Executor
-	EventBus  *bus.Bus
-	Scheduler TaskScheduler
+	Store      *task.Store
+	Executor   *task.Executor
+	EventBus   *bus.Bus
+	Scheduler  TaskScheduler
+	UserLister UserLister // for resolving notify_users IDs to names
 }
 
-func (a *TaskStoreAdapter) CreateTask(name, prompt, cronExpr, modelTier string, notifyChat bool, userID string) (int64, error) {
+func (a *TaskStoreAdapter) CreateTask(name, prompt, cronExpr, modelTier string, notifyChat bool, userID string, notifyUsers []string) (int64, error) {
 	t := &task.Task{
 		Name:        name,
 		Prompt:      prompt,
 		CronExpr:    cronExpr,
 		ModelTier:   modelTier,
 		NotifyChat:  notifyChat,
+		NotifyUsers: notifyUsers,
 		Enabled:     true,
 		AllowManual: true,
 		CreatedBy:   "agent",
@@ -43,7 +45,7 @@ func (a *TaskStoreAdapter) CreateTask(name, prompt, cronExpr, modelTier string, 
 	return id, err
 }
 
-func (a *TaskStoreAdapter) UpdateTask(id int64, prompt, cronExpr, modelTier *string, notifyChat *bool) error {
+func (a *TaskStoreAdapter) UpdateTask(id int64, prompt, cronExpr, modelTier *string, notifyChat *bool, notifyUsers *[]string) error {
 	t, err := a.Store.GetTask(id)
 	if err != nil {
 		return fmt.Errorf("task not found: %w", err)
@@ -59,6 +61,9 @@ func (a *TaskStoreAdapter) UpdateTask(id int64, prompt, cronExpr, modelTier *str
 	}
 	if notifyChat != nil {
 		t.NotifyChat = *notifyChat
+	}
+	if notifyUsers != nil {
+		t.NotifyUsers = *notifyUsers
 	}
 	if err := a.Store.UpdateTask(t); err != nil {
 		return err
@@ -92,6 +97,24 @@ func (a *TaskStoreAdapter) ListTasks() ([]map[string]any, error) {
 		}
 		if next, ok := nextRuns[t.ID]; ok {
 			entry["next_run"] = task.FormatNextRun(next)
+		}
+		if len(t.NotifyUsers) > 0 {
+			if len(t.NotifyUsers) == 1 && t.NotifyUsers[0] == "*" {
+				entry["notify_users"] = []string{"everyone"}
+			} else if a.UserLister != nil {
+				allUsers, _ := a.UserLister.ListAllUsers()
+				idToName := make(map[string]string, len(allUsers))
+				for _, u := range allUsers {
+					idToName[u.ID] = u.Name
+				}
+				names := make([]string, 0, len(t.NotifyUsers))
+				for _, uid := range t.NotifyUsers {
+					if name, ok := idToName[uid]; ok {
+						names = append(names, name)
+					}
+				}
+				entry["notify_users"] = names
+			}
 		}
 		result[i] = entry
 	}

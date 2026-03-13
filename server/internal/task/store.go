@@ -30,18 +30,37 @@ func (s *Store) CreateTask(t *Task) (int64, error) {
 		t.ModelTier = "cheap"
 	}
 
+	// N-1 compat: wildcard notify_users implies broadcast for older binaries.
+	for _, u := range t.NotifyUsers {
+		if u == "*" {
+			t.Broadcast = true
+			break
+		}
+	}
+
 	var userID any
 	if t.UserID != "" {
 		userID = t.UserID
 	}
 
+	var notifyUsersJSON any
+	if len(t.NotifyUsers) > 0 {
+		b, err := json.Marshal(t.NotifyUsers)
+		if err != nil {
+			return 0, err
+		}
+		notifyUsersJSON = string(b)
+	}
+
 	result, err := s.db.Exec(`INSERT INTO tasks
 		(name, prompt, cron_expr, model_tier, enabled, max_retries, retry_backoff,
-		 timeout, working_dir, notify, allow_manual, notify_chat, broadcast, created_at, created_by, updated_at, user_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 timeout, working_dir, notify, allow_manual, notify_chat, broadcast,
+		 notify_users, created_at, created_by, updated_at, user_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.Name, t.Prompt, t.CronExpr, t.ModelTier, t.Enabled, t.MaxRetries,
 		t.RetryBackoff, t.Timeout, t.WorkingDir, t.Notify, t.AllowManual,
-		t.NotifyChat, t.Broadcast, t.CreatedAt, t.CreatedBy, t.UpdatedAt, userID)
+		t.NotifyChat, t.Broadcast, notifyUsersJSON,
+		t.CreatedAt, t.CreatedBy, t.UpdatedAt, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -55,15 +74,16 @@ func (s *Store) CreateTask(t *Task) (int64, error) {
 
 func (s *Store) GetTask(id int64) (*Task, error) {
 	var t Task
-	var cronExpr, workingDir, notify, createdBy, userID sql.NullString
+	var cronExpr, workingDir, notify, createdBy, userID, notifyUsersRaw sql.NullString
 
 	err := s.db.QueryRow(`SELECT id, name, prompt, cron_expr, model_tier, enabled,
 		max_retries, retry_backoff, timeout, working_dir, notify, allow_manual,
-		notify_chat, broadcast, created_at, created_by, updated_at, user_id
+		notify_chat, broadcast, notify_users, created_at, created_by, updated_at, user_id
 		FROM tasks WHERE id = ?`, id).Scan(
 		&t.ID, &t.Name, &t.Prompt, &cronExpr, &t.ModelTier, &t.Enabled,
 		&t.MaxRetries, &t.RetryBackoff, &t.Timeout, &workingDir, &notify,
-		&t.AllowManual, &t.NotifyChat, &t.Broadcast, &t.CreatedAt, &createdBy, &t.UpdatedAt, &userID)
+		&t.AllowManual, &t.NotifyChat, &t.Broadcast, &notifyUsersRaw,
+		&t.CreatedAt, &createdBy, &t.UpdatedAt, &userID)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
@@ -76,19 +96,44 @@ func (s *Store) GetTask(id int64) (*Task, error) {
 	t.Notify = notify.String
 	t.CreatedBy = createdBy.String
 	t.UserID = userID.String
+	if notifyUsersRaw.Valid {
+		json.Unmarshal([]byte(notifyUsersRaw.String), &t.NotifyUsers)
+	}
+	// N-1 fallback: broadcast set by older binary without notify_users.
+	if len(t.NotifyUsers) == 0 && t.Broadcast {
+		t.NotifyUsers = []string{"*"}
+	}
 	return &t, nil
 }
 
 func (s *Store) UpdateTask(t *Task) error {
 	t.UpdatedAt = time.Now()
+
+	// N-1 compat: wildcard notify_users implies broadcast for older binaries.
+	for _, u := range t.NotifyUsers {
+		if u == "*" {
+			t.Broadcast = true
+			break
+		}
+	}
+
+	var notifyUsersJSON any
+	if len(t.NotifyUsers) > 0 {
+		b, err := json.Marshal(t.NotifyUsers)
+		if err != nil {
+			return err
+		}
+		notifyUsersJSON = string(b)
+	}
+
 	_, err := s.db.Exec(`UPDATE tasks SET
 		name=?, prompt=?, cron_expr=?, model_tier=?, enabled=?, max_retries=?,
 		retry_backoff=?, timeout=?, working_dir=?, notify=?, allow_manual=?,
-		notify_chat=?, broadcast=?, updated_at=?
+		notify_chat=?, broadcast=?, notify_users=?, updated_at=?
 		WHERE id=?`,
 		t.Name, t.Prompt, t.CronExpr, t.ModelTier, t.Enabled, t.MaxRetries,
 		t.RetryBackoff, t.Timeout, t.WorkingDir, t.Notify, t.AllowManual,
-		t.NotifyChat, t.Broadcast, t.UpdatedAt, t.ID)
+		t.NotifyChat, t.Broadcast, notifyUsersJSON, t.UpdatedAt, t.ID)
 	return err
 }
 
@@ -111,7 +156,7 @@ func (s *Store) DeleteTask(id int64) error {
 func (s *Store) ListTasks(userID string) ([]Task, error) {
 	query := `SELECT id, name, prompt, cron_expr, model_tier, enabled,
 		max_retries, retry_backoff, timeout, working_dir, notify, allow_manual,
-		notify_chat, broadcast, created_at, created_by, updated_at, user_id
+		notify_chat, broadcast, notify_users, created_at, created_by, updated_at, user_id
 		FROM tasks`
 	var args []any
 	if userID != "" {
@@ -129,10 +174,11 @@ func (s *Store) ListTasks(userID string) ([]Task, error) {
 	var tasks []Task
 	for rows.Next() {
 		var t Task
-		var cronExpr, workingDir, notify, createdBy, uid sql.NullString
+		var cronExpr, workingDir, notify, createdBy, uid, notifyUsersRaw sql.NullString
 		if err := rows.Scan(&t.ID, &t.Name, &t.Prompt, &cronExpr, &t.ModelTier,
 			&t.Enabled, &t.MaxRetries, &t.RetryBackoff, &t.Timeout, &workingDir,
-			&notify, &t.AllowManual, &t.NotifyChat, &t.Broadcast, &t.CreatedAt, &createdBy, &t.UpdatedAt, &uid); err != nil {
+			&notify, &t.AllowManual, &t.NotifyChat, &t.Broadcast, &notifyUsersRaw,
+			&t.CreatedAt, &createdBy, &t.UpdatedAt, &uid); err != nil {
 			return nil, err
 		}
 		t.CronExpr = cronExpr.String
@@ -140,6 +186,12 @@ func (s *Store) ListTasks(userID string) ([]Task, error) {
 		t.Notify = notify.String
 		t.CreatedBy = createdBy.String
 		t.UserID = uid.String
+		if notifyUsersRaw.Valid {
+			json.Unmarshal([]byte(notifyUsersRaw.String), &t.NotifyUsers)
+		}
+		if len(t.NotifyUsers) == 0 && t.Broadcast {
+			t.NotifyUsers = []string{"*"}
+		}
 		tasks = append(tasks, t)
 	}
 	return tasks, rows.Err()
@@ -148,7 +200,7 @@ func (s *Store) ListTasks(userID string) ([]Task, error) {
 func (s *Store) ListScheduledTasks() ([]Task, error) {
 	rows, err := s.db.Query(`SELECT id, name, prompt, cron_expr, model_tier, enabled,
 		max_retries, retry_backoff, timeout, working_dir, notify, allow_manual,
-		notify_chat, broadcast, created_at, created_by, updated_at, user_id
+		notify_chat, broadcast, notify_users, created_at, created_by, updated_at, user_id
 		FROM tasks WHERE enabled = 1 AND cron_expr != '' AND cron_expr IS NOT NULL
 		ORDER BY id ASC`)
 	if err != nil {
@@ -159,10 +211,11 @@ func (s *Store) ListScheduledTasks() ([]Task, error) {
 	var tasks []Task
 	for rows.Next() {
 		var t Task
-		var cronExpr, workingDir, notify, createdBy, userID sql.NullString
+		var cronExpr, workingDir, notify, createdBy, userID, notifyUsersRaw sql.NullString
 		if err := rows.Scan(&t.ID, &t.Name, &t.Prompt, &cronExpr, &t.ModelTier,
 			&t.Enabled, &t.MaxRetries, &t.RetryBackoff, &t.Timeout, &workingDir,
-			&notify, &t.AllowManual, &t.NotifyChat, &t.Broadcast, &t.CreatedAt, &createdBy, &t.UpdatedAt, &userID); err != nil {
+			&notify, &t.AllowManual, &t.NotifyChat, &t.Broadcast, &notifyUsersRaw,
+			&t.CreatedAt, &createdBy, &t.UpdatedAt, &userID); err != nil {
 			return nil, err
 		}
 		t.CronExpr = cronExpr.String
@@ -170,6 +223,12 @@ func (s *Store) ListScheduledTasks() ([]Task, error) {
 		t.Notify = notify.String
 		t.CreatedBy = createdBy.String
 		t.UserID = userID.String
+		if notifyUsersRaw.Valid {
+			json.Unmarshal([]byte(notifyUsersRaw.String), &t.NotifyUsers)
+		}
+		if len(t.NotifyUsers) == 0 && t.Broadcast {
+			t.NotifyUsers = []string{"*"}
+		}
 		tasks = append(tasks, t)
 	}
 	return tasks, rows.Err()

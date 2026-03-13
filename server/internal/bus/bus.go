@@ -30,6 +30,7 @@ const (
 	SettingsChanged          EventType = "settings.changed"
 	NotificationsRead        EventType = "notifications.read"
 	AgentCancelled           EventType = "agent.cancelled"
+	UserNotification         EventType = "user.notification"
 )
 
 type Event struct {

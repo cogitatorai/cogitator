@@ -399,6 +399,68 @@ func TestDisableAndReassignTasks(t *testing.T) {
 	}
 }
 
+func TestCreateTask_NotifyUsers(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	tsk := &Task{
+		Name:        "backup-check",
+		Prompt:      "Check backups",
+		CronExpr:    "0 0 * * *",
+		ModelTier:   "cheap",
+		Enabled:     true,
+		AllowManual: true,
+		NotifyChat:  true,
+		NotifyUsers: []string{"user-1", "user-2"},
+	}
+	id, err := store.CreateTask(tsk)
+	if err != nil {
+		t.Fatalf("CreateTask() error: %v", err)
+	}
+
+	got, err := store.GetTask(id)
+	if err != nil {
+		t.Fatalf("GetTask() error: %v", err)
+	}
+	if len(got.NotifyUsers) != 2 {
+		t.Fatalf("expected 2 notify_users, got %d", len(got.NotifyUsers))
+	}
+	if got.NotifyUsers[0] != "user-1" || got.NotifyUsers[1] != "user-2" {
+		t.Errorf("unexpected notify_users: %v", got.NotifyUsers)
+	}
+}
+
+func TestCreateTask_NotifyUsersWildcard(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	tsk := &Task{
+		Name:        "broadcast-task",
+		Prompt:      "Broadcast something",
+		CronExpr:    "0 9 * * *",
+		ModelTier:   "cheap",
+		Enabled:     true,
+		NotifyChat:  true,
+		NotifyUsers: []string{"*"},
+	}
+	id, err := store.CreateTask(tsk)
+	if err != nil {
+		t.Fatalf("CreateTask() error: %v", err)
+	}
+
+	got, err := store.GetTask(id)
+	if err != nil {
+		t.Fatalf("GetTask() error: %v", err)
+	}
+	if len(got.NotifyUsers) != 1 || got.NotifyUsers[0] != "*" {
+		t.Errorf("expected [\"*\"], got %v", got.NotifyUsers)
+	}
+	// Broadcast flag should also be set for N-1 compat
+	if !got.Broadcast {
+		t.Error("expected Broadcast=true for wildcard notify_users")
+	}
+}
+
 func TestListScheduledTasks_OnlyEnabled(t *testing.T) {
 	db := testDB(t)
 	store := NewStore(db)

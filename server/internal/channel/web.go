@@ -77,7 +77,7 @@ func (wc *WebChannel) Name() string { return "web" }
 func (wc *WebChannel) Start(_ context.Context) error {
 	if wc.eventBus != nil {
 		wc.stopNotify = make(chan struct{})
-		ch := wc.eventBus.Subscribe(bus.TaskNotifyChat, bus.TaskCompleted, bus.TaskFailed)
+		ch := wc.eventBus.Subscribe(bus.TaskNotifyChat, bus.TaskCompleted, bus.TaskFailed, bus.UserNotification)
 		go func() {
 			for {
 				select {
@@ -100,13 +100,29 @@ func (wc *WebChannel) Start(_ context.Context) error {
 						if strings.HasPrefix(result, "Failed:") {
 							status = "failed"
 						}
-						if wc.notifications != nil {
-							tid := taskID
+						// Resolve recipients from notify_users (preferred) or broadcast (N-1 fallback)
+						var recipients []string
+						if notifyUsers, ok := evt.Payload["notify_users"].([]string); ok && len(notifyUsers) > 0 {
+							if len(notifyUsers) == 1 && notifyUsers[0] == "*" {
+								if wc.userIDsFunc != nil {
+									recipients = wc.userIDsFunc()
+								} else {
+									recipients = []string{userID}
+								}
+							} else {
+								recipients = notifyUsers
+							}
+						} else {
 							broadcastFlag, _ := evt.Payload["broadcast"].(bool)
-							recipients := []string{userID}
 							if broadcastFlag && wc.userIDsFunc != nil {
 								recipients = wc.userIDsFunc()
+							} else {
+								recipients = []string{userID}
 							}
+						}
+						if wc.notifications != nil {
+							tid := taskID
+							created := 0
 							for _, uid := range recipients {
 								if _, err := wc.notifications.Create(&notification.Notification{
 									UserID:   uid,
@@ -118,7 +134,21 @@ func (wc *WebChannel) Start(_ context.Context) error {
 									Content:  result,
 								}); err != nil {
 									wc.logger.Error("failed to create notification", "task", taskName, "user", uid, "error", err)
+								} else {
+									created++
 								}
+							}
+							// Fallback to task owner if all recipient IDs were invalid
+							if created == 0 && userID != "" {
+								wc.notifications.Create(&notification.Notification{
+									UserID:   userID,
+									TaskID:   &tid,
+									TaskName: taskName,
+									RunID:    runID,
+									Trigger:  trigger,
+									Status:   status,
+									Content:  result,
+								})
 							}
 						}
 						// Write task output to the pinned Tasks session.
@@ -147,11 +177,16 @@ func (wc *WebChannel) Start(_ context.Context) error {
 								})
 							}
 						}
-						wc.broadcast(wsMessage{
+						notifMsg := wsMessage{
 							Type:    "notification",
 							Content: taskName,
 							Status:  status,
-						})
+						}
+						if len(recipients) > 0 {
+							wc.sendToUsers(recipients, notifMsg)
+						} else {
+							wc.sendToUser(userID, notifMsg)
+						}
 					case bus.TaskCompleted:
 						taskID, _ := evt.Payload["task_id"].(int64)
 						taskName := ""
@@ -176,6 +211,16 @@ func (wc *WebChannel) Start(_ context.Context) error {
 							Status:  "failed",
 							Error:   errMsg,
 						})
+					case bus.UserNotification:
+						recipientID, _ := evt.Payload["recipient_id"].(string)
+						senderName, _ := evt.Payload["sender_name"].(string)
+						if recipientID != "" {
+							wc.sendToUser(recipientID, wsMessage{
+								Type:    "notification",
+								Content: "Message from " + senderName,
+								Status:  "info",
+							})
+						}
 					}
 				}
 			}
@@ -500,6 +545,45 @@ func (wc *WebChannel) broadcast(msg wsMessage) {
 
 	ctx := context.Background()
 	for _, c := range conns {
+		wc.writeMessage(ctx, c, msg)
+	}
+}
+
+// sendToUser sends a message only to WebSocket connections owned by the given user ID.
+func (wc *WebChannel) sendToUser(userID string, msg wsMessage) {
+	wc.mu.Lock()
+	var targets []*websocket.Conn
+	for c, info := range wc.conns {
+		if info.userID == userID {
+			targets = append(targets, c)
+		}
+	}
+	wc.mu.Unlock()
+
+	ctx := context.Background()
+	for _, c := range targets {
+		wc.writeMessage(ctx, c, msg)
+	}
+}
+
+// sendToUsers sends a message to connections owned by any of the given user IDs.
+func (wc *WebChannel) sendToUsers(userIDs []string, msg wsMessage) {
+	set := make(map[string]bool, len(userIDs))
+	for _, id := range userIDs {
+		set[id] = true
+	}
+
+	wc.mu.Lock()
+	var targets []*websocket.Conn
+	for c, info := range wc.conns {
+		if set[info.userID] {
+			targets = append(targets, c)
+		}
+	}
+	wc.mu.Unlock()
+
+	ctx := context.Background()
+	for _, c := range targets {
 		wc.writeMessage(ctx, c, msg)
 	}
 }

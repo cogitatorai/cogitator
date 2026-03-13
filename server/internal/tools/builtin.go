@@ -95,6 +95,13 @@ func registerBuiltinTools(r *Registry) {
 						"type":        "boolean",
 						"description": "Whether to send the task result to the user's active chat session. Defaults to true. Set to true when the user expects to receive the output (e.g. 'give me a daily forecast', 'send me a summary', 'tell me the status'). Set to false for background tasks where the user only cares about logging (e.g. 'clean up old files nightly', 'rotate logs every hour').",
 					},
+					"notify_users": map[string]any{
+						"type": "array",
+						"items": map[string]any{
+							"type": "string",
+						},
+						"description": "List of user names to notify when the task completes. Use exact names from list_users. Use [\"everyone\"] to notify all users. Omit to notify only the task owner.",
+					},
 				},
 				"required": []string{"name", "prompt", "cron_expr"},
 			},
@@ -126,6 +133,13 @@ func registerBuiltinTools(r *Registry) {
 					"notify_chat": map[string]any{
 						"type":        "boolean",
 						"description": "Whether to send results to the user's chat. Omit to keep the current setting.",
+					},
+					"notify_users": map[string]any{
+						"type": "array",
+						"items": map[string]any{
+							"type": "string",
+						},
+						"description": "List of user names to notify on completion. Use [\"everyone\"] for all users. Omit to keep the current setting.",
 					},
 				},
 				"required": []string{"task_id"},
@@ -349,6 +363,25 @@ func registerBuiltinTools(r *Registry) {
 			Parameters: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
+			},
+			Builtin: true,
+		},
+		{
+			Name:        "notify_user",
+			Description: "Send a notification message to another user on this platform. The message will appear in their Tasks notification list with your name as the sender. Use exact names as returned by list_users.",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"user_name": map[string]any{
+						"type":        "string",
+						"description": "The exact display name of the user to notify (from list_users)",
+					},
+					"message": map[string]any{
+						"type":        "string",
+						"description": "The message to send to the user",
+					},
+				},
+				"required": []string{"user_name", "message"},
 			},
 			Builtin: true,
 		},

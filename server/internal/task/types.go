@@ -46,6 +46,7 @@ type Task struct {
 	AllowManual  bool      `json:"allow_manual"`
 	NotifyChat   bool      `json:"notify_chat"`
 	Broadcast    bool      `json:"broadcast"`
+	NotifyUsers  []string  `json:"notify_users,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	CreatedBy    string    `json:"created_by,omitempty"`
 	UpdatedAt    time.Time `json:"updated_at"`

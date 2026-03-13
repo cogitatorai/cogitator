@@ -930,6 +930,18 @@ func (a *userListerAdapter) ListOtherUsers(callerID string) ([]tools.UserInfo, e
 	return result, nil
 }
 
+func (a *userListerAdapter) ListAllUsers() ([]tools.UserInfo, error) {
+	users, err := a.store.List()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]tools.UserInfo, len(users))
+	for i, u := range users {
+		out[i] = tools.UserInfo{ID: u.ID, Name: u.Name}
+	}
+	return out, nil
+}
+
 // buildNameResolver returns a NameResolver that looks up user display names
 // from the user store. Returns nil when no store is available.
 func buildNameResolver(users *user.Store) memory.NameResolver {

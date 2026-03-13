@@ -353,6 +353,25 @@ func registerBuiltinTools(r *Registry) {
 			Builtin: true,
 		},
 		{
+			Name:        "notify_user",
+			Description: "Send a notification message to another user on this platform. The message will appear in their Tasks notification list with your name as the sender. Use exact names as returned by list_users.",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"user_name": map[string]any{
+						"type":        "string",
+						"description": "The exact display name of the user to notify (from list_users)",
+					},
+					"message": map[string]any{
+						"type":        "string",
+						"description": "The message to send to the user",
+					},
+				},
+				"required": []string{"user_name", "message"},
+			},
+			Builtin: true,
+		},
+		{
 			Name:        "toggle_memory_privacy",
 			Description: "Toggle a memory between private and shared. Private memories are only visible to the user who owns them. Shared memories are visible to all users. Use this when a user asks to make a memory private or share it with everyone.",
 			Parameters: map[string]any{

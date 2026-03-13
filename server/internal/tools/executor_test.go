@@ -495,6 +495,107 @@ func TestAllowDomainToolMissingDomain(t *testing.T) {
 	}
 }
 
+type mockUserNotifier struct {
+	calls []struct {
+		senderID, senderName, recipientID, message string
+	}
+}
+
+func (m *mockUserNotifier) NotifyUser(senderID, senderName, recipientID, message string) error {
+	m.calls = append(m.calls, struct {
+		senderID, senderName, recipientID, message string
+	}{senderID, senderName, recipientID, message})
+	return nil
+}
+
+type mockUserListerWithAll struct {
+	users []UserInfo
+}
+
+func (m *mockUserListerWithAll) ListOtherUsers(callerID string) ([]UserInfo, error) {
+	var result []UserInfo
+	for _, u := range m.users {
+		if u.ID != callerID {
+			result = append(result, u)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockUserListerWithAll) ListAllUsers() ([]UserInfo, error) {
+	return m.users, nil
+}
+
+func TestNotifyUser(t *testing.T) {
+	audit := &mockAuditLogger{}
+	exe, _ := newTestExecutor(t, audit)
+
+	notifier := &mockUserNotifier{}
+	exe.SetUserNotifier(notifier)
+
+	lister := &mockUserListerWithAll{
+		users: []UserInfo{
+			{ID: "sender-1", Name: "John"},
+			{ID: "user-2", Name: "Sarah"},
+		},
+	}
+	exe.SetUserLister(lister)
+
+	ctx := WithChatScope(context.Background(), ChatScope{
+		UserID: "sender-1",
+	})
+
+	args := `{"user_name": "Sarah", "message": "The build is ready"}`
+	result, err := exe.Execute(ctx, "notify_user", args)
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if !strings.Contains(result, "Sarah") {
+		t.Errorf("expected result to mention Sarah, got %q", result)
+	}
+	if len(notifier.calls) != 1 {
+		t.Fatalf("expected 1 notification, got %d", len(notifier.calls))
+	}
+	call := notifier.calls[0]
+	if call.recipientID != "user-2" {
+		t.Errorf("expected recipient user-2, got %q", call.recipientID)
+	}
+	if call.senderName != "John" {
+		t.Errorf("expected sender name John, got %q", call.senderName)
+	}
+	if call.message != "The build is ready" {
+		t.Errorf("expected message 'The build is ready', got %q", call.message)
+	}
+}
+
+func TestNotifyUser_NotFound(t *testing.T) {
+	audit := &mockAuditLogger{}
+	exe, _ := newTestExecutor(t, audit)
+
+	notifier := &mockUserNotifier{}
+	exe.SetUserNotifier(notifier)
+
+	lister := &mockUserListerWithAll{
+		users: []UserInfo{
+			{ID: "sender-1", Name: "John"},
+		},
+	}
+	exe.SetUserLister(lister)
+
+	ctx := WithChatScope(context.Background(), ChatScope{
+		UserID: "sender-1",
+	})
+
+	args := `{"user_name": "Bob", "message": "Hello"}`
+	_, err := exe.Execute(ctx, "notify_user", args)
+	if err == nil {
+		t.Fatal("expected error for unknown user")
+	}
+	if !strings.Contains(err.Error(), "Bob") {
+		t.Errorf("expected error to mention Bob, got %q", err.Error())
+	}
+}
+
 func TestAllowDomainToolNotAvailable(t *testing.T) {
 	audit := &mockAuditLogger{}
 	exe, _ := newTestExecutor(t, audit)

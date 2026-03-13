@@ -348,20 +348,13 @@ func (r *Router) handleAuthProviders(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, info)
 }
 
-// googleCallbackURI determines the redirect URI for Google OAuth based on the
-// request. It uses the Origin header if present, otherwise derives from the
-// Host header, falling back to localhost.
+// googleCallbackURI determines the redirect URI for Google OAuth. The callback
+// always targets the Go server itself (req.Host) so that the server receives
+// the authorization code directly, regardless of where the dashboard is hosted.
+// This is essential for client-mode where the dashboard runs on a different
+// origin. After processing the callback, the server redirects the user back to
+// the dashboard using the stored origin from the pending state.
 func (r *Router) googleCallbackURI(req *http.Request) string {
-	// Dashboard/local requests include an Origin header; use it directly.
-	if origin := req.Header.Get("Origin"); origin != "" {
-		return origin + "/api/auth/google/callback"
-	}
-	// Referer is present on full-page navigations (e.g. window.location.href).
-	if ref := req.Header.Get("Referer"); ref != "" {
-		if u, err := url.Parse(ref); err == nil && u.Host != "" {
-			return fmt.Sprintf("%s://%s/api/auth/google/callback", u.Scheme, u.Host)
-		}
-	}
 	if host := req.Host; host != "" {
 		scheme := "http"
 		if req.TLS != nil {

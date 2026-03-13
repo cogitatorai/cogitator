@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { fetchAuthProviders, fetchVersionInfo, isWebBrowser } from '../api';
+import { fetchAuthProviders, fetchVersionInfo, isWebBrowser, getServerUrl } from '../api';
 import type { AuthProviders } from '../api';
 // TODO: re-enable when Apple Sign-In is fully supported in the desktop app
 // import { getAppleIdToken } from '../social-sdk';
@@ -31,7 +31,7 @@ export default function Login() {
     localStorage.removeItem(LS_PENDING_CLAIM);
     setSocialLoading('google');
 
-    fetch(`/api/auth/claim/${claimID}`)
+    fetch(`${getServerUrl()}/api/auth/claim/${claimID}`)
       .then(async (res) => {
         if (res.status === 202) {
           // Not ready yet; put it back and try again on next focus.
@@ -95,7 +95,7 @@ export default function Login() {
     const claimID = crypto.randomUUID();
     localStorage.setItem(LS_PENDING_CLAIM, claimID);
     const src = isWebBrowser ? '&source=web' : '';
-    window.location.href = `/api/auth/google/start?return_to=login&purpose=login&claim_id=${claimID}${src}`;
+    window.location.href = `${getServerUrl()}/api/auth/google/start?return_to=login&purpose=login&claim_id=${claimID}${src}`;
   }, []);
 
   // TODO: re-enable when Apple Sign-In is fully supported in the desktop app
@@ -221,6 +221,15 @@ export default function Login() {
             className="text-orange-600 hover:text-orange-500 transition-colors"
           >
             Create an account
+          </a>
+        </p>
+
+        <p className="text-center text-sm text-zinc-600">
+          <a
+            href="#connect"
+            className="text-zinc-500 hover:text-orange-500 transition-colors"
+          >
+            Connect to a different server
           </a>
         </p>
 

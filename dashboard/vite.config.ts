@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
   // Load COGITATOR_* vars from the parent directory's .env file.
   const env = loadEnv(mode, path.resolve(__dirname, '..'), 'COGITATOR_')
   const port = env.COGITATOR_SERVER_PORT || '8484'
-  const backend = `http://127.0.0.1:${port}`
+  const backend = `http://localhost:${port}`
 
   return {
     plugins: [react(), tailwindcss()],
@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         '/ws': {
-          target: `ws://127.0.0.1:${port}`,
+          target: `ws://localhost:${port}`,
           ws: true,
           configure: (proxy) => {
             proxy.on('error', () => {});

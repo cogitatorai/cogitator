@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJSON, putJSON } from '../api';
+import { fetchJSON, putJSON, getServerUrl, clearServerUrl } from '../api';
 import type { Settings, SettingsUpdateRequest } from '../api';
 import { isNotificationsEnabled, setNotificationsEnabled } from '../hooks/useDesktopNotifications';
 import Panel from '../components/Panel';
@@ -129,6 +129,30 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
       )}
 
       <div className="space-y-6">
+        {getServerUrl() && (
+          <>
+            <SectionHeader title="Server Connection" />
+            <Panel>
+              <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+                Connected Server
+              </h3>
+              <p className="text-sm text-zinc-300 mb-3 font-mono break-all">
+                {getServerUrl()}
+              </p>
+              <button
+                onClick={() => {
+                  clearServerUrl();
+                  window.location.hash = 'login';
+                  window.location.reload();
+                }}
+                className="text-[12px] uppercase tracking-widest font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+              >
+                Disconnect
+              </button>
+            </Panel>
+          </>
+        )}
+
         <SectionHeader title="Appearance" />
 
         <Panel>

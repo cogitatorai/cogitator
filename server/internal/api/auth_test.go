@@ -239,7 +239,7 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("disallowed origin gets no CORS headers", func(t *testing.T) {
+	t.Run("any origin gets CORS headers", func(t *testing.T) {
 		handler := corsMiddleware(port, ok200)
 		req := httptest.NewRequest("GET", "/api/status", nil)
 		req.Header.Set("Origin", disallowedOrigin)
@@ -247,8 +247,8 @@ func TestCORSMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
-		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
-			t.Errorf("Access-Control-Allow-Origin should be empty for disallowed origin, got %q", got)
+		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != disallowedOrigin {
+			t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, disallowedOrigin)
 		}
 		if rec.Code != 200 {
 			t.Errorf("got status %d, want 200", rec.Code)
@@ -292,7 +292,7 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("OPTIONS from disallowed origin passes through to handler", func(t *testing.T) {
+	t.Run("OPTIONS preflight from any origin returns 204", func(t *testing.T) {
 		handler := corsMiddleware(port, ok200)
 		req := httptest.NewRequest("OPTIONS", "/api/status", nil)
 		req.Header.Set("Origin", disallowedOrigin)
@@ -300,11 +300,11 @@ func TestCORSMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
-		if rec.Code != 200 {
-			t.Errorf("got status %d, want 200", rec.Code)
+		if rec.Code != 204 {
+			t.Errorf("got status %d, want 204", rec.Code)
 		}
-		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
-			t.Errorf("Access-Control-Allow-Origin should be empty, got %q", got)
+		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != disallowedOrigin {
+			t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, disallowedOrigin)
 		}
 	})
 }

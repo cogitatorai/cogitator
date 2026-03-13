@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -101,24 +100,20 @@ func requireRole(roles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// corsMiddleware restricts browser cross-origin requests to the server's own
-// localhost origin. Direct API calls (no Origin header) and same-origin
-// requests pass through without CORS headers.
-func corsMiddleware(port int, next http.Handler) http.Handler {
-	allowed := map[string]bool{
-		fmt.Sprintf("http://127.0.0.1:%d", port): true,
-		fmt.Sprintf("http://localhost:%d", port):  true,
-	}
-
+// corsMiddleware handles CORS for browser cross-origin requests. Because all
+// authentication uses Bearer tokens (not cookies), CORS is not a security
+// boundary; the JWT itself gates access. Any origin is allowed so that
+// remote dashboards can operate in client-mode against this server.
+func corsMiddleware(_ int, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 
-		if origin != "" && allowed[origin] {
+		if origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 
 			if r.Method == http.MethodOptions {
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 				w.Header().Set("Access-Control-Max-Age", "3600")
 				w.WriteHeader(http.StatusNoContent)

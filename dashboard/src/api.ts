@@ -1,6 +1,28 @@
 import React from 'react';
 
-const BASE = '';
+const LS_SERVER_URL = 'cogitator_server_url';
+
+/** Return the API base URL. Empty string for same-origin; a full URL for client-mode. */
+function getBase(): string {
+  return localStorage.getItem(LS_SERVER_URL) || '';
+}
+
+export function getServerUrl(): string {
+  return localStorage.getItem(LS_SERVER_URL) || '';
+}
+
+export function setServerUrl(url: string): void {
+  const normalized = url.replace(/\/+$/, '');
+  if (normalized) {
+    localStorage.setItem(LS_SERVER_URL, normalized);
+  } else {
+    localStorage.removeItem(LS_SERVER_URL);
+  }
+}
+
+export function clearServerUrl(): void {
+  localStorage.removeItem(LS_SERVER_URL);
+}
 
 /** True when running in a browser (not inside the desktop WKWebView). */
 export const isWebBrowser = !navigator.userAgent.includes('Cogitator-Desktop');
@@ -38,13 +60,13 @@ async function fetchWithRetry(input: string, init?: RequestInit): Promise<Respon
 }
 
 export async function fetchJSON<T>(path: string): Promise<T> {
-  const res = await fetchWithRetry(BASE + path, { headers: { ...authHeaders() } });
+  const res = await fetchWithRetry(getBase() + path, { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 export async function postJSON<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetchWithRetry(BASE + path, {
+  const res = await fetchWithRetry(getBase() + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
@@ -54,7 +76,7 @@ export async function postJSON<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function putJSON<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetchWithRetry(BASE + path, {
+  const res = await fetchWithRetry(getBase() + path, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
@@ -64,7 +86,7 @@ export async function putJSON<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function patchJSON<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetchWithRetry(BASE + path, {
+  const res = await fetchWithRetry(getBase() + path, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
@@ -74,7 +96,7 @@ export async function patchJSON<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function deleteJSON(path: string): Promise<void> {
-  const res = await fetchWithRetry(BASE + path, { method: 'DELETE', headers: { ...authHeaders() } });
+  const res = await fetchWithRetry(getBase() + path, { method: 'DELETE', headers: { ...authHeaders() } });
   if (!res.ok && res.status !== 204) {
     throw new Error(`API ${res.status}: ${await res.text()}`);
   }
@@ -640,7 +662,7 @@ export async function sendChatMessage(
   if (file) form.append('file', file);
   if (isPrivate) form.append('private', 'true');
 
-  const res = await fetch(`${BASE}/api/chat/message`, {
+  const res = await fetch(`${getBase()}/api/chat/message`, {
     method: 'POST',
     headers: authHeaders(),
     body: form,
@@ -685,7 +707,7 @@ export interface AuthResponse {
 // Auth API (these bypass the 401 retry to avoid loops)
 
 export async function loginAPI(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(BASE + '/api/auth/login', {
+  const res = await fetch(getBase() + '/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -695,7 +717,7 @@ export async function loginAPI(email: string, password: string): Promise<AuthRes
 }
 
 export async function fetchNeedsSetup(): Promise<{ needs_setup: boolean }> {
-  const res = await fetch(BASE + '/api/auth/needs-setup');
+  const res = await fetch(getBase() + '/api/auth/needs-setup');
   if (!res.ok) return { needs_setup: false };
   return res.json();
 }
@@ -705,7 +727,7 @@ export async function setupAPI(
   name: string,
   password: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(BASE + '/api/auth/setup', {
+  const res = await fetch(getBase() + '/api/auth/setup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name, password }),
@@ -720,7 +742,7 @@ export async function registerAPI(
   password: string,
   inviteCode: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(BASE + '/api/auth/register', {
+  const res = await fetch(getBase() + '/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name, password, invite_code: inviteCode }),
@@ -734,7 +756,7 @@ export async function socialLoginAPI(
   idToken: string,
   inviteCode?: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(BASE + '/api/auth/social', {
+  const res = await fetch(getBase() + '/api/auth/social', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, id_token: idToken, invite_code: inviteCode }),
@@ -767,7 +789,7 @@ export function listOAuthLinks(): Promise<OAuthLink[]> {
 }
 
 export async function linkOAuth(provider: string, idToken: string): Promise<void> {
-  const res = await fetchWithRetry(BASE + '/api/account/link', {
+  const res = await fetchWithRetry(getBase() + '/api/account/link', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ provider, id_token: idToken }),
@@ -780,7 +802,7 @@ export function unlinkOAuth(provider: string): Promise<void> {
 }
 
 export async function refreshTokenAPI(refreshToken: string): Promise<AuthResponse> {
-  const res = await fetch(BASE + '/api/auth/refresh', {
+  const res = await fetch(getBase() + '/api/auth/refresh', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),

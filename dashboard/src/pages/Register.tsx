@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { registerAPI, fetchAuthProviders, fetchVersionInfo, isWebBrowser } from '../api';
+import { registerAPI, fetchAuthProviders, fetchVersionInfo, isWebBrowser, getServerUrl } from '../api';
 import type { AuthProviders } from '../api';
 // TODO: re-enable when Apple Sign-In is fully supported in the desktop app
 // import { getAppleIdToken } from '../social-sdk';
@@ -41,7 +41,7 @@ export default function Register() {
     localStorage.removeItem(LS_PENDING_CLAIM);
     setSocialLoading('google');
 
-    fetch(`/api/auth/claim/${claimID}`)
+    fetch(`${getServerUrl()}/api/auth/claim/${claimID}`)
       .then(async (res) => {
         if (res.status === 202) {
           localStorage.setItem(LS_PENDING_CLAIM, claimID);
@@ -113,7 +113,7 @@ export default function Register() {
     localStorage.setItem(LS_PENDING_CLAIM, claimID);
     const ic = encodeURIComponent(inviteCode);
     const src = isWebBrowser ? '&source=web' : '';
-    window.location.href = `/api/auth/google/start?return_to=register&purpose=login&claim_id=${claimID}&invite_code=${ic}${src}`;
+    window.location.href = `${getServerUrl()}/api/auth/google/start?return_to=register&purpose=login&claim_id=${claimID}&invite_code=${ic}${src}`;
   }, [inviteCode]);
 
   // TODO: re-enable when Apple Sign-In is fully supported in the desktop app
@@ -277,12 +277,18 @@ export default function Register() {
           {submitting ? 'Creating account...' : 'Create Account'}
         </StripedButton>
 
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <a
             href="#login"
-            className="text-[12px] uppercase tracking-widest text-zinc-500 hover:text-orange-500 transition-colors"
+            className="block text-[12px] uppercase tracking-widest text-zinc-500 hover:text-orange-500 transition-colors"
           >
             Already have an account? Sign in
+          </a>
+          <a
+            href="#connect"
+            className="block text-[12px] uppercase tracking-widest text-zinc-600 hover:text-orange-500 transition-colors"
+          >
+            Connect to a different server
           </a>
         </div>
 

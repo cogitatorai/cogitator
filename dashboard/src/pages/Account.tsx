@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { updateMe, listOAuthLinks, linkOAuth, unlinkOAuth, fetchAuthProviders, isWebBrowser } from '../api';
+import { updateMe, listOAuthLinks, linkOAuth, unlinkOAuth, fetchAuthProviders, isWebBrowser, getServerUrl } from '../api';
 import type { OAuthLink, AuthProviders } from '../api';
 import { useAuth } from '../auth';
 import { getAppleIdToken } from '../social-sdk';
@@ -74,7 +74,7 @@ export default function Account() {
   const handleConnectGoogle = useCallback(() => {
     const token = encodeURIComponent(accessToken ?? '');
     const src = isWebBrowser ? '&source=web' : '';
-    window.location.href = `/api/auth/google/start?return_to=account&purpose=link&token=${token}${src}`;
+    window.location.href = `${getServerUrl()}/api/auth/google/start?return_to=account&purpose=link&token=${token}${src}`;
   }, [accessToken]);
 
   const handleConnectApple = useCallback(async () => {

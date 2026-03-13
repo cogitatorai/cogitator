@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../auth';
-import { setupAPI, fetchAuthProviders, fetchVersionInfo, isWebBrowser } from '../api';
+import { setupAPI, fetchAuthProviders, fetchVersionInfo, isWebBrowser, getServerUrl } from '../api';
 import type { AuthProviders } from '../api';
 import StripedButton from '../components/StripedButton';
 
@@ -30,7 +30,7 @@ export default function SignUp() {
     localStorage.removeItem(LS_PENDING_CLAIM);
     setSocialLoading('google');
 
-    fetch(`/api/auth/claim/${claimID}`)
+    fetch(`${getServerUrl()}/api/auth/claim/${claimID}`)
       .then(async (res) => {
         if (res.status === 202) {
           localStorage.setItem(LS_PENDING_CLAIM, claimID);
@@ -95,7 +95,7 @@ export default function SignUp() {
     const claimID = crypto.randomUUID();
     localStorage.setItem(LS_PENDING_CLAIM, claimID);
     const src = isWebBrowser ? '&source=web' : '';
-    window.location.href = `/api/auth/google/start?return_to=signup&purpose=login&claim_id=${claimID}${src}`;
+    window.location.href = `${getServerUrl()}/api/auth/google/start?return_to=signup&purpose=login&claim_id=${claimID}${src}`;
   }, []);
 
   const busy = submitting || socialLoading !== null;

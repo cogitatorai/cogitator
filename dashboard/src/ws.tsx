@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import { authHeaders } from './api';
+import { authHeaders, getServerUrl } from './api';
 
 // Raw parsed message from the WebSocket.
 export interface WsMessage {
@@ -29,8 +29,23 @@ interface WebSocketContextValue {
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
 
 function wsUrl(): string {
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const base = `${proto}//${window.location.host}/ws`;
+  const serverUrl = getServerUrl();
+  let host: string;
+  let secure: boolean;
+
+  if (serverUrl) {
+    // Client-mode: derive WebSocket host from the configured server URL.
+    const parsed = new URL(serverUrl);
+    host = parsed.host;
+    secure = parsed.protocol === 'https:';
+  } else {
+    // Same-origin: use the current page's host.
+    host = window.location.host;
+    secure = window.location.protocol === 'https:';
+  }
+
+  const proto = secure ? 'wss:' : 'ws:';
+  const base = `${proto}//${host}/ws`;
   // Extract the Bearer token from authHeaders (reads from the JWT token provider).
   const bearer = authHeaders()['Authorization'];
   const token = bearer?.replace('Bearer ', '');

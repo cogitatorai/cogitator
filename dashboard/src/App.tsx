@@ -18,12 +18,13 @@ import SettingsPage from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import SignUp from './pages/SignUp';
+import Connect from './pages/Connect';
 import Admin from './pages/Admin';
 import UsersPage from './pages/Users';
 import Account from './pages/Account';
 import NotificationBell from './components/NotificationBell';
 
-type Page = 'tasks' | 'history' | 'resources' | 'chat' | 'memory' | 'skills' | 'connectors' | 'settings' | 'account' | 'admin' | 'users' | 'register';
+type Page = 'tasks' | 'history' | 'resources' | 'chat' | 'memory' | 'skills' | 'connectors' | 'settings' | 'account' | 'admin' | 'users' | 'register' | 'connect';
 
 /** Strip leading "v" and any pre-release suffix so "v0.3.1" and "0.3.1" compare equal. */
 function bareVersion(v: string): string {
@@ -45,7 +46,7 @@ function isNewer(a: string, b: string): boolean {
   return false;
 }
 
-const PAGES = new Set<Page>(['tasks', 'history', 'resources', 'chat', 'memory', 'skills', 'connectors', 'settings', 'account', 'admin', 'users', 'register']);
+const PAGES = new Set<Page>(['tasks', 'history', 'resources', 'chat', 'memory', 'skills', 'connectors', 'settings', 'account', 'admin', 'users', 'register', 'connect']);
 
 type NavItem = { id: Page; label: string; icon: React.ReactNode };
 
@@ -166,7 +167,7 @@ function AppShell() {
   }, [isAdmin, isModerator]);
 
   const { data: status } = usePolling<SystemStatus>(
-    () => fetchJSON('/api/status'),
+    () => isAuthenticated ? fetchJSON('/api/status') : Promise.resolve(null as unknown as SystemStatus),
     5000,
   );
 
@@ -183,6 +184,7 @@ function AppShell() {
   // check (which fires ~5s after startup), then every minute so the
   // banner appears promptly after the backend detects an update.
   useEffect(() => {
+    if (!isAuthenticated) return;
     refreshVersion();
     const kickId = setTimeout(refreshVersion, 8000);
     const pollId = setInterval(refreshVersion, 60 * 1000);
@@ -190,7 +192,7 @@ function AppShell() {
       clearTimeout(kickId);
       clearInterval(pollId);
     };
-  }, [refreshVersion]);
+  }, [isAuthenticated, refreshVersion]);
 
   // Poll faster while a download is in progress.
   useEffect(() => {
@@ -267,6 +269,7 @@ function AppShell() {
       );
     }
     if (needsSetup) return <SignUp />;
+    if (page === 'connect') return <Connect />;
     if (page === 'register') return <Register />;
     return <Login />;
   }

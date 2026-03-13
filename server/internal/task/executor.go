@@ -180,7 +180,10 @@ func (e *Executor) Execute(ctx context.Context, t Task, trigger Trigger) (*Run, 
 						"result":    "Failed: " + err.Error(),
 						"user_id":   t.UserID,
 						"trigger":   string(trigger),
-						"broadcast": t.Broadcast,
+						// notify_users is []string here. Consumers type-assert .([]string) directly.
+						// This works because the value stays in Go memory (never JSON-serialized).
+						"notify_users": t.NotifyUsers,
+						"broadcast":    t.Broadcast, // N-1 compat
 					},
 				})
 			}
@@ -214,7 +217,10 @@ func (e *Executor) Execute(ctx context.Context, t Task, trigger Trigger) (*Run, 
 					"result":    content,
 					"user_id":   t.UserID,
 					"trigger":   string(trigger),
-					"broadcast": t.Broadcast,
+					// notify_users is []string here. Consumers type-assert .([]string) directly.
+					// This works because the value stays in Go memory (never JSON-serialized).
+					"notify_users": t.NotifyUsers,
+					"broadcast":    t.Broadcast, // N-1 compat
 				},
 			})
 		}

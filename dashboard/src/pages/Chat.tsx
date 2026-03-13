@@ -88,12 +88,18 @@ function navigateToSession(key: string) {
   window.location.hash = `chat/${encodeURIComponent(key)}`;
 }
 
-export default function Chat() {
+function isTasksOutput(key: string | null): boolean {
+  return key !== null && key.startsWith('tasks:output');
+}
+
+export default function Chat({ onNotificationsCleared }: { onNotificationsCleared?: () => void }) {
   const { connected, connecting, connect, send: wsSend, setSessionKey: wsSetSessionKey, subscribe, unsubscribe } = useWebSocket();
 
   const [sessionKey, setSessionKey] = useState<string | null>(() => {
     return parseSessionKey() || sessionStorage.getItem('chat-active-session');
   });
+  const sessionKeyRef = useRef(sessionKey);
+  sessionKeyRef.current = sessionKey;
   const [sessions, setSessions] = useState<Session[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(
@@ -180,14 +186,32 @@ export default function Chat() {
   // Persist active session key so it survives page navigation.
   // When the Tasks view is opened (from any path: sidebar, notification bell,
   // toast, or browser back/forward), clear all task notifications.
+  const clearTaskNotifications = useCallback(() => {
+    markTaskNotificationsRead()
+      .then(() => onNotificationsCleared?.())
+      .catch(() => {});
+  }, [onNotificationsCleared]);
+
   useEffect(() => {
     if (sessionKey) {
       sessionStorage.setItem('chat-active-session', sessionKey);
-      if (sessionKey === 'tasks:output') {
-        markTaskNotificationsRead().catch(() => {});
+      if (isTasksOutput(sessionKey)) {
+        clearTaskNotifications();
       }
     }
-  }, [sessionKey]);
+  }, [sessionKey, clearTaskNotifications]);
+
+  // When a new notification arrives while already viewing tasks:output,
+  // mark it read immediately so the badge stays clear.
+  useEffect(() => {
+    const listener = (data: { type: string }) => {
+      if (data.type === 'notification' && isTasksOutput(sessionKeyRef.current)) {
+        clearTaskNotifications();
+      }
+    };
+    subscribe(listener);
+    return () => { unsubscribe(listener); };
+  }, [subscribe, unsubscribe, clearTaskNotifications]);
 
   // Sync session key from hash changes (browser back/forward).
   useEffect(() => {
@@ -276,9 +300,6 @@ export default function Chat() {
   }, [messages, activity, scrollToBottom]);
 
   // Register WS listener for incoming messages.
-  const sessionKeyRef = useRef(sessionKey);
-  sessionKeyRef.current = sessionKey;
-
   useEffect(() => {
     const listener = (data: WsMessage) => {
       if (data.type === 'status') {
@@ -521,7 +542,10 @@ export default function Chat() {
       next.delete(key);
       return next;
     });
-  }, []);
+    if (isTasksOutput(key)) {
+      clearTaskNotifications();
+    }
+  }, [clearTaskNotifications]);
 
   const handleDeleteSession = useCallback(async (key: string) => {
     try {
@@ -600,7 +624,7 @@ export default function Chat() {
               )}
               <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-5">
                 {messages.length === 0 && !activity ? (
-                  sessionKey === 'tasks:output' ? (
+                  isTasksOutput(sessionKey) ? (
                   <div className="flex flex-col items-center justify-center h-full gap-4">
                     <ListTodo size={32} className="text-zinc-700" />
                     <div className="text-center">
@@ -672,7 +696,7 @@ export default function Chat() {
             </Panel>
           )}
 
-          {sessionKey !== 'tasks:output' && (
+          {!isTasksOutput(sessionKey) && (
             <>
               {/* File preview */}
               {selectedFile && (

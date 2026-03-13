@@ -21,7 +21,7 @@ import (
 type TaskCreator interface {
 	CreateTask(name, prompt, cronExpr, modelTier string, notifyChat bool, userID string, notifyUsers []string) (int64, error)
 	UpdateTask(id int64, prompt, cronExpr, modelTier *string, notifyChat *bool, notifyUsers *[]string) error
-	ListTasks() ([]map[string]any, error)
+	ListTasks(userID string) ([]map[string]any, error)
 	RunTask(ctx context.Context, id int64) (map[string]any, error)
 	DeleteTask(id int64) error
 	ToggleTask(id int64, enabled bool) error
@@ -236,7 +236,7 @@ func (e *Executor) Execute(ctx context.Context, name string, arguments string) (
 	case "create_task":
 		return e.createTask(ctx, arguments)
 	case "list_tasks":
-		return e.listTasks()
+		return e.listTasks(ctx)
 	case "run_task":
 		return e.runTask(ctx, arguments)
 	case "update_task":
@@ -566,11 +566,15 @@ func (e *Executor) updateTask(ctx context.Context, args string) (string, error) 
 	return fmt.Sprintf("Task %d updated.", p.TaskID), nil
 }
 
-func (e *Executor) listTasks() (string, error) {
+func (e *Executor) listTasks(ctx context.Context) (string, error) {
 	if e.taskCreator == nil {
 		return "", fmt.Errorf("task scheduling is not available")
 	}
-	tasks, err := e.taskCreator.ListTasks()
+	var userID string
+	if scope, ok := ChatScopeFromContext(ctx); ok && scope.UserID != "" {
+		userID = scope.UserID
+	}
+	tasks, err := e.taskCreator.ListTasks(userID)
 	if err != nil {
 		return "", err
 	}

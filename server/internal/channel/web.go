@@ -214,7 +214,27 @@ func (wc *WebChannel) Start(_ context.Context) error {
 					case bus.UserNotification:
 						recipientID, _ := evt.Payload["recipient_id"].(string)
 						senderName, _ := evt.Payload["sender_name"].(string)
+						content, _ := evt.Payload["content"].(string)
 						if recipientID != "" {
+							// Write to tasks:output session so the message appears in the Tasks messages list.
+							if wc.sessions != nil {
+								msgContent := "Message from " + senderName + "\n\n" + content
+								if _, err := wc.sessions.GetOrCreate("tasks:output", "tasks", "tasks", recipientID, false); err != nil {
+									wc.logger.Error("failed to create tasks:output session for notification", "error", err)
+								} else if _, err := wc.sessions.AddMessage("tasks:output", session.Message{
+									SessionKey: "tasks:output",
+									UserID:     recipientID,
+									Role:       "assistant",
+									Content:    msgContent,
+								}); err != nil {
+									wc.logger.Error("failed to write user notification message", "error", err)
+								} else {
+									wc.broadcast(wsMessage{
+										Type:       "session_update",
+										SessionKey: "tasks:output",
+									})
+								}
+							}
 							wc.sendToUser(recipientID, wsMessage{
 								Type:    "notification",
 								Content: "Message from " + senderName,

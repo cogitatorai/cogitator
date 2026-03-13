@@ -596,6 +596,72 @@ func TestNotifyUser_NotFound(t *testing.T) {
 	}
 }
 
+// mockTaskCreator records the userID passed to ListTasks for assertion.
+type mockTaskCreator struct {
+	listedUserID string
+	tasks        []map[string]any
+}
+
+func (m *mockTaskCreator) CreateTask(name, prompt, cronExpr, modelTier string, notifyChat bool, userID string, notifyUsers []string) (int64, error) {
+	return 1, nil
+}
+func (m *mockTaskCreator) UpdateTask(id int64, prompt, cronExpr, modelTier *string, notifyChat *bool, notifyUsers *[]string) error {
+	return nil
+}
+func (m *mockTaskCreator) ListTasks(userID string) ([]map[string]any, error) {
+	m.listedUserID = userID
+	return m.tasks, nil
+}
+func (m *mockTaskCreator) RunTask(ctx context.Context, id int64) (map[string]any, error) {
+	return nil, nil
+}
+func (m *mockTaskCreator) DeleteTask(id int64) error   { return nil }
+func (m *mockTaskCreator) ToggleTask(id int64, enabled bool) error { return nil }
+func (m *mockTaskCreator) HealTask(ctx context.Context, id int64, reason string) (string, error) {
+	return "", nil
+}
+
+func TestListTasksScopedToUser(t *testing.T) {
+	audit := &mockAuditLogger{}
+	dir := t.TempDir()
+	reg := NewRegistry("", slog.Default())
+	mock := &mockTaskCreator{
+		tasks: []map[string]any{
+			{"id": int64(1), "name": "user-task"},
+		},
+	}
+	exe := NewExecutor(reg, dir, nil, mock, nil, nil, slog.Default(), audit, security.DefaultSensitivePaths, security.DefaultDangerousCommands, nil)
+
+	ctx := WithChatScope(context.Background(), ChatScope{UserID: "user-42"})
+	result, err := exe.Execute(ctx, "list_tasks", "{}")
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if mock.listedUserID != "user-42" {
+		t.Errorf("ListTasks called with userID=%q, want %q", mock.listedUserID, "user-42")
+	}
+	if !strings.Contains(result, "user-task") {
+		t.Errorf("expected result to contain task name, got: %s", result)
+	}
+}
+
+func TestListTasksEmptyUserIDWhenNoScope(t *testing.T) {
+	audit := &mockAuditLogger{}
+	dir := t.TempDir()
+	reg := NewRegistry("", slog.Default())
+	mock := &mockTaskCreator{tasks: nil}
+	exe := NewExecutor(reg, dir, nil, mock, nil, nil, slog.Default(), audit, security.DefaultSensitivePaths, security.DefaultDangerousCommands, nil)
+
+	// No ChatScope in context: userID should be empty string.
+	_, err := exe.Execute(context.Background(), "list_tasks", "{}")
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if mock.listedUserID != "" {
+		t.Errorf("ListTasks called with userID=%q, want empty string when no scope", mock.listedUserID)
+	}
+}
+
 func TestAllowDomainToolNotAvailable(t *testing.T) {
 	audit := &mockAuditLogger{}
 	exe, _ := newTestExecutor(t, audit)

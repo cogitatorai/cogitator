@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/database"
 	"github.com/cogitatorai/cogitator/server/internal/notification"
+	"github.com/cogitatorai/cogitator/server/internal/session"
 	"github.com/cogitatorai/cogitator/server/internal/task"
 	"nhooyr.io/websocket"
 )
@@ -410,6 +412,59 @@ func TestWebChannelBroadcastNotification(t *testing.T) {
 		if len(notifs) == 1 && notifs[0].TaskName != "broadcast-task" {
 			t.Errorf("expected task_name 'broadcast-task' for %s, got %q", uid, notifs[0].TaskName)
 		}
+	}
+}
+
+func TestUserNotificationWritesToTasksOutput(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	// Create the recipient user so FK constraints on sessions/messages are satisfied.
+	if _, err := db.Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('user-bob', 'bob@example.com', 'x', 'user')`); err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	sessionStore := session.NewStore(db)
+	eventBus := bus.New()
+	t.Cleanup(func() { eventBus.Close() })
+
+	wc := NewWebChannel(echoHandler, eventBus, sessionStore, nil, nil, nil)
+	if err := wc.Start(context.Background()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer wc.Stop()
+
+	eventBus.Publish(bus.Event{
+		Type: bus.UserNotification,
+		Payload: map[string]any{
+			"recipient_id": "user-bob",
+			"sender_name":  "Alice",
+			"content":      "Your report is ready.",
+		},
+	})
+
+	time.Sleep(50 * time.Millisecond)
+
+	msgs, err := sessionStore.GetMessages("tasks:output", 10)
+	if err != nil {
+		t.Fatalf("GetMessages: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Fatal("expected at least one message in tasks:output for recipient, got none")
+	}
+	msg := msgs[0]
+	if msg.Role != "assistant" {
+		t.Errorf("expected role 'assistant', got %q", msg.Role)
+	}
+	if !strings.Contains(msg.Content, "Alice") {
+		t.Errorf("expected message to contain sender name 'Alice', got: %q", msg.Content)
+	}
+	if !strings.Contains(msg.Content, "Your report is ready.") {
+		t.Errorf("expected message to contain notification content, got: %q", msg.Content)
 	}
 }
 

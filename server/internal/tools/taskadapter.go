@@ -74,8 +74,8 @@ func (a *TaskStoreAdapter) UpdateTask(id int64, prompt, cronExpr, modelTier *str
 	return nil
 }
 
-func (a *TaskStoreAdapter) ListTasks() ([]map[string]any, error) {
-	tasks, err := a.Store.ListTasks("")
+func (a *TaskStoreAdapter) ListTasks(userID string) ([]map[string]any, error) {
+	tasks, err := a.Store.ListTasks(userID)
 	if err != nil {
 		return nil, err
 	}

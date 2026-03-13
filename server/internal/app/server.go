@@ -575,6 +575,19 @@ func New(opts Options) (*Server, error) {
 		},
 		slog.Default(),
 	)
+	if userStore != nil {
+		webChannel.SetUserIDsFunc(func() []string {
+			users, err := userStore.List()
+			if err != nil {
+				return nil
+			}
+			ids := make([]string, len(users))
+			for i, u := range users {
+				ids[i] = u.ID
+			}
+			return ids
+		})
+	}
 	if err := webChannel.Start(context.Background()); err != nil {
 		slog.Error("web channel start failed", "error", err)
 	}

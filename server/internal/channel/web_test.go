@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/cogitatorai/cogitator/server/internal/bus"
+	"github.com/cogitatorai/cogitator/server/internal/database"
+	"github.com/cogitatorai/cogitator/server/internal/notification"
+	"github.com/cogitatorai/cogitator/server/internal/task"
 	"nhooyr.io/websocket"
 )
 
@@ -345,5 +350,131 @@ func TestWebChannelPrivateFlag(t *testing.T) {
 	}
 	if received.Text != "secret" {
 		t.Errorf("expected Text=%q, got %q", "secret", received.Text)
+	}
+}
+
+func TestWebChannelBroadcastNotification(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	notifStore := notification.NewStore(db)
+	taskStore := task.NewStore(db)
+	taskID, err := taskStore.CreateTask(&task.Task{
+		Name: "broadcast-task", Prompt: "test", Broadcast: true,
+	})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	eventBus := bus.New()
+	t.Cleanup(func() { eventBus.Close() })
+
+	wc := NewWebChannel(echoHandler, eventBus, nil, notifStore, nil, nil)
+	wc.SetUserIDsFunc(func() []string {
+		return []string{"user-alice", "user-bob", "user-charlie"}
+	})
+	if err := wc.Start(context.Background()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer wc.Stop()
+
+	// Publish a broadcast task notification.
+	eventBus.Publish(bus.Event{
+		Type: bus.TaskNotifyChat,
+		Payload: map[string]any{
+			"task_id":   taskID,
+			"task_name": "broadcast-task",
+			"run_id":    int64(10),
+			"result":    "all done",
+			"user_id":   "user-alice",
+			"trigger":   "cron",
+			"broadcast": true,
+		},
+	})
+
+	// Give the event loop time to process.
+	time.Sleep(50 * time.Millisecond)
+
+	// Each user should have received a notification.
+	for _, uid := range []string{"user-alice", "user-bob", "user-charlie"} {
+		notifs, total, err := notifStore.List(uid, 10, 0)
+		if err != nil {
+			t.Fatalf("list notifications for %s: %v", uid, err)
+		}
+		if total != 1 {
+			t.Errorf("expected 1 notification for %s, got %d", uid, total)
+		}
+		if len(notifs) == 1 && notifs[0].TaskName != "broadcast-task" {
+			t.Errorf("expected task_name 'broadcast-task' for %s, got %q", uid, notifs[0].TaskName)
+		}
+	}
+}
+
+func TestWebChannelNonBroadcastNotification(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	notifStore := notification.NewStore(db)
+	taskStore := task.NewStore(db)
+	taskID, err := taskStore.CreateTask(&task.Task{
+		Name: "private-task", Prompt: "test",
+	})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	eventBus := bus.New()
+	t.Cleanup(func() { eventBus.Close() })
+
+	wc := NewWebChannel(echoHandler, eventBus, nil, notifStore, nil, nil)
+	wc.SetUserIDsFunc(func() []string {
+		return []string{"user-alice", "user-bob"}
+	})
+	if err := wc.Start(context.Background()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer wc.Stop()
+
+	// Publish a non-broadcast task notification.
+	eventBus.Publish(bus.Event{
+		Type: bus.TaskNotifyChat,
+		Payload: map[string]any{
+			"task_id":   taskID,
+			"task_name": "private-task",
+			"run_id":    int64(20),
+			"result":    "done",
+			"user_id":   "user-alice",
+			"trigger":   "manual",
+			"broadcast": false,
+		},
+	})
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Only the task owner should have a notification.
+	notifs, total, err := notifStore.List("user-alice", 10, 0)
+	if err != nil {
+		t.Fatalf("list alice: %v", err)
+	}
+	if total != 1 {
+		t.Errorf("expected 1 notification for alice, got %d", total)
+	}
+	if len(notifs) == 1 && notifs[0].TaskName != "private-task" {
+		t.Errorf("expected task_name 'private-task', got %q", notifs[0].TaskName)
+	}
+
+	// Bob should have no notifications.
+	_, bobTotal, err := notifStore.List("user-bob", 10, 0)
+	if err != nil {
+		t.Fatalf("list bob: %v", err)
+	}
+	if bobTotal != 0 {
+		t.Errorf("expected 0 notifications for bob, got %d", bobTotal)
 	}
 }

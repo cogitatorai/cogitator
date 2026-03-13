@@ -41,7 +41,8 @@ type WebChannel struct {
 	eventBus      *bus.Bus
 	sessions      *session.Store
 	notifications *notification.Store
-	taskNameFunc  func(int64) string // resolves task ID to name
+	taskNameFunc  func(int64) string   // resolves task ID to name
+	userIDsFunc   func() []string      // returns all user IDs (for broadcast notifications)
 	logger        *slog.Logger
 	mu            sync.Mutex
 	conns         map[*websocket.Conn]connInfo
@@ -63,6 +64,12 @@ func NewWebChannel(handler MessageHandler, eventBus *bus.Bus, sessions *session.
 		conns:         make(map[*websocket.Conn]connInfo),
 		activeReqs:    make(map[string]context.CancelFunc),
 	}
+}
+
+// SetUserIDsFunc sets the function used to resolve all user IDs for broadcast
+// notifications. When nil, broadcast notifications fall back to the task owner.
+func (wc *WebChannel) SetUserIDsFunc(fn func() []string) {
+	wc.userIDsFunc = fn
 }
 
 func (wc *WebChannel) Name() string { return "web" }
@@ -95,16 +102,23 @@ func (wc *WebChannel) Start(_ context.Context) error {
 						}
 						if wc.notifications != nil {
 							tid := taskID
-							if _, err := wc.notifications.Create(&notification.Notification{
-								UserID:   userID,
-								TaskID:   &tid,
-								TaskName: taskName,
-								RunID:    runID,
-								Trigger:  trigger,
-								Status:   status,
-								Content:  result,
-							}); err != nil {
-								wc.logger.Error("failed to create notification", "task", taskName, "error", err)
+							broadcastFlag, _ := evt.Payload["broadcast"].(bool)
+							recipients := []string{userID}
+							if broadcastFlag && wc.userIDsFunc != nil {
+								recipients = wc.userIDsFunc()
+							}
+							for _, uid := range recipients {
+								if _, err := wc.notifications.Create(&notification.Notification{
+									UserID:   uid,
+									TaskID:   &tid,
+									TaskName: taskName,
+									RunID:    runID,
+									Trigger:  trigger,
+									Status:   status,
+									Content:  result,
+								}); err != nil {
+									wc.logger.Error("failed to create notification", "task", taskName, "user", uid, "error", err)
+								}
 							}
 						}
 						// Write task output to the pinned Tasks session.

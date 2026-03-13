@@ -363,6 +363,7 @@ func New(opts Options) (*Server, error) {
 	if userStore != nil {
 		toolExecutor.SetUserLister(&userListerAdapter{store: userStore})
 		toolExecutor.SetMemoryToggler(memoryWriter)
+		taskAdapter.UserLister = &userListerAdapter{store: userStore}
 	}
 
 	retriever := memory.NewRetriever(memory.RetrieverConfig{

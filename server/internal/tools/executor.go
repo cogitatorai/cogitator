@@ -19,8 +19,8 @@ import (
 // TaskCreator abstracts creating and running scheduled tasks so the
 // executor does not depend on the task package directly.
 type TaskCreator interface {
-	CreateTask(name, prompt, cronExpr, modelTier string, notifyChat bool, userID string) (int64, error)
-	UpdateTask(id int64, prompt, cronExpr, modelTier *string, notifyChat *bool) error
+	CreateTask(name, prompt, cronExpr, modelTier string, notifyChat bool, userID string, notifyUsers []string) (int64, error)
+	UpdateTask(id int64, prompt, cronExpr, modelTier *string, notifyChat *bool, notifyUsers *[]string) error
 	ListTasks() ([]map[string]any, error)
 	RunTask(ctx context.Context, id int64) (map[string]any, error)
 	DeleteTask(id int64) error
@@ -240,7 +240,7 @@ func (e *Executor) Execute(ctx context.Context, name string, arguments string) (
 	case "run_task":
 		return e.runTask(ctx, arguments)
 	case "update_task":
-		return e.updateTask(arguments)
+		return e.updateTask(ctx, arguments)
 	case "delete_task":
 		return e.deleteTask(arguments)
 	case "toggle_task":
@@ -469,11 +469,12 @@ func (e *Executor) createTask(ctx context.Context, args string) (string, error) 
 		return "", fmt.Errorf("task scheduling is not available")
 	}
 	var p struct {
-		Name       string `json:"name"`
-		Prompt     string `json:"prompt"`
-		CronExpr   string `json:"cron_expr"`
-		ModelTier  string `json:"model_tier"`
-		NotifyChat *bool  `json:"notify_chat"`
+		Name        string   `json:"name"`
+		Prompt      string   `json:"prompt"`
+		CronExpr    string   `json:"cron_expr"`
+		ModelTier   string   `json:"model_tier"`
+		NotifyChat  *bool    `json:"notify_chat"`
+		NotifyUsers []string `json:"notify_users"`
 	}
 	if err := json.Unmarshal([]byte(args), &p); err != nil {
 		return "", fmt.Errorf("invalid arguments: %w", err)
@@ -489,22 +490,45 @@ func (e *Executor) createTask(ctx context.Context, args string) (string, error) 
 	if scope, ok := ChatScopeFromContext(ctx); ok && scope.UserID != "" {
 		userID = scope.UserID
 	}
-	if _, err := e.taskCreator.CreateTask(p.Name, p.Prompt, p.CronExpr, p.ModelTier, notifyChat, userID); err != nil {
+	var notifyUserIDs []string
+	if len(p.NotifyUsers) > 0 && e.userLister != nil {
+		allUsers, err := e.userLister.ListAllUsers()
+		if err != nil {
+			return "", fmt.Errorf("failed to list users: %w", err)
+		}
+		nameToID := make(map[string]string, len(allUsers))
+		for _, u := range allUsers {
+			nameToID[u.Name] = u.ID
+		}
+		for _, name := range p.NotifyUsers {
+			if name == "everyone" {
+				notifyUserIDs = []string{"*"}
+				break
+			}
+			id, ok := nameToID[name]
+			if !ok {
+				return "", fmt.Errorf("no user found matching '%s'", name)
+			}
+			notifyUserIDs = append(notifyUserIDs, id)
+		}
+	}
+	if _, err := e.taskCreator.CreateTask(p.Name, p.Prompt, p.CronExpr, p.ModelTier, notifyChat, userID, notifyUserIDs); err != nil {
 		return "", fmt.Errorf("failed to create task: %w", err)
 	}
 	return fmt.Sprintf("Task created: %s", p.Name), nil
 }
 
-func (e *Executor) updateTask(args string) (string, error) {
+func (e *Executor) updateTask(ctx context.Context, args string) (string, error) {
 	if e.taskCreator == nil {
 		return "", fmt.Errorf("task scheduling is not available")
 	}
 	var p struct {
-		TaskID    int64   `json:"task_id"`
-		Prompt    *string `json:"prompt"`
-		CronExpr  *string `json:"cron_expr"`
-		ModelTier *string `json:"model_tier"`
-		NotifyChat *bool  `json:"notify_chat"`
+		TaskID      int64     `json:"task_id"`
+		Prompt      *string   `json:"prompt"`
+		CronExpr    *string   `json:"cron_expr"`
+		ModelTier   *string   `json:"model_tier"`
+		NotifyChat  *bool     `json:"notify_chat"`
+		NotifyUsers *[]string `json:"notify_users"`
 	}
 	if err := json.Unmarshal([]byte(args), &p); err != nil {
 		return "", fmt.Errorf("invalid arguments: %w", err)
@@ -512,7 +536,31 @@ func (e *Executor) updateTask(args string) (string, error) {
 	if p.TaskID <= 0 {
 		return "", fmt.Errorf("task_id must be a positive integer, got %d", p.TaskID)
 	}
-	if err := e.taskCreator.UpdateTask(p.TaskID, p.Prompt, p.CronExpr, p.ModelTier, p.NotifyChat); err != nil {
+	var notifyUserIDs *[]string
+	if p.NotifyUsers != nil && e.userLister != nil {
+		allUsers, err := e.userLister.ListAllUsers()
+		if err != nil {
+			return "", fmt.Errorf("failed to list users: %w", err)
+		}
+		nameToID := make(map[string]string, len(allUsers))
+		for _, u := range allUsers {
+			nameToID[u.Name] = u.ID
+		}
+		ids := make([]string, 0, len(*p.NotifyUsers))
+		for _, name := range *p.NotifyUsers {
+			if name == "everyone" {
+				ids = []string{"*"}
+				break
+			}
+			id, ok := nameToID[name]
+			if !ok {
+				return "", fmt.Errorf("no user found matching '%s'", name)
+			}
+			ids = append(ids, id)
+		}
+		notifyUserIDs = &ids
+	}
+	if err := e.taskCreator.UpdateTask(p.TaskID, p.Prompt, p.CronExpr, p.ModelTier, p.NotifyChat, notifyUserIDs); err != nil {
 		return "", fmt.Errorf("failed to update task %d: %w", p.TaskID, err)
 	}
 	return fmt.Sprintf("Task %d updated.", p.TaskID), nil

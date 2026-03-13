@@ -178,9 +178,14 @@ export default function Chat() {
 
 
   // Persist active session key so it survives page navigation.
+  // When the Tasks view is opened (from any path: sidebar, notification bell,
+  // toast, or browser back/forward), clear all task notifications.
   useEffect(() => {
     if (sessionKey) {
       sessionStorage.setItem('chat-active-session', sessionKey);
+      if (sessionKey === 'tasks:output') {
+        markAllNotificationsRead().catch(() => {});
+      }
     }
   }, [sessionKey]);
 
@@ -516,9 +521,6 @@ export default function Chat() {
       next.delete(key);
       return next;
     });
-    if (key === 'tasks:output') {
-      markAllNotificationsRead().catch(() => {});
-    }
   }, []);
 
   const handleDeleteSession = useCallback(async (key: string) => {

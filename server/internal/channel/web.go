@@ -151,7 +151,7 @@ func (wc *WebChannel) Start(_ context.Context) error {
 								})
 							}
 						}
-						// Write task output to the pinned Tasks session.
+						// Write task output to each recipient's per-user Tasks session.
 						if wc.sessions != nil {
 							header := "**" + taskName + "** completed"
 							if status == "failed" {
@@ -161,21 +161,28 @@ func (wc *WebChannel) Start(_ context.Context) error {
 								header += " (" + trigger + ")"
 							}
 							outputContent := header + "\n\n" + result
-							if _, err := wc.sessions.GetOrCreate("tasks:output", "tasks", "tasks", userID, false); err != nil {
-								wc.logger.Error("failed to create tasks:output session", "error", err)
-							} else if _, err := wc.sessions.AddMessage("tasks:output", session.Message{
-								SessionKey: "tasks:output",
-								UserID:     userID,
-								Role:       "assistant",
-								Content:    outputContent,
-							}); err != nil {
-								wc.logger.Error("failed to write task output message", "error", err)
-							} else {
-								wc.broadcast(wsMessage{
-									Type:       "session_update",
-									SessionKey: "tasks:output",
-								})
+							writeTargets := recipients
+							if len(writeTargets) == 0 {
+								writeTargets = []string{userID}
 							}
+							for _, uid := range writeTargets {
+								sk := session.TasksOutputKey(uid)
+								if _, err := wc.sessions.GetOrCreate(sk, "tasks", "tasks", uid, false); err != nil {
+									wc.logger.Error("failed to create tasks:output session", "user", uid, "error", err)
+								} else if _, err := wc.sessions.AddMessage(sk, session.Message{
+									SessionKey: sk,
+									UserID:     uid,
+									Role:       "assistant",
+									Content:    outputContent,
+								}); err != nil {
+									wc.logger.Error("failed to write task output message", "user", uid, "error", err)
+								}
+							}
+							// Notify all connected clients to refresh their Tasks view.
+							wc.broadcast(wsMessage{
+								Type:       "session_update",
+								SessionKey: "tasks:output",
+							})
 						}
 						notifMsg := wsMessage{
 							Type:    "notification",
@@ -216,13 +223,14 @@ func (wc *WebChannel) Start(_ context.Context) error {
 						senderName, _ := evt.Payload["sender_name"].(string)
 						content, _ := evt.Payload["content"].(string)
 						if recipientID != "" {
-							// Write to tasks:output session so the message appears in the Tasks messages list.
+							// Write to the recipient's per-user Tasks session.
 							if wc.sessions != nil {
+								sk := session.TasksOutputKey(recipientID)
 								msgContent := "Message from " + senderName + "\n\n" + content
-								if _, err := wc.sessions.GetOrCreate("tasks:output", "tasks", "tasks", recipientID, false); err != nil {
+								if _, err := wc.sessions.GetOrCreate(sk, "tasks", "tasks", recipientID, false); err != nil {
 									wc.logger.Error("failed to create tasks:output session for notification", "error", err)
-								} else if _, err := wc.sessions.AddMessage("tasks:output", session.Message{
-									SessionKey: "tasks:output",
+								} else if _, err := wc.sessions.AddMessage(sk, session.Message{
+									SessionKey: sk,
 									UserID:     recipientID,
 									Role:       "assistant",
 									Content:    msgContent,

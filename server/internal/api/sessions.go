@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
+	"github.com/cogitatorai/cogitator/server/internal/session"
 )
 
 func (r *Router) handleListSessions(w http.ResponseWriter, req *http.Request) {
@@ -25,10 +26,11 @@ func (r *Router) handleGetSession(w http.ResponseWriter, req *http.Request) {
 	}
 
 	userID := userIDFromRequest(req)
-	sess, err := r.sessions.Get(key, userID)
+	storageKey := r.resolveSessionKey(key, userID)
+	sess, err := r.sessions.Get(storageKey, userID)
 	if err == sql.ErrNoRows && key == "tasks:output" && userID != "" {
 		// Lazily create the pinned tasks:output session on first access.
-		sess, err = r.sessions.GetOrCreate("tasks:output", "tasks", "tasks", userID, false)
+		sess, err = r.sessions.GetOrCreate(storageKey, "tasks", "tasks", userID, false)
 	}
 	if err == sql.ErrNoRows {
 		writeError(w, http.StatusNotFound, "session not found")
@@ -39,7 +41,7 @@ func (r *Router) handleGetSession(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	messages, err := r.sessions.GetMessages(key, 0)
+	messages, err := r.sessions.GetMessages(storageKey, 0)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get messages")
 		return
@@ -51,12 +53,20 @@ func (r *Router) handleGetSession(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func (r *Router) resolveSessionKey(key, userID string) string {
+	if key == "tasks:output" && userID != "" {
+		return session.TasksOutputKey(userID)
+	}
+	return key
+}
+
 func (r *Router) handleActivateSession(w http.ResponseWriter, req *http.Request) {
 	key := req.PathValue("key")
 	if key == "" {
 		writeError(w, http.StatusBadRequest, "session key is required")
 		return
 	}
+	key = r.resolveSessionKey(key, userIDFromRequest(req))
 	if err := r.sessions.SetActiveSession(key, userIDFromRequest(req)); err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "session not found")
@@ -74,6 +84,7 @@ func (r *Router) handleDeleteSession(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusBadRequest, "session key is required")
 		return
 	}
+	key = r.resolveSessionKey(key, userIDFromRequest(req))
 
 	if err := r.sessions.Delete(key, userIDFromRequest(req)); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete session")
@@ -98,6 +109,7 @@ func (r *Router) handleClearMessages(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusBadRequest, "session key is required")
 		return
 	}
+	key = r.resolveSessionKey(key, userIDFromRequest(req))
 	// Verify the caller owns this session.
 	if _, err := r.sessions.Get(key, userIDFromRequest(req)); err != nil {
 		writeError(w, http.StatusNotFound, "session not found")
@@ -116,6 +128,7 @@ func (r *Router) handleDeleteMessage(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusBadRequest, "session key is required")
 		return
 	}
+	key = r.resolveSessionKey(key, userIDFromRequest(req))
 	// Verify the caller owns this session.
 	if _, err := r.sessions.Get(key, userIDFromRequest(req)); err != nil {
 		writeError(w, http.StatusNotFound, "session not found")

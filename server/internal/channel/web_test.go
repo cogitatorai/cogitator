@@ -449,12 +449,12 @@ func TestUserNotificationWritesToTasksOutput(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	msgs, err := sessionStore.GetMessages("tasks:output", 10)
+	msgs, err := sessionStore.GetMessages(session.TasksOutputKey("user-bob"), 10)
 	if err != nil {
 		t.Fatalf("GetMessages: %v", err)
 	}
 	if len(msgs) == 0 {
-		t.Fatal("expected at least one message in tasks:output for recipient, got none")
+		t.Fatal("expected at least one message in per-user tasks:output for recipient, got none")
 	}
 	msg := msgs[0]
 	if msg.Role != "assistant" {

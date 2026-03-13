@@ -40,6 +40,16 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
 }
 
+// TasksOutputKey returns the per-user session key for the pinned Tasks
+// messages list. Each user gets their own session so task results and
+// notifications are scoped correctly.
+func TasksOutputKey(userID string) string {
+	if userID == "" {
+		return "tasks:output"
+	}
+	return "tasks:output:" + userID
+}
+
 const sessionColumns = `key, channel, chat_id, user_id, private, summary, is_active, created_at, updated_at, last_active`
 
 func scanSession(scanner interface{ Scan(...any) error }) (*Session, error) {

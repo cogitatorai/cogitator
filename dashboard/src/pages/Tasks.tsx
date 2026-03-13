@@ -2,12 +2,14 @@ import { useState, useCallback, useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
 import { fetchJSON, postJSON, putJSON, deleteJSON, usePolling } from '../api';
 import type { Task } from '../api';
+import { useAuth } from '../auth';
 import Panel from '../components/Panel';
 import PageHeader from '../components/PageHeader';
 import StripedButton from '../components/StripedButton';
 import SchedulePicker from '../components/SchedulePicker';
 
 export default function Tasks() {
+  const { isAdmin } = useAuth();
   const { data: tasks, error } = usePolling<Task[]>(
     () => fetchJSON('/api/tasks'),
     5000,
@@ -16,10 +18,22 @@ export default function Tasks() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
+  const [ownerFilter, setOwnerFilter] = useState<string>('');
+
+  // Unique owner names for the filter dropdown (admin only).
+  const owners = useMemo(() => {
+    if (!isAdmin || !tasks) return [];
+    const names = new Set(tasks.map((t) => t.owner_name || '').filter(Boolean));
+    return [...names].sort();
+  }, [isAdmin, tasks]);
 
   const visibleTasks = useMemo(
-    () => (tasks || []).filter((t) => !hiddenIds.has(t.id)),
-    [tasks, hiddenIds],
+    () => (tasks || []).filter((t) => {
+      if (hiddenIds.has(t.id)) return false;
+      if (ownerFilter && (t.owner_name || '') !== ownerFilter) return false;
+      return true;
+    }),
+    [tasks, hiddenIds, ownerFilter],
   );
   const allIds = useMemo(() => visibleTasks.map((t) => t.id), [visibleTasks]);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
@@ -50,6 +64,19 @@ export default function Tasks() {
         <StripedButton onClick={() => setShowCreate(!showCreate)}>
           {showCreate ? 'Cancel' : '+ Create Task'}
         </StripedButton>
+
+        {isAdmin && owners.length > 1 && (
+          <select
+            value={ownerFilter}
+            onChange={(e) => setOwnerFilter(e.target.value)}
+            className="h-[38px] bg-zinc-900 border border-zinc-700 text-zinc-300 text-[12px] uppercase tracking-widest font-medium px-3 focus:border-orange-600 focus:outline-none cursor-pointer"
+          >
+            <option value="">All owners</option>
+            {owners.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        )}
 
         {someSelected && (
           <BulkActions
@@ -90,6 +117,7 @@ export default function Tasks() {
                   <Checkbox checked={allSelected} indeterminate={someSelected && !allSelected} onChange={toggleAll} />
                 </th>
                 <Th>Name</Th>
+                {isAdmin && <Th>Owner</Th>}
                 <Th>Schedule</Th>
                 <Th>Model</Th>
                 <Th>Runs</Th>
@@ -106,6 +134,7 @@ export default function Tasks() {
                   onCheck={() => toggleOne(task.id)}
                   expanded={expandedId === task.id}
                   onToggleExpand={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                  showOwner={isAdmin}
                 />
               ))}
             </tbody>
@@ -257,9 +286,9 @@ function Checkbox({ checked, indeterminate, onChange }: {
   );
 }
 
-function TaskRow({ task, checked, onCheck, expanded, onToggleExpand }: {
+function TaskRow({ task, checked, onCheck, expanded, onToggleExpand, showOwner }: {
   task: Task; checked: boolean; onCheck: () => void;
-  expanded: boolean; onToggleExpand: () => void;
+  expanded: boolean; onToggleExpand: () => void; showOwner?: boolean;
 }) {
   const [toggling, setToggling] = useState(false);
   const [triggerState, setTriggerState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
@@ -350,6 +379,9 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand }: {
             )}
           </div>
         </td>
+        {showOwner && (
+          <td className="py-2 text-zinc-500 text-sm">{task.owner_name || ''}</td>
+        )}
         <td className="py-2 text-zinc-500 text-sm" title={task.cron_expr || undefined}>
           <ScheduleCell task={task} />
         </td>
@@ -378,7 +410,7 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand }: {
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} className="bg-zinc-900/80 p-4 border-b border-zinc-700">
+          <td colSpan={showOwner ? 8 : 7} className="bg-zinc-900/80 p-4 border-b border-zinc-700">
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1">

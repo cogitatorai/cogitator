@@ -55,6 +55,7 @@ type Task struct {
 	CronDescription string     `json:"cron_description,omitempty"`
 	TotalRuns  int        `json:"total_runs"`
 	LastStatus RunStatus  `json:"last_status,omitempty"`
+	OwnerName  string     `json:"owner_name,omitempty"`
 }
 
 // RunQuery specifies filters and pagination for listing runs.

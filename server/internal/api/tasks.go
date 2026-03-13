@@ -11,7 +11,11 @@ import (
 )
 
 func (r *Router) handleListTasks(w http.ResponseWriter, req *http.Request) {
-	tasks, err := r.tasks.ListTasks(userIDFromRequest(req))
+	uid := userIDFromRequest(req)
+	if isAdmin(req) {
+		uid = ""
+	}
+	tasks, err := r.tasks.ListTasks(uid)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list tasks")
 		return
@@ -45,6 +49,23 @@ func (r *Router) enrichTasks(tasks []task.Task) {
 			if s, ok := stats[tasks[i].ID]; ok {
 				tasks[i].TotalRuns = s.TotalRuns
 				tasks[i].LastStatus = s.LastStatus
+			}
+		}
+	}
+
+	// Resolve owner names for tasks that have a user_id.
+	if r.users != nil {
+		nameCache := make(map[string]string)
+		for i := range tasks {
+			uid := tasks[i].UserID
+			if uid == "" {
+				continue
+			}
+			if name, ok := nameCache[uid]; ok {
+				tasks[i].OwnerName = name
+			} else if u, err := r.users.Get(uid); err == nil {
+				nameCache[uid] = u.Name
+				tasks[i].OwnerName = u.Name
 			}
 		}
 	}
@@ -327,6 +348,8 @@ func (r *Router) handleListRuns(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to list runs")
 		return
 	}
+	result.Runs = r.filterRunsByOwner(req, result.Runs)
+	result.Total = len(result.Runs)
 	writeJSON(w, http.StatusOK, result)
 }
 

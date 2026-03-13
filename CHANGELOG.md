@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.36.0 (2026-03-13)
+
+### Features
+
+- Cross-user notifications: tasks can target specific users via notify_users field (93b703e)
+- notify_user built-in tool allows agents to send messages to other users (db0cfd1)
+- Per-user tasks:output sessions so each user sees only their own task results (462a0b7)
+- Targeted WebSocket delivery for selective task notifications (497a5f4)
+- Agent system prompt describes notification capabilities (753fb00)
+
+### Fixes
+
+- Task notifications now clear when navigating to the Tasks message list (3e5f2bf)
+- Task list scoped to calling user; notifications surfaced in tasks list (b76ff55)
+- Makefile git describe resolves to correct directory (42260f4)
+
 ## 0.35.0 (2026-03-13)
 
 ### Features

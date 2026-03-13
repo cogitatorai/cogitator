@@ -125,7 +125,7 @@ dashboard/
 
 ### Tools
 
-23 built-in tools plus custom tool support via YAML definitions.
+24 built-in tools plus custom tool support via YAML definitions.
 
 | Tool | Description |
 |---|---|
@@ -152,6 +152,7 @@ dashboard/
 | `allow_domain` | Add a domain to the network allowlist |
 | `fetch_url` | Fetch a web page and convert to markdown |
 | `web_search` | Search the web via DuckDuckGo, Brave, or Mojeek |
+| `notify_user` | Send a notification to another user |
 | `start_mcp_server` | Start a configured MCP server by name |
 
 Custom tools are defined as YAML files in the `tools/` directory (within the defined workspace) with a name, description, parameters schema, and shell command template.
@@ -279,6 +280,7 @@ All endpoints require JWT authentication. The WebSocket endpoint is at `/ws`.
 | GET | `/api/notifications` | List notifications |
 | PUT | `/api/notifications/{id}/read` | Mark notification as read |
 | PUT | `/api/notifications/read-all` | Mark all as read |
+| PUT | `/api/notifications/read-tasks` | Mark task notifications as read |
 | DELETE | `/api/notifications/{id}` | Delete notification |
 | DELETE | `/api/notifications` | Delete all notifications |
 | POST | `/api/push-tokens` | Register push token |

@@ -170,7 +170,7 @@ API keys, bot tokens, and OAuth credentials are stored in the OS keychain (macOS
 
 ### Dashboard
 
-Pages: Chat, Tasks, Memory, Skills, Connectors, MCP Servers, History, Resources, Account, Users (admin), Settings, Admin.
+Pages: Chat, Tasks, Memory, Skills, Connectors, MCP Servers, History, Resources, Account, Users (admin), Settings, Admin. Client-mode lets you connect the dashboard to a remote Cogitator server by entering its URL and credentials.
 
 
 ## Configuration

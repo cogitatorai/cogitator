@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.34.0 (2026-03-13)
+
+### Features
+
+- Dashboard client-mode: connect to a remote Cogitator server from the web UI by entering a server URL and credentials (8e12db7)
+
+### Fixes
+
+- WebSocket status updates, responses, and errors are now scoped to the originating chat session; switching sessions no longer causes spinners or messages from another session to bleed into the current view (781dcf2)
+
 ## 0.33.0 (2026-03-12)
 
 ### Features

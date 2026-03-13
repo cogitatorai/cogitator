@@ -1,6 +1,7 @@
 -include .env
 
-VERSION ?= $(shell git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev)
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+VERSION ?= $(shell git -C $(MAKEFILE_DIR) describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev)
 
 .PHONY: build test lint dashboard docker help
 

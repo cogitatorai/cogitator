@@ -618,6 +618,37 @@ export function refreshConnectorSettings(name: string): Promise<ConnectorSetting
   return postJSON(`/api/connectors/${encodeURIComponent(name)}/settings/refresh`, {});
 }
 
+// Browser Connector
+
+export type BrowserConnectorStatus = {
+  enabled: boolean;
+  connected: boolean;
+  managed: boolean;
+  port: number;
+  chrome_version?: string;
+  error?: string;
+};
+
+export function fetchBrowserStatus(): Promise<BrowserConnectorStatus> {
+  return fetchJSON('/api/connectors/browser/status');
+}
+
+export function enableBrowserConnector(): Promise<BrowserConnectorStatus> {
+  return postJSON('/api/connectors/browser/enable', {});
+}
+
+export function disableBrowserConnector(): Promise<BrowserConnectorStatus> {
+  return postJSON('/api/connectors/browser/disable', {});
+}
+
+export function updateBrowserSettings(settings: {
+  port: number;
+  managed: boolean;
+  chrome_path: string;
+}): Promise<BrowserConnectorStatus> {
+  return postJSON('/api/connectors/browser/settings', settings);
+}
+
 // MCP (Model Context Protocol)
 
 export interface MCPServer {

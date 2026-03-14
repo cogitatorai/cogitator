@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link2, Unlink, Settings, ShieldCheck } from 'lucide-react';
+import { Link2, Unlink, Settings, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   usePolling,
   fetchConnectors,
@@ -8,10 +8,213 @@ import {
   fetchConnectorSettings,
   updateConnectorSettings,
   refreshConnectorSettings,
+  fetchBrowserStatus,
+  enableBrowserConnector,
+  disableBrowserConnector,
+  updateBrowserSettings,
 } from '../api';
-import type { ConnectorInfo, CalendarEntry } from '../api';
+import type { ConnectorInfo, CalendarEntry, BrowserConnectorStatus } from '../api';
 import PageHeader from '../components/PageHeader';
 import MCP from './MCP';
+
+const ChromeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="24" cy="24" r="22" fill="#4285F4" />
+    <circle cx="24" cy="24" r="9" fill="white" />
+    <circle cx="24" cy="24" r="4.5" fill="#4285F4" />
+    <path d="M24 15l12.73 7.35L24 24z" fill="#EA4335" opacity="0.8" />
+    <path d="M11.27 31.35L24 24l-12.73-7.35z" fill="#34A853" opacity="0.8" />
+    <path d="M24 33l12.73-7.35L24 24z" fill="#FBBC05" opacity="0.8" />
+  </svg>
+);
+
+function BrowserConnectorCard() {
+  const { data: status, refresh } = usePolling<BrowserConnectorStatus>(fetchBrowserStatus, 5000);
+  const [busy, setBusy] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [port, setPort] = useState(9222);
+  const [managed, setManaged] = useState(false);
+  const [chromePath, setChromePath] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    if (status) {
+      setPort(status.port || 9222);
+      setManaged(status.managed);
+    }
+  }, [status]);
+
+  const handleToggle = async () => {
+    setBusy(true);
+    try {
+      if (status?.enabled) {
+        await disableBrowserConnector();
+      } else {
+        await enableBrowserConnector();
+      }
+      refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to toggle browser connector');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await updateBrowserSettings({ port, managed, chrome_path: chromePath });
+      refresh();
+      setShowSettings(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const statusLabel = !status
+    ? 'Loading...'
+    : status.connected
+      ? 'Connected'
+      : status.enabled
+        ? 'Disconnected'
+        : 'Disabled';
+
+  const statusClass = !status
+    ? 'bg-zinc-700/50 text-zinc-500'
+    : status.connected
+      ? 'bg-green-900/50 text-green-600'
+      : status.enabled
+        ? 'bg-yellow-900/50 text-yellow-500'
+        : 'bg-zinc-700/50 text-zinc-500';
+
+  const dotClass = !status
+    ? 'bg-zinc-500'
+    : status.connected
+      ? 'bg-green-500'
+      : status.enabled
+        ? 'bg-yellow-500 animate-pulse'
+        : 'bg-zinc-500';
+
+  return (
+    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <ChromeIcon />
+            <h3 className="text-sm font-medium text-zinc-100">Chrome Browser</h3>
+          </div>
+          {status?.connected && status.chrome_version && (
+            <p className="text-xs text-zinc-400 mt-0.5">
+              {status.chrome_version} on port {status.port}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${statusClass}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      <p className="text-xs text-zinc-400 leading-relaxed">
+        Connect to a Chrome browser for web browsing, research, and data extraction.
+      </p>
+
+      {status?.error && (
+        <p className="text-xs text-red-400">{status.error}</p>
+      )}
+
+      <div className="mt-auto pt-2 border-t border-zinc-700/30 flex items-center justify-between">
+        <button
+          onClick={handleToggle}
+          disabled={busy}
+          className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
+            status?.enabled
+              ? 'bg-red-950 text-red-500 hover:bg-red-900'
+              : 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25'
+          }`}
+        >
+          {status?.enabled ? <Unlink size={12} /> : <Link2 size={12} />}
+          {busy ? 'Working...' : status?.enabled ? 'Disable' : 'Enable'}
+        </button>
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="p-1 rounded hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-colors"
+          title="Settings"
+        >
+          <Settings size={14} />
+        </button>
+      </div>
+
+      {showSettings && (
+        <div className="border-t border-zinc-700/30 pt-3 space-y-3">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Port</label>
+            <input
+              type="number"
+              value={port}
+              onChange={(e) => setPort(parseInt(e.target.value, 10) || 9222)}
+              className="w-full text-xs px-2 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+            />
+          </div>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={managed}
+              onChange={(e) => setManaged(e.target.checked)}
+              className="mt-0.5 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500/30"
+            />
+            <div>
+              <span className="text-xs text-zinc-200">Managed headless</span>
+              {managed && (
+                <p className="text-[10px] text-yellow-500 mt-0.5">
+                  Chrome cannot be used for personal browsing while this is enabled
+                </p>
+              )}
+            </div>
+          </label>
+
+          <div>
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              Advanced
+            </button>
+            {showAdvanced && (
+              <div className="mt-2">
+                <label className="block text-xs text-zinc-400 mb-1">Chrome path override</label>
+                <input
+                  type="text"
+                  value={chromePath}
+                  onChange={(e) => setChromePath(e.target.value)}
+                  placeholder="/usr/bin/google-chrome"
+                  className="w-full text-xs px-2 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder-zinc-600 focus:border-orange-500/50 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleSaveSettings}
+            disabled={savingSettings}
+            className="text-xs font-medium px-3 py-1.5 rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-50 transition-colors"
+          >
+            {savingSettings ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
@@ -122,13 +325,19 @@ export default function Connectors() {
 
   return (
     <div className="space-y-8">
+      {/* Page Header */}
+      <PageHeader
+        title="Connectors"
+        subtitle="Connect external services to extend your assistant's capabilities."
+      />
+
+      {/* Browser Connector */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <BrowserConnectorCard />
+      </div>
+
       {/* OAuth Connectors */}
       <div>
-        <PageHeader
-          title="Connectors"
-          subtitle="Connect external services to extend your assistant's capabilities."
-        />
-
         {connectors && connectors.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
             {connectors.map((c) => {

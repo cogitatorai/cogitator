@@ -27,6 +27,7 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/config"
 	"github.com/cogitatorai/cogitator/server/internal/database"
 	"github.com/cogitatorai/cogitator/server/internal/connector"
+	"github.com/cogitatorai/cogitator/server/internal/connector/browser"
 	"github.com/cogitatorai/cogitator/server/internal/drain"
 	"github.com/cogitatorai/cogitator/server/internal/heartbeat"
 	"github.com/cogitatorai/cogitator/server/internal/mcp"
@@ -81,8 +82,9 @@ type Server struct {
 	teleChannel   *channel.TelegramChannel
 	taskScheduler *task.Scheduler
 	updater       *updater.Updater
-	mcpManager    *mcp.Manager
-	pushDispatcher *push.Dispatcher
+	mcpManager       *mcp.Manager
+	browserConnector *browser.Connector
+	pushDispatcher   *push.Dispatcher
 
 	// SaaS-only subsystems (nil in CLI/desktop mode).
 	heartbeat          *heartbeat.Heartbeat
@@ -360,6 +362,10 @@ func New(opts Options) (*Server, error) {
 
 	toolExecutor.SetConnectorCaller(connectorMgr)
 
+	// Browser connector (CDP-based Chrome control).
+	browserConn := browser.NewConnector(ws.Root, slog.Default())
+	toolExecutor.SetBrowserConnector(browserConn)
+
 	if userStore != nil {
 		toolExecutor.SetUserLister(&userListerAdapter{store: userStore})
 		toolExecutor.SetMemoryToggler(memoryWriter)
@@ -458,6 +464,17 @@ func New(opts Options) (*Server, error) {
 				slog.Warn("mcp: skill gen: failed to update skill", "server", srv.Name, "err", err)
 			}
 		}
+	})
+
+	// When the browser connector enables/disables, refresh the agent's tool list.
+	browserConn.OnToolsChanged(func() {
+		combined := toolsRegistry.ProviderTools()
+		if browserConn.IsEnabled() {
+			for _, td := range browser.ToolDefs() {
+				combined = append(combined, td.ProviderTool())
+			}
+		}
+		a.SetTools(combined)
 	})
 
 	// Wire the task executor now that the agent exists.
@@ -718,8 +735,9 @@ func New(opts Options) (*Server, error) {
 		Notifications:   notificationStore,
 		PushTokens:      pushStore,
 		ServerPort:      cfg.Server.Port,
-		MCP:             mcpManager,
-		Connectors:      connectorMgr,
+		MCP:              mcpManager,
+		Connectors:       connectorMgr,
+		BrowserConnector: browserConn,
 		Store:           secretStore,
 		SocialVerifier:  socialVerifier,
 		GoogleClientID:     googleClientID,
@@ -758,8 +776,9 @@ func New(opts Options) (*Server, error) {
 		teleChannel:   telegramChannel,
 		taskScheduler: taskScheduler,
 		updater:       appUpdater,
-		mcpManager:    mcpManager,
-		pushDispatcher: pushDispatcher,
+		mcpManager:       mcpManager,
+		browserConnector: browserConn,
+		pushDispatcher:   pushDispatcher,
 	}
 
 	// Start the heartbeat goroutine in SaaS mode.
@@ -848,6 +867,9 @@ func (s *Server) Shutdown(ctx context.Context) {
 	s.reflectionTrigger.Stop()
 	if s.mcpManager != nil {
 		s.mcpManager.StopAll()
+	}
+	if s.browserConnector != nil {
+		s.browserConnector.Disable()
 	}
 	s.eventBus.Close()
 	s.db.Close()

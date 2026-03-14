@@ -68,6 +68,12 @@ func Resolve(names []string, registry *Registry) ResolvedTools {
 			continue
 		}
 
+		// Browser connector tools: group under a single display name.
+		if strings.HasPrefix(name, "browser_") {
+			toolSet["Chrome Browser"] = struct{}{}
+			continue
+		}
+
 		// MCP tools: look up the server name from the registry first.
 		if strings.HasPrefix(name, "mcp__") {
 			serverName := ""

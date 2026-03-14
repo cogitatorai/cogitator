@@ -12,6 +12,7 @@ import (
 
 	"github.com/cogitatorai/cogitator/server/internal/agent"
 	"github.com/cogitatorai/cogitator/server/internal/auth"
+	"github.com/cogitatorai/cogitator/server/internal/connector/browser"
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/database"
 	"github.com/cogitatorai/cogitator/server/internal/channel"
@@ -90,8 +91,9 @@ type Router struct {
 	updater         *updater.Updater
 	shutdownFn      func()
 	mcp             *mcp.Manager
-	connectors      ConnectorManager
-	jwtSvc          *auth.JWTService
+	connectors        ConnectorManager
+	browserConnector  *browser.Connector
+	jwtSvc            *auth.JWTService
 	users           *user.Store
 	socialVerifier  SocialVerifier
 	googleClientID     string
@@ -132,8 +134,9 @@ type RouterConfig struct {
 	Updater         *updater.Updater
 	ShutdownFn      func()
 	MCP             *mcp.Manager
-	Connectors      ConnectorManager
-	JWTService      *auth.JWTService
+	Connectors       ConnectorManager
+	BrowserConnector *browser.Connector
+	JWTService       *auth.JWTService
 	ServerPort      int
 	Users           *user.Store
 	SocialVerifier  SocialVerifier
@@ -176,8 +179,9 @@ func NewRouter(cfg RouterConfig) *Router {
 		updater:         cfg.Updater,
 		shutdownFn:      cfg.ShutdownFn,
 		mcp:             cfg.MCP,
-		connectors:      cfg.Connectors,
-		jwtSvc:          cfg.JWTService,
+		connectors:       cfg.Connectors,
+		browserConnector: cfg.BrowserConnector,
+		jwtSvc:           cfg.JWTService,
 		users:           cfg.Users,
 		socialVerifier:  cfg.SocialVerifier,
 		googleClientID:     cfg.GoogleClientID,
@@ -362,6 +366,12 @@ func (r *Router) registerRoutes() {
 	if r.web != nil {
 		r.mux.Handle("GET /ws", r.web)
 	}
+
+	// Browser connector.
+	r.mux.HandleFunc("GET /api/connectors/browser/status", r.handleBrowserStatus)
+	r.mux.HandleFunc("POST /api/connectors/browser/settings", r.handleBrowserSettings)
+	r.mux.HandleFunc("POST /api/connectors/browser/enable", r.handleBrowserEnable)
+	r.mux.HandleFunc("POST /api/connectors/browser/disable", r.handleBrowserDisable)
 
 	// Connectors.
 	r.mux.HandleFunc("GET /api/connectors", r.handleConnectorsList)

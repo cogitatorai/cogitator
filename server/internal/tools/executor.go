@@ -41,6 +41,12 @@ type ConnectorCaller interface {
 	CallTool(ctx context.Context, qualifiedName, argsJSON, userID string) (string, error)
 }
 
+// BrowserConnector provides browser control via Chrome DevTools Protocol.
+type BrowserConnector interface {
+	IsEnabled() bool
+	Execute(ctx context.Context, name, args string) (string, error)
+}
+
 // UserInfo is a minimal user representation returned by list_users.
 type UserInfo struct {
 	ID   string `json:"id"`
@@ -98,6 +104,7 @@ type Executor struct {
 	domainAllowlister  DomainAllowlister
 	mcpManager         MCPManager
 	connectorCaller    ConnectorCaller
+	browserConnector   BrowserConnector
 	userLister         UserLister
 	memoryToggler      MemoryPrivacyToggler
 	userNotifier       UserNotifier
@@ -169,6 +176,9 @@ func (e *Executor) SetDomainAllowlister(da DomainAllowlister) {
 
 // SetConnectorCaller wires the connector tool dispatch layer.
 func (e *Executor) SetConnectorCaller(c ConnectorCaller) { e.connectorCaller = c }
+
+// SetBrowserConnector wires the browser connector for CDP-based browser tools.
+func (e *Executor) SetBrowserConnector(b BrowserConnector) { e.browserConnector = b }
 
 // SetUserLister wires the user listing layer.
 func (e *Executor) SetUserLister(ul UserLister) { e.userLister = ul }
@@ -276,6 +286,13 @@ func (e *Executor) Execute(ctx context.Context, name string, arguments string) (
 	case "start_mcp_server":
 		return e.startMCPServer(ctx, arguments)
 	default:
+		// Browser connector tools (browser_* prefix).
+		if strings.HasPrefix(name, "browser_") {
+			if e.browserConnector == nil || !e.browserConnector.IsEnabled() {
+				return "", fmt.Errorf("browser connector is not enabled")
+			}
+			return e.browserConnector.Execute(ctx, name, arguments)
+		}
 		// Check if it's a connector tool.
 		if e.connectorCaller != nil && e.connectorCaller.IsConnectorTool(name) {
 			var userID string

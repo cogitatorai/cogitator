@@ -49,7 +49,8 @@ type Connector struct {
 	// pollInterval can be overridden in tests to avoid 30s waits.
 	pollInterval time.Duration
 
-	sessions *sessionCache
+	sessions          *sessionCache
+	discoveredBaseURL string // set by connectLocked; used by baseURL()
 }
 
 // NewConnector creates a Connector rooted at workspaceDir.
@@ -244,13 +245,13 @@ func (c *Connector) Client() *Client {
 // connectLocked attempts to establish a CDP connection. Must be called with
 // c.mu held.
 func (c *Connector) connectLocked() error {
-	baseURL := c.baseURL()
-	info, err := GetVersion(baseURL)
+	baseURL, wsURL, err := DiscoverBaseURL(c.config.Port)
 	if err != nil {
 		return err
 	}
+	c.discoveredBaseURL = baseURL
 
-	if info.WebSocketDebuggerURL == "" {
+	if wsURL == "" {
 		return fmt.Errorf("chrome returned empty webSocketDebuggerUrl")
 	}
 
@@ -258,7 +259,7 @@ func (c *Connector) connectLocked() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := client.Connect(ctx, info.WebSocketDebuggerURL); err != nil {
+	if err := client.Connect(ctx, wsURL); err != nil {
 		return fmt.Errorf("CDP connect: %w", err)
 	}
 
@@ -276,14 +277,22 @@ func (c *Connector) connectLocked() error {
 
 	c.client = client
 	c.connected = true
-	c.chromeVersion = info.Browser
 	c.lastError = ""
 	c.sessions.clear()
+
+	// Fetch Chrome version from the discovered endpoint.
+	if info, err := GetVersion(baseURL); err == nil {
+		c.chromeVersion = info.Browser
+	}
 	return nil
 }
 
-// baseURL returns the Chrome DevTools HTTP base URL for the configured port.
+// baseURL returns the Chrome DevTools HTTP base URL. Prefers the URL
+// discovered via DevToolsActivePort, falls back to the configured port.
 func (c *Connector) baseURL() string {
+	if c.discoveredBaseURL != "" {
+		return c.discoveredBaseURL
+	}
 	return fmt.Sprintf("http://127.0.0.1:%d", c.config.Port)
 }
 

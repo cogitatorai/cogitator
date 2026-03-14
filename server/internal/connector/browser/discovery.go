@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -23,6 +26,72 @@ type TargetInfo struct {
 	Type  string `json:"type"`
 	Title string `json:"title"`
 	URL   string `json:"url"`
+}
+
+// devToolsActivePortPaths returns candidate paths for Chrome's DevToolsActivePort file.
+// Chrome writes this file when the user enables debugging via chrome://inspect/#remote-debugging.
+func devToolsActivePortPaths() []string {
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		return nil
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return []string{
+			filepath.Join(home, "Library", "Application Support", "Google", "Chrome", "DevToolsActivePort"),
+		}
+	case "linux":
+		return []string{
+			filepath.Join(home, ".config", "google-chrome", "DevToolsActivePort"),
+			filepath.Join(home, ".config", "chromium", "DevToolsActivePort"),
+		}
+	default:
+		return nil
+	}
+}
+
+// ReadDevToolsActivePort reads the DevToolsActivePort file and returns the
+// WebSocket debugger URL. The file contains two lines: the port number and
+// the browser WebSocket path. Returns empty string if the file does not exist.
+func ReadDevToolsActivePort() string {
+	for _, path := range devToolsActivePortPaths() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		lines := strings.SplitN(strings.TrimSpace(string(data)), "\n", 2)
+		if len(lines) == 2 && lines[0] != "" && lines[1] != "" {
+			return fmt.Sprintf("ws://127.0.0.1:%s%s", lines[0], lines[1])
+		}
+	}
+	return ""
+}
+
+// DiscoverBaseURL finds a reachable Chrome debug endpoint. It checks the
+// DevToolsActivePort file first (for Chrome with debugging toggled on via
+// chrome://inspect), then falls back to the configured port.
+func DiscoverBaseURL(configuredPort int) (baseURL string, wsURL string, err error) {
+	// 1. Try DevToolsActivePort file (modern Chrome, no --remote-debugging-port needed).
+	if ws := ReadDevToolsActivePort(); ws != "" {
+		// Extract port from the WS URL to build the HTTP base URL.
+		// Format: ws://127.0.0.1:{port}/devtools/browser/{id}
+		parts := strings.SplitN(strings.TrimPrefix(ws, "ws://127.0.0.1:"), "/", 2)
+		if len(parts) >= 1 {
+			port := parts[0]
+			base := "http://127.0.0.1:" + port
+			if _, verr := GetVersion(base); verr == nil {
+				return base, ws, nil
+			}
+		}
+	}
+
+	// 2. Try configured port (--remote-debugging-port or managed headless).
+	base := fmt.Sprintf("http://127.0.0.1:%d", configuredPort)
+	info, err := GetVersion(base)
+	if err != nil {
+		return "", "", err
+	}
+	return base, info.WebSocketDebuggerURL, nil
 }
 
 // GetVersion fetches Chrome version info. baseURL is like "http://127.0.0.1:9222".

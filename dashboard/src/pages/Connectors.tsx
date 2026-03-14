@@ -51,7 +51,7 @@ function ConnectorCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3 min-h-[200px]">
+    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">

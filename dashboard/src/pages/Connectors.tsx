@@ -239,7 +239,7 @@ export default function Connectors() {
 
       {/* All Connectors */}
       <div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4 items-start">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
           <BrowserConnectorCard />
           {connectors?.map((c) => {
               const p = pending[c.name];

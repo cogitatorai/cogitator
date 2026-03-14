@@ -53,13 +53,11 @@ function ConnectorCard({
   return (
     <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            {icon}
-            <h3 className="text-sm font-medium text-zinc-100">{name}</h3>
-          </div>
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <h3 className="text-sm font-medium text-zinc-100">{name}</h3>
           {subtitle && (
-            <p className="text-xs text-zinc-400 mt-0.5">{subtitle}</p>
+            <span className="text-[10px] text-zinc-500">{subtitle}</span>
           )}
         </div>
         <span

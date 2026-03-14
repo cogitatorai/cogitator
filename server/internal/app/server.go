@@ -411,7 +411,15 @@ func New(opts Options) (*Server, error) {
 			Retriever:    retriever,
 			NameResolver: buildNameResolver(userStore),
 		},
-		Tools:          toolsRegistry.ProviderTools(),
+		Tools:          func() []provider.Tool {
+			t := toolsRegistry.ProviderTools()
+			if browserConn.IsEnabled() {
+				for _, td := range browser.ToolDefs() {
+					t = append(t, td.ProviderTool())
+				}
+			}
+			return t
+		}(),
 		EventBus:       eventBus,
 		Model:          cfg.Models.Standard.Model,
 		UsageRecorder:  db,
@@ -476,6 +484,16 @@ func New(opts Options) (*Server, error) {
 		}
 		a.SetTools(combined)
 	})
+
+	// If the browser connector was previously enabled, reconnect on startup.
+	// This runs after the callback is registered so the agent gets the tools.
+	if browserConn.IsEnabled() {
+		go func() {
+			if err := browserConn.Enable(); err != nil {
+				slog.Warn("browser connector: auto-enable failed", "error", err)
+			}
+		}()
+	}
 
 	// Wire the task executor now that the agent exists.
 	modelResolver := func(tier string) string {

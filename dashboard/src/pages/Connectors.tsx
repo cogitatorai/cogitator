@@ -331,16 +331,11 @@ export default function Connectors() {
         subtitle="Connect external services to extend your assistant's capabilities."
       />
 
-      {/* Browser Connector */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <BrowserConnectorCard />
-      </div>
-
-      {/* OAuth Connectors */}
+      {/* All Connectors */}
       <div>
-        {connectors && connectors.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
-            {connectors.map((c) => {
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+          <BrowserConnectorCard />
+          {connectors?.map((c) => {
               const p = pending[c.name];
               const statusLabel = p
                 ? (p === 'connecting' ? 'Connecting...' : 'Disconnecting...')
@@ -423,10 +418,7 @@ export default function Connectors() {
               </div>
               );
             })}
-          </div>
-        ) : connectors ? (
-          <p className="text-sm text-zinc-500 mt-4">No connectors available.</p>
-        ) : null}
+        </div>
       </div>
 
       {/* MCP Servers (reused from MCP page) */}

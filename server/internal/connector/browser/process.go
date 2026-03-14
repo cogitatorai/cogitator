@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -37,6 +38,22 @@ func DetectChromePath(override string) string {
 // StartHeadless launches Chrome in headless mode with the remote debugging port
 // bound to port. The process is started but not waited on; the caller owns the
 // returned *exec.Cmd and must call StopProcess when done.
+// defaultChromeProfileDir returns the default Chrome user data directory.
+func defaultChromeProfileDir() string {
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		return ""
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library", "Application Support", "Google", "Chrome")
+	case "linux":
+		return filepath.Join(home, ".config", "google-chrome")
+	default:
+		return ""
+	}
+}
+
 func StartHeadless(chromePath string, port int) (*exec.Cmd, error) {
 	args := []string{
 		"--headless=new",
@@ -44,6 +61,11 @@ func StartHeadless(chromePath string, port int) (*exec.Cmd, error) {
 		"--no-first-run",
 		"--disable-gpu",
 		"--window-size=1920,1080",
+	}
+	// Use the default Chrome profile so headless mode has access to
+	// the user's cookies and authenticated sessions.
+	if profileDir := defaultChromeProfileDir(); profileDir != "" {
+		args = append(args, fmt.Sprintf("--user-data-dir=%s", profileDir))
 	}
 	cmd := exec.Command(chromePath, args...)
 	cmd.Stdout = os.Stdout

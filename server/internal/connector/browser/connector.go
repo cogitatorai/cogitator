@@ -82,21 +82,47 @@ func (c *Connector) Enable() error {
 			c.mu.Unlock()
 			return fmt.Errorf("chrome binary not found")
 		}
-		cmd, err := StartHeadless(chromePath, c.config.Port)
+		dataDir := filepath.Join(filepath.Dir(c.configPath), "chrome-profile")
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
+			c.mu.Unlock()
+			return fmt.Errorf("create chrome profile dir: %w", err)
+		}
+		cmd, err := StartHeadless(chromePath, c.config.Port, dataDir)
 		if err != nil {
 			c.mu.Unlock()
 			return fmt.Errorf("starting headless chrome: %w", err)
 		}
 		c.process = cmd
+
+		// Monitor for early exit so we can surface the error.
+		exited := make(chan error, 1)
+		go func() { exited <- cmd.Wait() }()
 		c.mu.Unlock()
 
 		// Poll until Chrome's debug port is reachable (up to 10s).
 		deadline := time.Now().Add(10 * time.Second)
+		started := false
 		for time.Now().Before(deadline) {
+			select {
+			case err := <-exited:
+				// Chrome died before binding the port.
+				c.mu.Lock()
+				c.process = nil
+				c.lastError = fmt.Sprintf("chrome exited: %v", err)
+				c.mu.Unlock()
+				return fmt.Errorf("chrome exited before binding debug port: %v", err)
+			default:
+			}
 			if _, err := GetVersion(fmt.Sprintf("http://127.0.0.1:%d", c.config.Port)); err == nil {
+				started = true
 				break
 			}
 			time.Sleep(200 * time.Millisecond)
+		}
+		if !started {
+			// Chrome is running but port isn't bound yet; proceed anyway,
+			// the polling loop will pick it up.
+			c.logger.Warn("browser connector: chrome started but debug port not yet reachable")
 		}
 		c.mu.Lock()
 	}

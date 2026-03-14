@@ -37,10 +37,11 @@ func DetectChromePath(override string) string {
 // StartHeadless launches Chrome in headless mode with the remote debugging port
 // bound to port. The process is started but not waited on; the caller owns the
 // returned *exec.Cmd and must call StopProcess when done.
-func StartHeadless(chromePath string, port int) (*exec.Cmd, error) {
+func StartHeadless(chromePath string, port int, dataDir string) (*exec.Cmd, error) {
 	args := []string{
 		"--headless=new",
 		fmt.Sprintf("--remote-debugging-port=%d", port),
+		fmt.Sprintf("--user-data-dir=%s", dataDir),
 		"--no-first-run",
 		"--disable-gpu",
 		"--window-size=1920,1080",

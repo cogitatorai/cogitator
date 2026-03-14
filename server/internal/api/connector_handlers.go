@@ -260,15 +260,13 @@ func (r *Router) handleBrowserSettings(w http.ResponseWriter, req *http.Request)
 		return
 	}
 	var body struct {
-		Port       int    `json:"port"`
-		Managed    bool   `json:"managed"`
-		ChromePath string `json:"chrome_path"`
+		Port int `json:"port"`
 	}
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := r.browserConnector.UpdateConfig(body.Port, body.Managed, body.ChromePath); err != nil {
+	if err := r.browserConnector.UpdateConfig(body.Port); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link2, Unlink, Settings, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react';
+import { Link2, Unlink, Settings, ShieldCheck } from 'lucide-react';
 import {
   usePolling,
   fetchConnectors,
@@ -32,16 +32,12 @@ function BrowserConnectorCard() {
   const { data: status, refresh } = usePolling<BrowserConnectorStatus>(fetchBrowserStatus, 5000);
   const [busy, setBusy] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [port, setPort] = useState(9222);
-  const [managed, setManaged] = useState(false);
-  const [chromePath, setChromePath] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (status) {
       setPort(status.port || 9222);
-      setManaged(status.managed);
     }
   }, [status]);
 
@@ -64,7 +60,7 @@ function BrowserConnectorCard() {
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
-      await updateBrowserSettings({ port, managed, chrome_path: chromePath });
+      await updateBrowserSettings({ port });
       refresh();
       setShowSettings(false);
     } catch (e) {
@@ -162,45 +158,6 @@ function BrowserConnectorCard() {
               onChange={(e) => setPort(parseInt(e.target.value, 10) || 9222)}
               className="w-full text-xs px-2 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 focus:border-orange-500/50 focus:outline-none"
             />
-          </div>
-
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={managed}
-              onChange={(e) => setManaged(e.target.checked)}
-              className="mt-0.5 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500/30"
-            />
-            <div>
-              <span className="text-xs text-zinc-200">Managed headless</span>
-              {managed && (
-                <p className="text-[10px] text-yellow-500 mt-0.5">
-                  Chrome cannot be used for personal browsing while this is enabled
-                </p>
-              )}
-            </div>
-          </label>
-
-          <div>
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              Advanced
-            </button>
-            {showAdvanced && (
-              <div className="mt-2">
-                <label className="block text-xs text-zinc-400 mb-1">Chrome path override</label>
-                <input
-                  type="text"
-                  value={chromePath}
-                  onChange={(e) => setChromePath(e.target.value)}
-                  placeholder="/usr/bin/google-chrome"
-                  className="w-full text-xs px-2 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder-zinc-600 focus:border-orange-500/50 focus:outline-none"
-                />
-              </div>
-            )}
           </div>
 
           <button

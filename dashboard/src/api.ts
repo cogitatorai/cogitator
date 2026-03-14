@@ -623,7 +623,6 @@ export function refreshConnectorSettings(name: string): Promise<ConnectorSetting
 export type BrowserConnectorStatus = {
   enabled: boolean;
   connected: boolean;
-  managed: boolean;
   port: number;
   chrome_version?: string;
   error?: string;
@@ -643,8 +642,6 @@ export function disableBrowserConnector(): Promise<BrowserConnectorStatus> {
 
 export function updateBrowserSettings(settings: {
   port: number;
-  managed: boolean;
-  chrome_path: string;
 }): Promise<BrowserConnectorStatus> {
   return postJSON('/api/connectors/browser/settings', settings);
 }

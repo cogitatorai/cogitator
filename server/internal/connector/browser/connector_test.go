@@ -58,7 +58,6 @@ func TestConnectorConfigPersistence(t *testing.T) {
 	dir := t.TempDir()
 	c := NewConnector(dir, slog.Default())
 	c.config.Port = 9333
-	c.config.Managed = true
 	if err := c.SaveConfig(); err != nil {
 		t.Fatalf("SaveConfig: %v", err)
 	}
@@ -66,9 +65,6 @@ func TestConnectorConfigPersistence(t *testing.T) {
 	c2 := NewConnector(dir, slog.Default())
 	if c2.config.Port != 9333 {
 		t.Errorf("expected port 9333, got %d", c2.config.Port)
-	}
-	if !c2.config.Managed {
-		t.Error("expected managed=true after reload")
 	}
 }
 

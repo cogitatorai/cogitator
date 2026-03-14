@@ -165,6 +165,8 @@ Connect external tools via the Model Context Protocol. Add local (stdio) or remo
 
 OAuth-based integrations with external services. Google Calendar and Gmail ship built in. The agent calls calendar tools during conversation to check schedules, list events, and search across multiple calendars. The connector runtime supports custom connectors defined as YAML manifests with OAuth config, REST endpoints, and jq-based response mapping.
 
+**Chrome Browser connector** gives the agent CDP-based browser control: navigate pages, read content via accessibility tree snapshots, click elements, type text, evaluate JavaScript, take screenshots, and more. Requires Chrome 146+ with debugging enabled in `chrome://inspect/#remote-debugging`. Enable on the Connectors page in the dashboard.
+
 ### Security
 
 API keys, bot tokens, and OAuth credentials are stored in the OS keychain (macOS Keychain, Windows Credential Manager, Linux secret-service) with file-based fallback. Shell commands run in an isolated subdirectory with a scrubbed environment (variables containing API_KEY, SECRET, TOKEN, PASSWORD, etc. are stripped). Sensitive files are blocked from shell access by path filtering. Optional Docker sandboxing runs commands in throwaway containers with memory/PID limits, read-only rootfs, and no network by default.
@@ -294,6 +296,9 @@ All endpoints require JWT authentication. The WebSocket endpoint is at `/ws`.
 | DELETE | `/api/connectors/{name}/auth` | Disconnect connector |
 | GET | `/api/connectors/{name}/settings` | Connector settings |
 | PUT | `/api/connectors/{name}/settings` | Update connector settings |
+| GET | `/api/connectors/browser/status` | Browser connector status |
+| POST | `/api/connectors/browser/enable` | Enable browser connector |
+| POST | `/api/connectors/browser/disable` | Disable browser connector |
 | GET | `/api/mcp/servers` | List MCP servers |
 | POST | `/api/mcp/servers` | Add MCP server |
 | PATCH | `/api/mcp/servers/{name}` | Update server |

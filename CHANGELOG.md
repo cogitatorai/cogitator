@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.37.0 (2026-03-15)
+
+### Features
+
+- Chrome Browser connector: CDP-based browser control with 15 tools (navigate, snapshot, click, type, eval, scroll, screenshot, and more) (a2f7d29)
+- Auto-discovery via Chrome's DevToolsActivePort file; requires Chrome 146+ with debugging enabled in chrome://inspect (23aeddc, 6d1cc3f)
+- Browser connector auto-reconnects on server startup when previously enabled (57c4d64)
+- Chrome Browser card on the Connectors dashboard page with enable/disable toggle (a2f7d29)
+- Shared ConnectorCard component with stable height, truncated titles, and expandable descriptions (0ea8d10, f2c4c62)
+
 ## 0.36.0 (2026-03-13)
 
 ### Features

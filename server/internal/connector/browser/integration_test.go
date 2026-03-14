@@ -485,9 +485,6 @@ func TestIntegrationStatus(t *testing.T) {
 	if !st.Connected {
 		t.Error("Status.Connected should be true")
 	}
-	if st.Port != 9222 {
-		t.Errorf("Status.Port = %d, want default 9222", st.Port)
-	}
 	_ = mock // mock used by setupIntegration
 	if st.Error != "" {
 		t.Errorf("Status.Error should be empty after successful connect, got %q", st.Error)

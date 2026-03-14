@@ -251,28 +251,6 @@ func (r *Router) handleBrowserStatus(w http.ResponseWriter, req *http.Request) {
 	writeJSON(w, http.StatusOK, r.browserConnector.Status())
 }
 
-func (r *Router) handleBrowserSettings(w http.ResponseWriter, req *http.Request) {
-	if !requireAdmin(w, req) {
-		return
-	}
-	if r.browserConnector == nil {
-		writeError(w, http.StatusServiceUnavailable, "browser connector not available")
-		return
-	}
-	var body struct {
-		Port int `json:"port"`
-	}
-	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if err := r.browserConnector.UpdateConfig(body.Port); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, r.browserConnector.Status())
-}
-
 func (r *Router) handleBrowserEnable(w http.ResponseWriter, req *http.Request) {
 	if !requireAdmin(w, req) {
 		return

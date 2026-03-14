@@ -68,27 +68,21 @@ func ReadDevToolsActivePort() string {
 	return ""
 }
 
-// DiscoverWSURL finds a Chrome WebSocket debugger URL. When managed is false
-// (external Chrome), it checks the DevToolsActivePort file first, then falls
-// back to HTTP /json/version. When managed is true (Cogitator launched Chrome),
-// it skips DevToolsActivePort (which may be stale) and goes straight to the
-// HTTP endpoint on the configured port.
-func DiscoverWSURL(configuredPort int, managed bool) (wsURL string, err error) {
-	if !managed {
-		// 1. Try DevToolsActivePort file (modern Chrome with debugging toggle).
-		if ws := ReadDevToolsActivePort(); ws != "" {
-			return ws, nil
-		}
+// DiscoverWSURL finds a Chrome WebSocket debugger URL. It checks the
+// DevToolsActivePort file first (Chrome with debugging toggled on via
+// chrome://inspect), then falls back to HTTP /json/version on port 9222
+// (for older Chrome started with --remote-debugging-port=9222).
+func DiscoverWSURL() (wsURL string, err error) {
+	// 1. Try DevToolsActivePort file (modern Chrome with debugging toggle).
+	if ws := ReadDevToolsActivePort(); ws != "" {
+		return ws, nil
 	}
 
-	// 2. Try configured port via HTTP (--remote-debugging-port or managed headless).
-	base := fmt.Sprintf("http://127.0.0.1:%d", configuredPort)
-	info, err := GetVersion(base)
+	// 2. Fallback: try default debug port via HTTP.
+	const defaultPort = 9222
+	info, err := GetVersion(fmt.Sprintf("http://127.0.0.1:%d", defaultPort))
 	if err != nil {
-		if managed {
-			return "", fmt.Errorf("managed chrome not reachable on port %d: %w", configuredPort, err)
-		}
-		return "", fmt.Errorf("chrome not reachable: enable debugging in chrome://inspect/#remote-debugging or start Chrome with --remote-debugging-port=%d", configuredPort)
+		return "", fmt.Errorf("chrome not reachable: enable debugging in chrome://inspect/#remote-debugging or start Chrome with --remote-debugging-port=9222")
 	}
 	return info.WebSocketDebuggerURL, nil
 }

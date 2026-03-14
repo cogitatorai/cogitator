@@ -623,7 +623,6 @@ export function refreshConnectorSettings(name: string): Promise<ConnectorSetting
 export type BrowserConnectorStatus = {
   enabled: boolean;
   connected: boolean;
-  port: number;
   chrome_version?: string;
   error?: string;
 };
@@ -638,12 +637,6 @@ export function enableBrowserConnector(): Promise<BrowserConnectorStatus> {
 
 export function disableBrowserConnector(): Promise<BrowserConnectorStatus> {
   return postJSON('/api/connectors/browser/disable', {});
-}
-
-export function updateBrowserSettings(settings: {
-  port: number;
-}): Promise<BrowserConnectorStatus> {
-  return postJSON('/api/connectors/browser/settings', settings);
 }
 
 // MCP (Model Context Protocol)

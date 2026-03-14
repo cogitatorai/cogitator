@@ -12,9 +12,6 @@ func TestNewConnector(t *testing.T) {
 	if c.IsEnabled() {
 		t.Error("should not be enabled by default")
 	}
-	if c.config.Port != 9222 {
-		t.Errorf("expected default port 9222, got %d", c.config.Port)
-	}
 }
 
 func TestConnectorEnableNoChrome(t *testing.T) {
@@ -57,14 +54,14 @@ func TestConnectorDisable(t *testing.T) {
 func TestConnectorConfigPersistence(t *testing.T) {
 	dir := t.TempDir()
 	c := NewConnector(dir, slog.Default())
-	c.config.Port = 9333
+	c.config.Enabled = true
 	if err := c.SaveConfig(); err != nil {
 		t.Fatalf("SaveConfig: %v", err)
 	}
 
 	c2 := NewConnector(dir, slog.Default())
-	if c2.config.Port != 9333 {
-		t.Errorf("expected port 9333, got %d", c2.config.Port)
+	if !c2.config.Enabled {
+		t.Error("expected enabled=true after reload")
 	}
 }
 

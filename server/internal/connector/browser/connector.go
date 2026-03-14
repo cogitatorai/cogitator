@@ -15,14 +15,12 @@ import (
 // Config holds the persisted browser connector settings.
 type Config struct {
 	Enabled bool `yaml:"enabled"`
-	Port    int  `yaml:"port"`
 }
 
 // ConnectorStatus is the current state returned by the Status() method.
 type ConnectorStatus struct {
 	Enabled       bool   `json:"enabled"`
 	Connected     bool   `json:"connected"`
-	Port          int    `json:"port"`
 	ChromeVersion string `json:"chrome_version,omitempty"`
 	Error         string `json:"error,omitempty"`
 }
@@ -61,9 +59,6 @@ func NewConnector(workspaceDir string, logger *slog.Logger) *Connector {
 		sessions:     newSessionCache(),
 	}
 	c.loadConfig()
-	if c.config.Port == 0 {
-		c.config.Port = 9222
-	}
 	return c
 }
 
@@ -136,7 +131,6 @@ func (c *Connector) Status() ConnectorStatus {
 	return ConnectorStatus{
 		Enabled:       c.config.Enabled,
 		Connected:     c.connected,
-		Port:          c.config.Port,
 		ChromeVersion: c.chromeVersion,
 		Error:         c.lastError,
 	}
@@ -148,26 +142,6 @@ func (c *Connector) OnToolsChanged(fn func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.onToolsChanged = fn
-}
-
-// UpdateConfig applies new connection settings. If the connector is currently
-// enabled it reconnects with the updated configuration.
-func (c *Connector) UpdateConfig(port int) error {
-	c.mu.Lock()
-	c.config.Port = port
-	enabled := c.config.Enabled
-	c.mu.Unlock()
-
-	if err := c.saveConfig(); err != nil {
-		return err
-	}
-	if enabled {
-		if err := c.Disable(); err != nil {
-			c.logger.Warn("browser connector: disable before reconnect failed", "error", err)
-		}
-		return c.Enable()
-	}
-	return nil
 }
 
 // SaveConfig persists the current config to disk. It is exported so that
@@ -192,7 +166,7 @@ func (c *Connector) connectLocked() error {
 	if c.wsURLOverride != "" {
 		wsURL = c.wsURLOverride
 	} else {
-		wsURL, err = DiscoverWSURL(c.config.Port, false)
+		wsURL, err = DiscoverWSURL()
 		if err != nil {
 			return err
 		}

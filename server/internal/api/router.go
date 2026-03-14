@@ -369,7 +369,6 @@ func (r *Router) registerRoutes() {
 
 	// Browser connector.
 	r.mux.HandleFunc("GET /api/connectors/browser/status", r.handleBrowserStatus)
-	r.mux.HandleFunc("POST /api/connectors/browser/settings", r.handleBrowserSettings)
 	r.mux.HandleFunc("POST /api/connectors/browser/enable", r.handleBrowserEnable)
 	r.mux.HandleFunc("POST /api/connectors/browser/disable", r.handleBrowserDisable)
 

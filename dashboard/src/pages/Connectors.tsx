@@ -11,7 +11,6 @@ import {
   fetchBrowserStatus,
   enableBrowserConnector,
   disableBrowserConnector,
-  updateBrowserSettings,
 } from '../api';
 import type { ConnectorInfo, CalendarEntry, BrowserConnectorStatus } from '../api';
 import PageHeader from '../components/PageHeader';
@@ -31,15 +30,6 @@ const ChromeIcon = () => (
 function BrowserConnectorCard() {
   const { data: status, refresh } = usePolling<BrowserConnectorStatus>(fetchBrowserStatus, 5000);
   const [busy, setBusy] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [port, setPort] = useState(9222);
-  const [savingSettings, setSavingSettings] = useState(false);
-
-  useEffect(() => {
-    if (status) {
-      setPort(status.port || 9222);
-    }
-  }, [status]);
 
   const handleToggle = async () => {
     setBusy(true);
@@ -54,19 +44,6 @@ function BrowserConnectorCard() {
       alert(e instanceof Error ? e.message : 'Failed to toggle browser connector');
     } finally {
       setBusy(false);
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    setSavingSettings(true);
-    try {
-      await updateBrowserSettings({ port });
-      refresh();
-      setShowSettings(false);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save settings');
-    } finally {
-      setSavingSettings(false);
     }
   };
 
@@ -104,7 +81,7 @@ function BrowserConnectorCard() {
           </div>
           {status?.connected && status.chrome_version && (
             <p className="text-xs text-zinc-400 mt-0.5">
-              {status.chrome_version} on port {status.port}
+              {status.chrome_version}
             </p>
           )}
         </div>
@@ -119,14 +96,15 @@ function BrowserConnectorCard() {
       </div>
 
       <p className="text-xs text-zinc-400 leading-relaxed">
-        Connect to a Chrome browser for web browsing, research, and data extraction.
+        Connect to Chrome for web browsing, research, and data extraction.
+        Enable debugging in chrome://inspect first.
       </p>
 
       {status?.error && (
         <p className="text-xs text-red-400">{status.error}</p>
       )}
 
-      <div className="mt-auto pt-2 border-t border-zinc-700/30 flex items-center justify-between">
+      <div className="mt-auto pt-2 border-t border-zinc-700/30">
         <button
           onClick={handleToggle}
           disabled={busy}
@@ -139,36 +117,7 @@ function BrowserConnectorCard() {
           {status?.enabled ? <Unlink size={12} /> : <Link2 size={12} />}
           {busy ? 'Working...' : status?.enabled ? 'Disable' : 'Enable'}
         </button>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-1 rounded hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-colors"
-          title="Settings"
-        >
-          <Settings size={14} />
-        </button>
       </div>
-
-      {showSettings && (
-        <div className="border-t border-zinc-700/30 pt-3 space-y-3">
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Port</label>
-            <input
-              type="number"
-              value={port}
-              onChange={(e) => setPort(parseInt(e.target.value, 10) || 9222)}
-              className="w-full text-xs px-2 py-1.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 focus:border-orange-500/50 focus:outline-none"
-            />
-          </div>
-
-          <button
-            onClick={handleSaveSettings}
-            disabled={savingSettings}
-            className="text-xs font-medium px-3 py-1.5 rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-50 transition-colors"
-          >
-            {savingSettings ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -48,9 +47,6 @@ func newMockCDPServer(t *testing.T) *mockCDPServer {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/json/version", m.handleVersion)
-	mux.HandleFunc("/json/list", m.handleList)
-	mux.HandleFunc("/json/new", m.handleNew)
 	mux.HandleFunc("/devtools/browser", m.handleWebSocket)
 
 	m.srv = httptest.NewServer(mux)
@@ -58,52 +54,9 @@ func newMockCDPServer(t *testing.T) *mockCDPServer {
 	return m
 }
 
-// port returns the numeric port the server is listening on.
-func (m *mockCDPServer) port() int {
-	addr := m.srv.Listener.Addr().String()
-	// addr is like "127.0.0.1:PORT"
-	parts := strings.Split(addr, ":")
-	p, _ := strconv.Atoi(parts[len(parts)-1])
-	return p
-}
-
 // wsURL returns the WebSocket URL that clients should connect to.
 func (m *mockCDPServer) wsURL() string {
 	return "ws" + strings.TrimPrefix(m.srv.URL, "http") + "/devtools/browser"
-}
-
-func (m *mockCDPServer) handleVersion(w http.ResponseWriter, r *http.Request) {
-	info := VersionInfo{
-		Browser:              "Chrome/125.0.0.0 (Mock)",
-		ProtocolVersion:      "1.3",
-		WebSocketDebuggerURL: m.wsURL(),
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(info)
-}
-
-func (m *mockCDPServer) handleList(w http.ResponseWriter, r *http.Request) {
-	targets := []TargetInfo{
-		{
-			ID:    m.targetID,
-			Type:  "page",
-			Title: "Mock Page",
-			URL:   "https://example.com",
-		},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(targets)
-}
-
-func (m *mockCDPServer) handleNew(w http.ResponseWriter, r *http.Request) {
-	newTarget := TargetInfo{
-		ID:    "NEWTARGET12345678",
-		Type:  "page",
-		Title: "New Tab",
-		URL:   r.URL.RawQuery,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(newTarget)
 }
 
 func (m *mockCDPServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {

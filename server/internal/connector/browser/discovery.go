@@ -4,24 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 )
 
-var httpClient = &http.Client{Timeout: 5 * time.Second}
-
-// VersionInfo is the response from /json/version.
-type VersionInfo struct {
-	Browser              string `json:"Browser"`
-	ProtocolVersion      string `json:"Protocol-Version"`
-	WebSocketDebuggerURL string `json:"webSocketDebuggerUrl"`
-}
-
-// TargetInfo is a single target from /json/list.
+// TargetInfo is a single target from CDP Target.getTargets.
 type TargetInfo struct {
 	ID    string `json:"id"`
 	Type  string `json:"type"`
@@ -68,23 +57,14 @@ func ReadDevToolsActivePort() string {
 	return ""
 }
 
-// DiscoverWSURL finds a Chrome WebSocket debugger URL. It checks the
-// DevToolsActivePort file first (Chrome with debugging toggled on via
-// chrome://inspect), then falls back to HTTP /json/version on port 9222
-// (for older Chrome started with --remote-debugging-port=9222).
+// DiscoverWSURL finds a Chrome WebSocket debugger URL by reading the
+// DevToolsActivePort file. Requires Chrome 146+ with debugging enabled
+// via chrome://inspect/#remote-debugging.
 func DiscoverWSURL() (wsURL string, err error) {
-	// 1. Try DevToolsActivePort file (modern Chrome with debugging toggle).
 	if ws := ReadDevToolsActivePort(); ws != "" {
 		return ws, nil
 	}
-
-	// 2. Fallback: try default debug port via HTTP.
-	const defaultPort = 9222
-	info, err := GetVersion(fmt.Sprintf("http://127.0.0.1:%d", defaultPort))
-	if err != nil {
-		return "", fmt.Errorf("chrome not reachable: enable debugging in chrome://inspect/#remote-debugging or start Chrome with --remote-debugging-port=9222")
-	}
-	return info.WebSocketDebuggerURL, nil
+	return "", fmt.Errorf("Chrome not reachable. Requires Chrome 146 or newer with debugging enabled in chrome://inspect/#remote-debugging")
 }
 
 // ListTargetsCDP lists page targets via the CDP Target.getTargets command.
@@ -151,54 +131,3 @@ func GetVersionCDP(ctx context.Context, client *Client) (string, error) {
 	return resp.Product, nil
 }
 
-// GetVersion fetches Chrome version info. baseURL is like "http://127.0.0.1:9222".
-func GetVersion(baseURL string) (*VersionInfo, error) {
-	resp, err := httpClient.Get(baseURL + "/json/version")
-	if err != nil {
-		return nil, fmt.Errorf("chrome not reachable: %w", err)
-	}
-	defer resp.Body.Close()
-	var info VersionInfo
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return nil, fmt.Errorf("invalid version response: %w", err)
-	}
-	return &info, nil
-}
-
-// ListTargets returns page targets, filtering out chrome:// and non-page types.
-func ListTargets(baseURL string) ([]TargetInfo, error) {
-	resp, err := httpClient.Get(baseURL + "/json/list")
-	if err != nil {
-		return nil, fmt.Errorf("chrome not reachable: %w", err)
-	}
-	defer resp.Body.Close()
-	var all []TargetInfo
-	if err := json.NewDecoder(resp.Body).Decode(&all); err != nil {
-		return nil, fmt.Errorf("invalid targets response: %w", err)
-	}
-	var pages []TargetInfo
-	for _, t := range all {
-		if t.Type == "page" && !strings.HasPrefix(t.URL, "chrome://") {
-			pages = append(pages, t)
-		}
-	}
-	return pages, nil
-}
-
-// CreateTarget opens a new tab. Returns the new target info.
-func CreateTarget(baseURL, url string) (*TargetInfo, error) {
-	req, err := http.NewRequest(http.MethodPut, baseURL+"/json/new?"+url, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create target: %w", err)
-	}
-	defer resp.Body.Close()
-	var info TargetInfo
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return nil, fmt.Errorf("invalid create target response: %w", err)
-	}
-	return &info, nil
-}

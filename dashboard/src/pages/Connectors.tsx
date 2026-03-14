@@ -52,24 +52,24 @@ function ConnectorCard({
 
   return (
     <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          {icon}
-          <h3 className="text-sm font-medium text-zinc-100">{name}</h3>
-          {subtitle && (
-            <span className="text-[10px] text-zinc-500">{subtitle}</span>
-          )}
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {icon}
+            <h3 className="text-sm font-medium text-zinc-100 truncate">{name}</h3>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusClass}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+            {statusLabel}
+          </span>
         </div>
-        <span
-          className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusClass}`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-          {statusLabel}
-        </span>
+        <p className="text-xs text-zinc-500 h-4 truncate">{subtitle || '\u00A0'}</p>
       </div>
 
       <p
-        className={`text-xs text-zinc-400 leading-relaxed cursor-pointer ${expanded ? '' : 'line-clamp-2'}`}
+        className={`text-xs text-zinc-400 leading-relaxed h-8 cursor-pointer ${expanded ? 'h-auto' : 'line-clamp-2'}`}
         onClick={() => setExpanded(!expanded)}
         title={expanded ? 'Collapse' : 'Show more'}
       >

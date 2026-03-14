@@ -27,6 +27,68 @@ const ChromeIcon = () => (
   </svg>
 );
 
+function ConnectorCard({
+  icon,
+  name,
+  subtitle,
+  description,
+  statusLabel,
+  statusClass,
+  dotClass,
+  error,
+  footer,
+}: {
+  icon: React.ReactNode;
+  name: string;
+  subtitle?: string;
+  description: string;
+  statusLabel: string;
+  statusClass: string;
+  dotClass: string;
+  error?: string;
+  footer: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3 min-h-[200px]">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-1.5">
+            {icon}
+            <h3 className="text-sm font-medium text-zinc-100">{name}</h3>
+          </div>
+          {subtitle && (
+            <p className="text-xs text-zinc-400 mt-0.5">{subtitle}</p>
+          )}
+        </div>
+        <span
+          className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusClass}`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+          {statusLabel}
+        </span>
+      </div>
+
+      <p
+        className={`text-xs text-zinc-400 leading-relaxed cursor-pointer ${expanded ? '' : 'line-clamp-2'}`}
+        onClick={() => setExpanded(!expanded)}
+        title={expanded ? 'Collapse' : 'Show more'}
+      >
+        {description}
+      </p>
+
+      {error && (
+        <p className="text-xs text-red-400">{error}</p>
+      )}
+
+      <div className="mt-auto pt-2 border-t border-zinc-700/30">
+        {footer}
+      </div>
+    </div>
+  );
+}
+
 function BrowserConnectorCard() {
   const { data: status, refresh } = usePolling<BrowserConnectorStatus>(fetchBrowserStatus, 5000);
   const [busy, setBusy] = useState(false);
@@ -72,39 +134,16 @@ function BrowserConnectorCard() {
         : 'bg-zinc-500';
 
   return (
-    <div className="rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <ChromeIcon />
-            <h3 className="text-sm font-medium text-zinc-100">Chrome Browser</h3>
-          </div>
-          {status?.connected && status.chrome_version && (
-            <p className="text-xs text-zinc-400 mt-0.5">
-              {status.chrome_version}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${statusClass}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-            {statusLabel}
-          </span>
-        </div>
-      </div>
-
-      <p className="text-xs text-zinc-400 leading-relaxed">
-        Connect to Chrome for web browsing, research, and data extraction.
-        Enable debugging in chrome://inspect first.
-      </p>
-
-      {status?.error && (
-        <p className="text-xs text-red-400">{status.error}</p>
-      )}
-
-      <div className="mt-auto pt-2 border-t border-zinc-700/30">
+    <ConnectorCard
+      icon={<ChromeIcon />}
+      name="Chrome Browser"
+      subtitle={status?.connected && status.chrome_version ? status.chrome_version : undefined}
+      description="Connect to Chrome for web browsing, research, and data extraction. Enable debugging in chrome://inspect first."
+      statusLabel={statusLabel}
+      statusClass={statusClass}
+      dotClass={dotClass}
+      error={status?.error}
+      footer={
         <button
           onClick={handleToggle}
           disabled={busy}
@@ -117,8 +156,8 @@ function BrowserConnectorCard() {
           {status?.enabled ? <Unlink size={12} /> : <Link2 size={12} />}
           {busy ? 'Working...' : status?.enabled ? 'Disable' : 'Enable'}
         </button>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -239,7 +278,7 @@ export default function Connectors() {
 
       {/* All Connectors */}
       <div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4 items-start">
           <BrowserConnectorCard />
           {connectors?.map((c) => {
               const p = pending[c.name];
@@ -256,72 +295,59 @@ export default function Connectors() {
                 : c.connected ? 'bg-green-500' : 'bg-zinc-500';
 
               return (
-              <div
-                key={c.name}
-                className="connector-card rounded-lg border border-zinc-700/50 bg-zinc-800 p-4 flex flex-col gap-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-1.5">
+                <ConnectorCard
+                  key={c.name}
+                  icon={
+                    <>
                       {c.name === 'google' && <GoogleIcon />}
-                      <h3 className="text-sm font-medium text-zinc-100">
-                        {c.display_name}
-                      </h3>
                       {c.trusted && (
                         <span title="Verified connector">
                           <ShieldCheck size={13} className="text-blue-400 shrink-0" />
                         </span>
                       )}
+                    </>
+                  }
+                  name={c.display_name}
+                  subtitle={`v${c.version}`}
+                  description={c.description}
+                  statusLabel={statusLabel}
+                  statusClass={statusClass}
+                  dotClass={dotClass}
+                  footer={
+                    <div className="flex items-center justify-between w-full">
+                      {c.connected ? (
+                        <button
+                          onClick={() => handleDisconnect(c.name)}
+                          disabled={busy === c.name}
+                          className="flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-red-950 text-red-500 hover:bg-red-900 disabled:opacity-50 transition-colors"
+                        >
+                          <Unlink size={12} />
+                          {busy === c.name ? 'Disconnecting...' : 'Disconnect'}
+                        </button>
+                      ) : c.has_auth ? (
+                        <button
+                          onClick={() => handleConnect(c.name)}
+                          disabled={busy === c.name}
+                          className="flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-50 transition-colors"
+                        >
+                          <Link2 size={12} />
+                          {busy === c.name ? 'Connecting...' : 'Connect'}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-zinc-500">No auth required</span>
+                      )}
+                      {c.connected && (
+                        <button
+                          onClick={() => openSettings(c.name)}
+                          className="p-1 rounded hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-colors"
+                          title="Configure"
+                        >
+                          <Settings size={14} />
+                        </button>
+                      )}
                     </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">v{c.version}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${statusClass}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-                      {statusLabel}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  {c.description}
-                </p>
-
-                <div className="mt-auto pt-2 border-t border-zinc-700/30 flex items-center justify-between">
-                  {c.connected ? (
-                    <button
-                      onClick={() => handleDisconnect(c.name)}
-                      disabled={busy === c.name}
-                      className="flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-red-950 text-red-500 hover:bg-red-900 disabled:opacity-50 transition-colors"
-                    >
-                      <Unlink size={12} />
-                      {busy === c.name ? 'Disconnecting...' : 'Disconnect'}
-                    </button>
-                  ) : c.has_auth ? (
-                    <button
-                      onClick={() => handleConnect(c.name)}
-                      disabled={busy === c.name}
-                      className="flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-50 transition-colors"
-                    >
-                      <Link2 size={12} />
-                      {busy === c.name ? 'Connecting...' : 'Connect'}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-zinc-500">No auth required</span>
-                  )}
-                  {c.connected && (
-                    <button
-                      onClick={() => openSettings(c.name)}
-                      className="p-1 rounded hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-colors"
-                      title="Configure"
-                    >
-                      <Settings size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
+                  }
+                />
               );
             })}
         </div>

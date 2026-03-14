@@ -169,8 +169,23 @@ func (m *mockCDPServer) dispatchCDP(req cdpRequest) any {
 	case "Target.attachToTarget":
 		return map[string]string{"sessionId": m.sessionID}
 
+	case "Target.getTargets":
+		return map[string]any{
+			"targetInfos": []map[string]string{
+				{"targetId": m.targetID, "type": "page", "title": "Mock Page", "url": "https://example.com"},
+			},
+		}
+
+	case "Target.createTarget":
+		var p struct{ URL string `json:"url"` }
+		json.Unmarshal(req.Params, &p)
+		return map[string]string{"targetId": "NEWTARGET12345678"}
+
 	case "Target.closeTarget":
 		return map[string]bool{"success": true}
+
+	case "Browser.getVersion":
+		return map[string]string{"product": "Chrome/125.0.0.0 (Mock)"}
 
 	case "Page.navigate":
 		return map[string]string{"frameId": "frame-1"}
@@ -271,8 +286,8 @@ func setupIntegration(t *testing.T) (*mockCDPServer, *Connector) {
 
 	dir := t.TempDir()
 	c := NewConnector(dir, slog.Default())
-	// Override port and poll interval before enabling.
-	c.config.Port = mock.port()
+	// Bypass DiscoverWSURL (which would find real Chrome) and point at mock.
+	c.wsURLOverride = mock.wsURL()
 	c.pollInterval = 100 * time.Millisecond
 	return mock, c
 }
@@ -470,9 +485,10 @@ func TestIntegrationStatus(t *testing.T) {
 	if !st.Connected {
 		t.Error("Status.Connected should be true")
 	}
-	if st.Port != mock.port() {
-		t.Errorf("Status.Port = %d, want %d", st.Port, mock.port())
+	if st.Port != 9222 {
+		t.Errorf("Status.Port = %d, want default 9222", st.Port)
 	}
+	_ = mock // mock used by setupIntegration
 	if st.Error != "" {
 		t.Errorf("Status.Error should be empty after successful connect, got %q", st.Error)
 	}

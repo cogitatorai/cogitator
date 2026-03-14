@@ -1,6 +1,7 @@
 package browser
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -67,31 +68,87 @@ func ReadDevToolsActivePort() string {
 	return ""
 }
 
-// DiscoverBaseURL finds a reachable Chrome debug endpoint. It checks the
+// DiscoverWSURL finds a Chrome WebSocket debugger URL. It checks the
 // DevToolsActivePort file first (for Chrome with debugging toggled on via
-// chrome://inspect), then falls back to the configured port.
-func DiscoverBaseURL(configuredPort int) (baseURL string, wsURL string, err error) {
+// chrome://inspect), then falls back to HTTP /json/version on the configured port.
+func DiscoverWSURL(configuredPort int) (wsURL string, err error) {
 	// 1. Try DevToolsActivePort file (modern Chrome, no --remote-debugging-port needed).
+	// This path does not require HTTP endpoints to be available.
 	if ws := ReadDevToolsActivePort(); ws != "" {
-		// Extract port from the WS URL to build the HTTP base URL.
-		// Format: ws://127.0.0.1:{port}/devtools/browser/{id}
-		parts := strings.SplitN(strings.TrimPrefix(ws, "ws://127.0.0.1:"), "/", 2)
-		if len(parts) >= 1 {
-			port := parts[0]
-			base := "http://127.0.0.1:" + port
-			if _, verr := GetVersion(base); verr == nil {
-				return base, ws, nil
-			}
-		}
+		return ws, nil
 	}
 
-	// 2. Try configured port (--remote-debugging-port or managed headless).
+	// 2. Try configured port via HTTP (--remote-debugging-port or managed headless).
 	base := fmt.Sprintf("http://127.0.0.1:%d", configuredPort)
 	info, err := GetVersion(base)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	return base, info.WebSocketDebuggerURL, nil
+	return info.WebSocketDebuggerURL, nil
+}
+
+// ListTargetsCDP lists page targets via the CDP Target.getTargets command.
+// This works even when Chrome's HTTP /json/list endpoint is unavailable.
+func ListTargetsCDP(ctx context.Context, client *Client) ([]TargetInfo, error) {
+	result, err := client.Send(ctx, "Target.getTargets", nil, "")
+	if err != nil {
+		return nil, fmt.Errorf("list targets: %w", err)
+	}
+	var resp struct {
+		TargetInfos []struct {
+			TargetID string `json:"targetId"`
+			Type     string `json:"type"`
+			Title    string `json:"title"`
+			URL      string `json:"url"`
+		} `json:"targetInfos"`
+	}
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return nil, fmt.Errorf("parse targets: %w", err)
+	}
+	var pages []TargetInfo
+	for _, t := range resp.TargetInfos {
+		if t.Type == "page" && !strings.HasPrefix(t.URL, "chrome://") {
+			pages = append(pages, TargetInfo{
+				ID:    t.TargetID,
+				Type:  t.Type,
+				Title: t.Title,
+				URL:   t.URL,
+			})
+		}
+	}
+	return pages, nil
+}
+
+// CreateTargetCDP opens a new tab via the CDP Target.createTarget command.
+func CreateTargetCDP(ctx context.Context, client *Client, url string) (*TargetInfo, error) {
+	result, err := client.Send(ctx, "Target.createTarget", map[string]any{
+		"url": url,
+	}, "")
+	if err != nil {
+		return nil, fmt.Errorf("create target: %w", err)
+	}
+	var resp struct {
+		TargetID string `json:"targetId"`
+	}
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return nil, fmt.Errorf("parse create target: %w", err)
+	}
+	return &TargetInfo{ID: resp.TargetID, Type: "page", URL: url}, nil
+}
+
+// GetVersionCDP fetches Chrome version via the CDP Browser.getVersion command.
+func GetVersionCDP(ctx context.Context, client *Client) (string, error) {
+	result, err := client.Send(ctx, "Browser.getVersion", nil, "")
+	if err != nil {
+		return "", err
+	}
+	var resp struct {
+		Product string `json:"product"`
+	}
+	if err := json.Unmarshal(result, &resp); err != nil {
+		return "", err
+	}
+	return resp.Product, nil
 }
 
 // GetVersion fetches Chrome version info. baseURL is like "http://127.0.0.1:9222".

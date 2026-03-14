@@ -49,8 +49,10 @@ type Connector struct {
 	// pollInterval can be overridden in tests to avoid 30s waits.
 	pollInterval time.Duration
 
-	sessions          *sessionCache
-	discoveredBaseURL string // set by connectLocked; used by baseURL()
+	// wsURLOverride bypasses DiscoverWSURL when set (used by tests).
+	wsURLOverride string
+
+	sessions *sessionCache
 }
 
 // NewConnector creates a Connector rooted at workspaceDir.
@@ -245,30 +247,35 @@ func (c *Connector) Client() *Client {
 // connectLocked attempts to establish a CDP connection. Must be called with
 // c.mu held.
 func (c *Connector) connectLocked() error {
-	baseURL, wsURL, err := DiscoverBaseURL(c.config.Port)
-	if err != nil {
-		return err
+	var wsURL string
+	var err error
+	if c.wsURLOverride != "" {
+		wsURL = c.wsURLOverride
+	} else {
+		wsURL, err = DiscoverWSURL(c.config.Port)
+		if err != nil {
+			return err
+		}
 	}
-	c.discoveredBaseURL = baseURL
 
 	if wsURL == "" {
 		return fmt.Errorf("chrome returned empty webSocketDebuggerUrl")
 	}
 
 	client := NewClient()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := client.Connect(ctx, wsURL); err != nil {
-		return fmt.Errorf("CDP connect: %w", err)
-	}
-
 	client.OnClose(func() {
 		c.mu.Lock()
 		c.connected = false
 		c.logger.Info("browser connector: CDP connection closed")
 		c.mu.Unlock()
 	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := client.Connect(ctx, wsURL); err != nil {
+		return fmt.Errorf("CDP connect: %w", err)
+	}
 
 	// Close any prior client before replacing it.
 	if c.client != nil {
@@ -280,20 +287,11 @@ func (c *Connector) connectLocked() error {
 	c.lastError = ""
 	c.sessions.clear()
 
-	// Fetch Chrome version from the discovered endpoint.
-	if info, err := GetVersion(baseURL); err == nil {
-		c.chromeVersion = info.Browser
+	// Fetch Chrome version via CDP (HTTP endpoints may not be available).
+	if ver, err := GetVersionCDP(ctx, client); err == nil {
+		c.chromeVersion = ver
 	}
 	return nil
-}
-
-// baseURL returns the Chrome DevTools HTTP base URL. Prefers the URL
-// discovered via DevToolsActivePort, falls back to the configured port.
-func (c *Connector) baseURL() string {
-	if c.discoveredBaseURL != "" {
-		return c.discoveredBaseURL
-	}
-	return fmt.Sprintf("http://127.0.0.1:%d", c.config.Port)
 }
 
 // startPollingLocked starts the background reconnect goroutine. Must be called

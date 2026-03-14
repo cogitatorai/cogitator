@@ -179,7 +179,7 @@ func paramFloat(params map[string]any, key string, defaultVal float64) float64 {
 // Stub implementations — filled in by Tasks 7b and 7c.
 
 func (c *Connector) execList(ctx context.Context) (string, error) {
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +206,7 @@ func (c *Connector) execOpen(ctx context.Context, params map[string]any) (string
 	if url == "" {
 		return "", fmt.Errorf("url is required")
 	}
-	target, err := CreateTarget(c.baseURL(), url)
+	target, err := CreateTargetCDP(ctx, c.client, url)
 	if err != nil {
 		return "", err
 	}
@@ -227,7 +227,7 @@ func (c *Connector) execClose(ctx context.Context, params map[string]any) (strin
 	if targetPrefix == "" {
 		return "", fmt.Errorf("target is required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -254,7 +254,7 @@ func (c *Connector) execNavigate(ctx context.Context, params map[string]any) (st
 	if targetPrefix == "" || url == "" {
 		return "", fmt.Errorf("target and url are required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -281,7 +281,7 @@ func (c *Connector) execSnapshot(ctx context.Context, params map[string]any) (st
 	if targetPrefix == "" {
 		return "", fmt.Errorf("target is required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -316,7 +316,7 @@ func (c *Connector) execHTML(ctx context.Context, params map[string]any) (string
 		return "", fmt.Errorf("target is required")
 	}
 	selector := paramString(params, "selector")
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -368,7 +368,7 @@ func (c *Connector) execScreenshot(ctx context.Context, params map[string]any) (
 	if targetPrefix == "" {
 		return "", fmt.Errorf("target is required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -440,7 +440,7 @@ func (c *Connector) execClick(ctx context.Context, params map[string]any) (strin
 	if targetPrefix == "" || selector == "" {
 		return "", fmt.Errorf("target and selector are required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -493,7 +493,7 @@ func (c *Connector) execClickXY(ctx context.Context, params map[string]any) (str
 	}
 	x := paramFloat(params, "x", 0)
 	y := paramFloat(params, "y", 0)
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -532,7 +532,7 @@ func (c *Connector) execType(ctx context.Context, params map[string]any) (string
 	if targetPrefix == "" || text == "" {
 		return "", fmt.Errorf("target and text are required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -557,7 +557,7 @@ func (c *Connector) execKey(ctx context.Context, params map[string]any) (string,
 	if targetPrefix == "" || key == "" {
 		return "", fmt.Errorf("target and key are required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -616,7 +616,7 @@ func (c *Connector) execEval(ctx context.Context, params map[string]any) (string
 	if targetPrefix == "" || expression == "" {
 		return "", fmt.Errorf("target and expression are required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -672,7 +672,7 @@ func (c *Connector) execScroll(ctx context.Context, params map[string]any) (stri
 		direction = "down"
 	}
 	amount := paramFloat(params, "amount", 1000)
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -703,7 +703,7 @@ func (c *Connector) execNetwork(ctx context.Context, params map[string]any) (str
 	if targetPrefix == "" {
 		return "", fmt.Errorf("target is required")
 	}
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}
@@ -759,7 +759,7 @@ func (c *Connector) execLoadAll(ctx context.Context, params map[string]any) (str
 		return "", fmt.Errorf("target and selector are required")
 	}
 	intervalMs := paramFloat(params, "interval_ms", 1500)
-	targets, err := ListTargets(c.baseURL())
+	targets, err := ListTargetsCDP(ctx, c.client)
 	if err != nil {
 		return "", err
 	}

@@ -20,10 +20,8 @@ func TestNewConnector(t *testing.T) {
 func TestConnectorEnableNoChrome(t *testing.T) {
 	dir := t.TempDir()
 	c := NewConnector(dir, slog.Default())
-	// Use a port where nothing is listening.
-	c.config.Port = 19876
-	// Use a short poll interval so the goroutine wakes up quickly when Disable
-	// closes pollDone, avoiding any timeout in test cleanup.
+	// Point at an unreachable WS URL so we don't discover real Chrome.
+	c.wsURLOverride = "ws://127.0.0.1:19876/devtools/browser/fake"
 	c.pollInterval = 100 * time.Millisecond
 
 	err := c.Enable()
@@ -43,7 +41,7 @@ func TestConnectorEnableNoChrome(t *testing.T) {
 func TestConnectorDisable(t *testing.T) {
 	dir := t.TempDir()
 	c := NewConnector(dir, slog.Default())
-	c.config.Port = 19877
+	c.wsURLOverride = "ws://127.0.0.1:19877/devtools/browser/fake"
 	c.pollInterval = 100 * time.Millisecond
 
 	c.Enable()
@@ -77,7 +75,7 @@ func TestConnectorConfigPersistence(t *testing.T) {
 func TestConnectorOnToolsChanged(t *testing.T) {
 	dir := t.TempDir()
 	c := NewConnector(dir, slog.Default())
-	c.config.Port = 19878
+	c.wsURLOverride = "ws://127.0.0.1:19878/devtools/browser/fake"
 	c.pollInterval = 100 * time.Millisecond
 
 	called := 0

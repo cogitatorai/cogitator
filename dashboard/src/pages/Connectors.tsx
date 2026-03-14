@@ -333,7 +333,7 @@ export default function Connectors() {
 
       {/* All Connectors */}
       <div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4 items-start">
           <BrowserConnectorCard />
           {connectors?.map((c) => {
               const p = pending[c.name];

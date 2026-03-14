@@ -252,7 +252,7 @@ func (c *Connector) connectLocked() error {
 	if c.wsURLOverride != "" {
 		wsURL = c.wsURLOverride
 	} else {
-		wsURL, err = DiscoverWSURL(c.config.Port)
+		wsURL, err = DiscoverWSURL(c.config.Port, c.config.Managed)
 		if err != nil {
 			return err
 		}

@@ -82,12 +82,7 @@ func (c *Connector) Enable() error {
 			c.mu.Unlock()
 			return fmt.Errorf("chrome binary not found")
 		}
-		dataDir := filepath.Join(filepath.Dir(c.configPath), "chrome-profile")
-		if err := os.MkdirAll(dataDir, 0o755); err != nil {
-			c.mu.Unlock()
-			return fmt.Errorf("create chrome profile dir: %w", err)
-		}
-		cmd, err := StartHeadless(chromePath, c.config.Port, dataDir)
+		cmd, err := StartHeadless(chromePath, c.config.Port)
 		if err != nil {
 			c.mu.Unlock()
 			return fmt.Errorf("starting headless chrome: %w", err)
@@ -105,12 +100,13 @@ func (c *Connector) Enable() error {
 		for time.Now().Before(deadline) {
 			select {
 			case err := <-exited:
-				// Chrome died before binding the port.
+				// Chrome died before binding the port. Most common cause:
+				// another Chrome instance holds the profile lock.
 				c.mu.Lock()
 				c.process = nil
-				c.lastError = fmt.Sprintf("chrome exited: %v", err)
+				c.lastError = "chrome exited immediately; close Chrome and retry"
 				c.mu.Unlock()
-				return fmt.Errorf("chrome exited before binding debug port: %v", err)
+				return fmt.Errorf("chrome exited before binding debug port (is Chrome already running?): %v", err)
 			default:
 			}
 			if _, err := GetVersion(fmt.Sprintf("http://127.0.0.1:%d", c.config.Port)); err == nil {

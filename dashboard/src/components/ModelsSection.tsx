@@ -103,6 +103,13 @@ const EMBEDDING_MODELS: Record<string, { value: string; label: string }[]> = {
   together: [
     { value: 'togethercomputer/m2-bert-80M-8k-retrieval', label: 'm2-bert-80M-8k-retrieval' },
   ],
+  openrouter: [
+    { value: 'openai/text-embedding-3-small', label: 'OpenAI text-embedding-3-small' },
+    { value: 'openai/text-embedding-3-large', label: 'OpenAI text-embedding-3-large' },
+    { value: 'google/text-embedding-004', label: 'Google text-embedding-004' },
+    { value: 'mistralai/mistral-embed', label: 'Mistral Embed' },
+    { value: 'cohere/embed-multilingual-v3.0', label: 'Cohere Embed Multilingual v3' },
+  ],
 };
 
 function providerSupportsEmbeddings(provider: string): boolean {

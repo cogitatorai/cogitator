@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.38.0 (2026-03-15)
+
+Closes [#2](https://github.com/cogitatorai/cogitator/issues/2).
+
+### Features
+
+- Configurable embedding model via environment variable (`COGITATOR_MEMORY_EMBEDDING_MODEL`), settings API, and dashboard UI (7988a3c, a388b87, b0411e4)
+- Auto-selects `nomic-embed-text` when Ollama is the provider and no embedding model is explicitly set (7988a3c)
+- Per-provider embedding model dropdown with curated options for OpenAI, Ollama, Together, and OpenRouter (ee9008f, debd13d)
+- When no Ollama embedding models are pulled locally, suggests `nomic-embed-text` and `mxbai-embed-large` (115892f)
+- Auto-selects embedding model after pulling a known embedding model on Ollama (e85b88e)
+- Auto-clears embedding model selection when its Ollama model is deleted (36b8c46)
+- Providers without embedding support (Anthropic, Groq) show a clear informational message (1a5b107)
+- MiniMax M2.5 added to OpenRouter model list (ee9008f)
+
+### Fixes
+
+- Ollama model pull retries on expired JWT token instead of failing with "invalid or expired token" (017a94b)
+- Rapid embedding model changes no longer race; in-flight re-embed is cancelled before starting a new one (cfa12cd)
+- All model dropdowns (primary, secondary, embedding) refresh immediately after Ollama pull or delete (c531fd9, d568b34)
+- Background re-embed errors are now logged instead of silently discarded (a04d272)
+- Ollama embedding model matching handles `:latest` tag suffix (dbc8790)
+
 ## 0.37.1 (2026-03-15)
 
 ### Fixes

@@ -189,6 +189,11 @@ COGITATOR_SERVER_HOST=0.0.0.0
 COGITATOR_WORKSPACE_PATH=~/.cogitator
 COGITATOR_JWT_SECRET=<random-hex-string>
 
+# Model configuration (optional, can also be set in the dashboard)
+COGITATOR_MODEL_PROVIDER=openai        # openai, anthropic, ollama, groq, together, openrouter
+COGITATOR_MODEL=gpt-4o                 # model identifier for the primary (standard) slot
+COGITATOR_MEMORY_EMBEDDING_MODEL=text-embedding-3-small  # embedding model (auto-selects nomic-embed-text for Ollama)
+
 # Connectors and login (optional OAuth credentials)
 GOOGLE_CLIENT_ID=<your-google-client-id>
 GOOGLE_CLIENT_SECRET=<your-google-client-secret>

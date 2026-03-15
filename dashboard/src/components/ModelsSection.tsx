@@ -285,15 +285,27 @@ export default function ModelsSection() {
         </Panel>
       )}
 
-      <OllamaPanel onModelPulled={(name) => {
-        // Auto-select as embedding model if it's a known embedding model and none is selected.
-        const base = name.replace(/:latest$/, '');
-        const isEmbModel = (EMBEDDING_MODELS['ollama'] ?? []).some((m) => m.value === base);
-        if (isEmbModel && !embeddingModel) {
-          setEmbeddingModel(base);
-          setEmbeddingModelChanged(true);
-        }
-      }} />
+      <OllamaPanel
+        onModelPulled={(name) => {
+          // Auto-select as embedding model if it's a known embedding model and none is selected.
+          const base = name.replace(/:latest$/, '');
+          const isEmbModel = (EMBEDDING_MODELS['ollama'] ?? []).some((m) => m.value === base);
+          if (isEmbModel && !embeddingModel) {
+            setEmbeddingModel(base);
+            setEmbeddingModelChanged(true);
+          }
+        }}
+        onModelDeleted={(name) => {
+          // Clear embedding model if the deleted model was selected.
+          const base = name.replace(/:latest$/, '');
+          const resolved = embeddingModel === CUSTOM_VALUE ? embeddingCustomModel : embeddingModel;
+          if (resolved === base || resolved === name) {
+            setEmbeddingModel('');
+            setEmbeddingCustomModel('');
+            setEmbeddingModelChanged(true);
+          }
+        }}
+      />
 
       <ModelForm
         label="Primary Model (standard)"
@@ -463,7 +475,10 @@ function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }
   );
 }
 
-function OllamaPanel({ onModelPulled }: { onModelPulled?: (name: string) => void }) {
+function OllamaPanel({ onModelPulled, onModelDeleted }: {
+  onModelPulled?: (name: string) => void;
+  onModelDeleted?: (name: string) => void;
+}) {
   const [status, setStatus] = useState<OllamaStatus | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [pullName, setPullName] = useState('');
@@ -588,10 +603,11 @@ function OllamaPanel({ onModelPulled }: { onModelPulled?: (name: string) => void
     try {
       await deleteOllamaModel(name);
       setModels((prev) => prev.filter((m) => m.name !== name));
+      onModelDeleted?.(name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
     }
-  }, []);
+  }, [onModelDeleted]);
 
   const formatSize = (bytes: number): string => {
     if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';

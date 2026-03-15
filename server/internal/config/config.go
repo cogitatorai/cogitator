@@ -186,6 +186,7 @@ func Load(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
+	cfg.ResolveDefaults()
 	return cfg, nil
 }
 
@@ -266,4 +267,17 @@ func (c *Config) ApplyEnv() {
 		}
 	}
 
+	// Embedding model from environment.
+	if v := os.Getenv("COGITATOR_MEMORY_EMBEDDING_MODEL"); v != "" {
+		c.Memory.EmbeddingModel = v
+	}
+}
+
+// ResolveDefaults adjusts config values that depend on other config values.
+// Call after Load, after ApplyEnv, and after settings updates.
+func (c *Config) ResolveDefaults() {
+	if c.Memory.EmbeddingModel == "text-embedding-3-small" &&
+		strings.EqualFold(c.Models.Standard.Provider, "ollama") {
+		c.Memory.EmbeddingModel = "nomic-embed-text"
+	}
 }

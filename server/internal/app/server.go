@@ -109,6 +109,7 @@ func New(opts Options) (*Server, error) {
 		cfg = loaded
 	}
 	cfg.ApplyEnv()
+	cfg.ResolveDefaults()
 
 	if opts.WorkspacePath != "" {
 		cfg.Workspace.Path = opts.WorkspacePath
@@ -127,6 +128,7 @@ func New(opts Options) (*Server, error) {
 				return nil, fmt.Errorf("loading workspace config: %w", err)
 			}
 			cfg.ApplyEnv()
+			cfg.ResolveDefaults()
 		}
 	}
 

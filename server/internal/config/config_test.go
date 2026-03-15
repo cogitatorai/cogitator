@@ -245,3 +245,54 @@ func TestEnvModelOverrides(t *testing.T) {
 		t.Errorf("expected model 'claude-sonnet-4-20250514', got %q", cfg.Models.Standard.Model)
 	}
 }
+
+func TestApplyEnv_EmbeddingModel(t *testing.T) {
+	t.Setenv("COGITATOR_MEMORY_EMBEDDING_MODEL", "nomic-embed-text")
+
+	cfg := Default()
+	cfg.ApplyEnv()
+
+	if cfg.Memory.EmbeddingModel != "nomic-embed-text" {
+		t.Errorf("expected nomic-embed-text, got %q", cfg.Memory.EmbeddingModel)
+	}
+}
+
+func TestApplyEnv_EmbeddingModel_NotSet(t *testing.T) {
+	cfg := Default()
+	cfg.ApplyEnv()
+
+	if cfg.Memory.EmbeddingModel != "text-embedding-3-small" {
+		t.Errorf("expected default text-embedding-3-small, got %q", cfg.Memory.EmbeddingModel)
+	}
+}
+
+func TestResolveDefaults_OllamaProvider(t *testing.T) {
+	cfg := Default()
+	cfg.Models.Standard.Provider = "ollama"
+	cfg.ResolveDefaults()
+
+	if cfg.Memory.EmbeddingModel != "nomic-embed-text" {
+		t.Errorf("expected nomic-embed-text for ollama, got %q", cfg.Memory.EmbeddingModel)
+	}
+}
+
+func TestResolveDefaults_OllamaWithExplicitModel(t *testing.T) {
+	cfg := Default()
+	cfg.Models.Standard.Provider = "ollama"
+	cfg.Memory.EmbeddingModel = "mxbai-embed-large"
+	cfg.ResolveDefaults()
+
+	if cfg.Memory.EmbeddingModel != "mxbai-embed-large" {
+		t.Errorf("expected mxbai-embed-large (explicit), got %q", cfg.Memory.EmbeddingModel)
+	}
+}
+
+func TestResolveDefaults_OpenAIProvider(t *testing.T) {
+	cfg := Default()
+	cfg.Models.Standard.Provider = "openai"
+	cfg.ResolveDefaults()
+
+	if cfg.Memory.EmbeddingModel != "text-embedding-3-small" {
+		t.Errorf("expected text-embedding-3-small for openai, got %q", cfg.Memory.EmbeddingModel)
+	}
+}

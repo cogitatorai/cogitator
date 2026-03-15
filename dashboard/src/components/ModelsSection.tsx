@@ -87,6 +87,8 @@ const PROVIDERS: ProviderOption[] = [
   },
 ];
 
+// Providers that expose an OpenAI-compatible /v1/embeddings endpoint.
+// Providers not listed here do not offer embedding APIs.
 const EMBEDDING_MODELS: Record<string, { value: string; label: string }[]> = {
   openai: [
     { value: 'text-embedding-3-small', label: 'text-embedding-3-small' },
@@ -102,6 +104,10 @@ const EMBEDDING_MODELS: Record<string, { value: string; label: string }[]> = {
     { value: 'togethercomputer/m2-bert-80M-8k-retrieval', label: 'm2-bert-80M-8k-retrieval' },
   ],
 };
+
+function providerSupportsEmbeddings(provider: string): boolean {
+  return provider in EMBEDDING_MODELS;
+}
 
 const CUSTOM_VALUE = '__custom__';
 
@@ -419,22 +425,12 @@ function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }
             </div>
           )}
         </>
-      ) : (
-        <>
-          {provider && !hasKnownModels && (
-            <p className="text-[11px] text-zinc-500 mb-2">
-              No known embedding models for {PROVIDERS.find((p) => p.value === provider)?.label ?? provider}. Enter a model identifier manually.
-            </p>
-          )}
-          <input
-            type="text"
-            value={customModel}
-            onChange={(e) => onChange(CUSTOM_VALUE, e.target.value)}
-            placeholder="e.g. text-embedding-3-small, nomic-embed-text"
-            className={inputClass}
-          />
-        </>
-      )}
+      ) : provider && !providerSupportsEmbeddings(provider) ? (
+        <p className="text-sm text-zinc-500">
+          {PROVIDERS.find((p) => p.value === provider)?.label ?? provider} does not offer
+          embedding models. Semantic memory search will use LLM-based retrieval instead.
+        </p>
+      ) : null}
 
       {changed && (
         <p className="text-[11px] text-amber-500/80 mt-2">

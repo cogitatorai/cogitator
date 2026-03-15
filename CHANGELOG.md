@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.37.1 (2026-03-15)
+
+### Fixes
+
+- Settings page hides admin-only sections (Workspace, Telegram, Security) for non-admin users (57f6ca5)
+- Resources page restricted to admin users only (57f6ca5)
+- MCP server management controls (Add, Start, Stop, Remove, Test) hidden for non-admin users (57f6ca5)
+- Browser connector uses desktop-mode environment check instead of admin role; any user on the local macOS app can enable/disable Chrome (57f6ca5)
+- Browser connector shows contextual unavailability message for web app and client mode (57f6ca5)
+
 ## 0.37.0 (2026-03-15)
 
 ### Features

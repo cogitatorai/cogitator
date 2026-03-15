@@ -81,6 +81,33 @@ func TestDeleteEmbedding(t *testing.T) {
 	}
 }
 
+func TestDeleteAllEmbeddings(t *testing.T) {
+	store := NewStore(testDB(t))
+
+	idA, _ := store.CreateNode(&Node{Type: NodeFact, Title: "embed a"})
+	idB, _ := store.CreateNode(&Node{Type: NodeFact, Title: "embed b"})
+
+	store.SaveEmbedding(idA, []float32{1, 2, 3}, "model-1")
+	store.SaveEmbedding(idB, []float32{4, 5, 6}, "model-1")
+
+	n, err := store.DeleteAllEmbeddings()
+	if err != nil {
+		t.Fatalf("DeleteAllEmbeddings: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("expected 2 deleted, got %d", n)
+	}
+
+	vec, _ := store.GetEmbedding(idA)
+	if vec != nil {
+		t.Error("expected embedding a to be nil after purge")
+	}
+	vec, _ = store.GetEmbedding(idB)
+	if vec != nil {
+		t.Error("expected embedding b to be nil after purge")
+	}
+}
+
 func TestPinnedNodes(t *testing.T) {
 	store := NewStore(testDB(t))
 

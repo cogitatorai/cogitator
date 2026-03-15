@@ -498,6 +498,16 @@ func (s *Store) DeleteEmbedding(nodeID string) error {
 	return err
 }
 
+// DeleteAllEmbeddings removes all embedding rows. Returns the number deleted.
+// Used when the embedding model changes and all vectors must be regenerated.
+func (s *Store) DeleteAllEmbeddings() (int64, error) {
+	res, err := s.db.Exec("DELETE FROM node_embeddings")
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func blobToVec(blob []byte) []float32 {
 	n := len(blob) / 4
 	vec := make([]float32, n)

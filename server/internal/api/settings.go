@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -310,10 +311,17 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 					ne := r.nodeEmbedder
 					ms := r.memory
 					go func() {
-						if _, err := ms.DeleteAllEmbeddings(); err != nil {
+						n, err := ms.DeleteAllEmbeddings()
+						if err != nil {
+							slog.Error("failed to purge embeddings for model change", "error", err)
 							return
 						}
-						worker.RunBackfill(context.Background(), ms, ne, 50)
+						slog.Info("purged embeddings for model change", "deleted", n)
+						if cnt, err := worker.RunBackfill(context.Background(), ms, ne, 50); err != nil {
+							slog.Error("re-embed backfill failed", "error", err)
+						} else if cnt > 0 {
+							slog.Info("re-embed backfill complete", "embedded", cnt)
+						}
 					}()
 				}
 			}

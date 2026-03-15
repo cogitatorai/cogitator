@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchJSON, putJSON, authHeaders, fetchOllamaStatus, fetchOllamaModels, deleteOllamaModel } from '../api';
+import { fetchJSON, putJSON, authHeaders, tryRefreshToken, getServerUrl, fetchOllamaStatus, fetchOllamaModels, deleteOllamaModel } from '../api';
 import { sendNotification } from '../hooks/useDesktopNotifications';
 import type { Settings, SettingsUpdateRequest, OllamaModel, OllamaStatus } from '../api';
 import Panel from './Panel';
@@ -502,11 +502,22 @@ function OllamaPanel() {
     setError(null);
 
     try {
-      const res = await fetch('/api/ollama/pull', {
+      const pullUrl = (getServerUrl() || '') + '/api/ollama/pull';
+      const pullInit = () => ({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() } as Record<string, string>,
         body: JSON.stringify({ name }),
       });
+
+      let res = await fetch(pullUrl, pullInit());
+
+      // Retry once on expired token.
+      if (res.status === 401) {
+        const refreshed = await tryRefreshToken();
+        if (refreshed) {
+          res = await fetch(pullUrl, pullInit());
+        }
+      }
 
       if (!res.ok) {
         const text = await res.text();

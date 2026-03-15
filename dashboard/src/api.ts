@@ -110,6 +110,11 @@ export function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** Attempt a token refresh. Returns true if a new token was obtained. */
+export async function tryRefreshToken(): Promise<boolean> {
+  return _refreshFn ? _refreshFn() : false;
+}
+
 /** Perform a fetch, and on 401 attempt a token refresh + retry once. */
 async function fetchWithRetry(input: string, init?: RequestInit): Promise<Response> {
   let res = await safeFetch(input, init);

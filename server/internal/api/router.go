@@ -106,6 +106,7 @@ type Router struct {
 	metricsRing     *metrics.Ring
 	internalSecret  string
 	drainManager    *drain.Manager
+	reembedCancel   context.CancelFunc // cancels any in-flight re-embed goroutine
 }
 
 type RouterConfig struct {

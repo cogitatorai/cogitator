@@ -308,17 +308,27 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 					r.retriever.InvalidateCache()
 				}
 				if r.memory != nil && r.nodeEmbedder != nil {
+					// Cancel any in-flight re-embed from a previous model change.
+					if r.reembedCancel != nil {
+						r.reembedCancel()
+					}
+					ctx, cancel := context.WithCancel(context.Background())
+					r.reembedCancel = cancel
+
 					ne := r.nodeEmbedder
 					ms := r.memory
 					go func() {
+						defer cancel()
 						n, err := ms.DeleteAllEmbeddings()
 						if err != nil {
 							slog.Error("failed to purge embeddings for model change", "error", err)
 							return
 						}
 						slog.Info("purged embeddings for model change", "deleted", n)
-						if cnt, err := worker.RunBackfill(context.Background(), ms, ne, 50); err != nil {
-							slog.Error("re-embed backfill failed", "error", err)
+						if cnt, err := worker.RunBackfill(ctx, ms, ne, 50); err != nil {
+							if ctx.Err() == nil {
+								slog.Error("re-embed backfill failed", "error", err)
+							}
 						} else if cnt > 0 {
 							slog.Info("re-embed backfill complete", "embedded", cnt)
 						}

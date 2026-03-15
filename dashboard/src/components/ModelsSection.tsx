@@ -137,6 +137,8 @@ export default function ModelsSection() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [embeddingModel, setEmbeddingModel] = useState('');
+  const [embeddingModelChanged, setEmbeddingModelChanged] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -148,6 +150,7 @@ export default function ModelsSection() {
         keys[name] = { apiKey: '', apiKeySet: ps.api_key_set };
       }
       setProviderKeys(keys);
+      setEmbeddingModel(s.memory?.embedding_model ?? '');
       setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load model settings');
@@ -200,6 +203,10 @@ export default function ModelsSection() {
       body.providers = providerUpdates;
     }
 
+    if (embeddingModelChanged && embeddingModel) {
+      body.memory = { embedding_model: embeddingModel };
+    }
+
     try {
       const updated = await putJSON<Settings>('/api/settings', body);
       setStandard(modelStateFromSettings(updated.models.standard.provider, updated.models.standard.model));
@@ -209,6 +216,8 @@ export default function ModelsSection() {
         keys[name] = { apiKey: '', apiKeySet: ps.api_key_set };
       }
       setProviderKeys(keys);
+      setEmbeddingModel(updated.memory?.embedding_model ?? '');
+      setEmbeddingModelChanged(false);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -258,6 +267,30 @@ export default function ModelsSection() {
         state={cheap}
         onChange={setCheap}
       />
+
+      <Panel>
+        <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+          Embedding Model
+        </h3>
+        <p className="text-sm text-zinc-600 mb-4">
+          Used for semantic memory search. Must match a model available on your provider.
+        </p>
+        <input
+          type="text"
+          value={embeddingModel}
+          onChange={(e) => {
+            setEmbeddingModel(e.target.value);
+            setEmbeddingModelChanged(true);
+          }}
+          placeholder="e.g. text-embedding-3-small, nomic-embed-text"
+          className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
+        />
+        {embeddingModelChanged && (
+          <p className="text-[11px] text-amber-500/80 mt-2">
+            Changing the embedding model will re-index all memories. Semantic search may be degraded for a few minutes.
+          </p>
+        )}
+      </Panel>
 
       {activeProviders.length > 0 && (
         <Panel>

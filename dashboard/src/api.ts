@@ -377,6 +377,7 @@ export interface Settings {
   telegram: TelegramSettings;
   security: { allowed_domains: string[] };
   server: { public_url: string };
+  memory: { embedding_model: string };
 }
 
 export interface ModelUpdateRequest {
@@ -404,6 +405,7 @@ export interface SettingsUpdateRequest {
   telegram?: TelegramUpdateRequest;
   security?: { allowed_domains?: string[] };
   server?: { public_url?: string };
+  memory?: { embedding_model?: string };
 }
 
 // Ollama (local models)

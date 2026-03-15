@@ -431,6 +431,14 @@ function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }
             </div>
           )}
         </>
+      ) : provider === 'ollama' ? (
+        <div className="text-sm text-zinc-500 space-y-2">
+          <p>No embedding models found locally. Pull one from the Local Models section above.</p>
+          <p className="text-zinc-600">
+            Recommended: <span className="text-zinc-400">nomic-embed-text</span> (lightweight, good quality)
+            or <span className="text-zinc-400">mxbai-embed-large</span> (higher accuracy, larger).
+          </p>
+        </div>
       ) : provider && !providerSupportsEmbeddings(provider) ? (
         <p className="text-sm text-zinc-500">
           {PROVIDERS.find((p) => p.value === provider)?.label ?? provider} does not offer

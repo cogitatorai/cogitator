@@ -285,7 +285,15 @@ export default function ModelsSection() {
         </Panel>
       )}
 
-      <OllamaPanel />
+      <OllamaPanel onModelPulled={(name) => {
+        // Auto-select as embedding model if it's a known embedding model and none is selected.
+        const base = name.replace(/:latest$/, '');
+        const isEmbModel = (EMBEDDING_MODELS['ollama'] ?? []).some((m) => m.value === base);
+        if (isEmbModel && !embeddingModel) {
+          setEmbeddingModel(base);
+          setEmbeddingModelChanged(true);
+        }
+      }} />
 
       <ModelForm
         label="Primary Model (standard)"
@@ -455,7 +463,7 @@ function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }
   );
 }
 
-function OllamaPanel() {
+function OllamaPanel({ onModelPulled }: { onModelPulled?: (name: string) => void }) {
   const [status, setStatus] = useState<OllamaStatus | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [pullName, setPullName] = useState('');
@@ -549,6 +557,7 @@ function OllamaPanel() {
               setPullProgress('Complete');
               setPullPercent(100);
               sendNotification('Model downloaded', name, { page: 'admin' });
+              onModelPulled?.(name);
             } else if (evt.total && evt.total > 0) {
               const pct = Math.round((evt.completed / evt.total) * 100);
               setPullPercent(pct);

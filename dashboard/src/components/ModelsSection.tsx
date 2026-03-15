@@ -77,6 +77,7 @@ const PROVIDERS: ProviderOption[] = [
       { value: 'openai/gpt-4.1', label: 'GPT-4.1' },
       { value: 'openai/gpt-4o', label: 'GPT-4o' },
       { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+      { value: 'minimax/minimax-m2.5', label: 'MiniMax M2.5' },
     ],
   },
   {
@@ -85,6 +86,22 @@ const PROVIDERS: ProviderOption[] = [
     models: [],
   },
 ];
+
+const EMBEDDING_MODELS: Record<string, { value: string; label: string }[]> = {
+  openai: [
+    { value: 'text-embedding-3-small', label: 'text-embedding-3-small' },
+    { value: 'text-embedding-3-large', label: 'text-embedding-3-large' },
+  ],
+  ollama: [
+    { value: 'nomic-embed-text', label: 'nomic-embed-text' },
+    { value: 'mxbai-embed-large', label: 'mxbai-embed-large' },
+    { value: 'all-minilm', label: 'all-minilm' },
+    { value: 'snowflake-arctic-embed', label: 'snowflake-arctic-embed' },
+  ],
+  together: [
+    { value: 'togethercomputer/m2-bert-80M-8k-retrieval', label: 'm2-bert-80M-8k-retrieval' },
+  ],
+};
 
 const CUSTOM_VALUE = '__custom__';
 
@@ -138,6 +155,7 @@ export default function ModelsSection() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [embeddingModel, setEmbeddingModel] = useState('');
+  const [embeddingCustomModel, setEmbeddingCustomModel] = useState('');
   const [embeddingModelChanged, setEmbeddingModelChanged] = useState(false);
 
   const load = useCallback(async () => {
@@ -150,7 +168,11 @@ export default function ModelsSection() {
         keys[name] = { apiKey: '', apiKeySet: ps.api_key_set };
       }
       setProviderKeys(keys);
-      setEmbeddingModel(s.memory?.embedding_model ?? '');
+      const loadedEmb = s.memory?.embedding_model ?? '';
+      const stdProv = s.models.standard.provider;
+      const knownEmb = EMBEDDING_MODELS[stdProv]?.some((m) => m.value === loadedEmb);
+      setEmbeddingModel(knownEmb ? loadedEmb : (loadedEmb ? CUSTOM_VALUE : ''));
+      setEmbeddingCustomModel(knownEmb ? '' : loadedEmb);
       setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load model settings');
@@ -203,8 +225,9 @@ export default function ModelsSection() {
       body.providers = providerUpdates;
     }
 
-    if (embeddingModelChanged && embeddingModel) {
-      body.memory = { embedding_model: embeddingModel };
+    const resolvedEmb = embeddingModel === CUSTOM_VALUE ? embeddingCustomModel : embeddingModel;
+    if (embeddingModelChanged && resolvedEmb) {
+      body.memory = { embedding_model: resolvedEmb };
     }
 
     try {
@@ -216,7 +239,11 @@ export default function ModelsSection() {
         keys[name] = { apiKey: '', apiKeySet: ps.api_key_set };
       }
       setProviderKeys(keys);
-      setEmbeddingModel(updated.memory?.embedding_model ?? '');
+      const updatedEmb = updated.memory?.embedding_model ?? '';
+      const updatedProv = updated.models.standard.provider;
+      const knownUpdatedEmb = EMBEDDING_MODELS[updatedProv]?.some((m) => m.value === updatedEmb);
+      setEmbeddingModel(knownUpdatedEmb ? updatedEmb : (updatedEmb ? CUSTOM_VALUE : ''));
+      setEmbeddingCustomModel(knownUpdatedEmb ? '' : updatedEmb);
       setEmbeddingModelChanged(false);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -268,29 +295,17 @@ export default function ModelsSection() {
         onChange={setCheap}
       />
 
-      <Panel>
-        <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
-          Embedding Model
-        </h3>
-        <p className="text-sm text-zinc-600 mb-4">
-          Used for semantic memory search. Must match a model available on your provider.
-        </p>
-        <input
-          type="text"
-          value={embeddingModel}
-          onChange={(e) => {
-            setEmbeddingModel(e.target.value);
-            setEmbeddingModelChanged(true);
-          }}
-          placeholder="e.g. text-embedding-3-small, nomic-embed-text"
-          className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
-        />
-        {embeddingModelChanged && (
-          <p className="text-[11px] text-amber-500/80 mt-2">
-            Changing the embedding model will re-index all memories. Semantic search may be degraded for a few minutes.
-          </p>
-        )}
-      </Panel>
+      <EmbeddingModelPanel
+        provider={standard.provider}
+        model={embeddingModel}
+        customModel={embeddingCustomModel}
+        changed={embeddingModelChanged}
+        onChange={(model, custom) => {
+          setEmbeddingModel(model);
+          setEmbeddingCustomModel(custom);
+          setEmbeddingModelChanged(true);
+        }}
+      />
 
       {activeProviders.length > 0 && (
         <Panel>
@@ -335,6 +350,98 @@ export default function ModelsSection() {
         </StripedButton>
       </div>
     </>
+  );
+}
+
+function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }: {
+  provider: string;
+  model: string;
+  customModel: string;
+  changed: boolean;
+  onChange: (model: string, custom: string) => void;
+}) {
+  const [ollamaEmbModels, setOllamaEmbModels] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (provider !== 'ollama') return;
+    fetchOllamaModels()
+      .then((res) => {
+        const pulled = new Set((res.models ?? []).map((m) => m.name));
+        const embModels = (EMBEDDING_MODELS['ollama'] ?? []).filter((m) => pulled.has(m.value));
+        setOllamaEmbModels(embModels);
+      })
+      .catch(() => setOllamaEmbModels([]));
+  }, [provider]);
+
+  const knownModels = provider === 'ollama' ? ollamaEmbModels : (EMBEDDING_MODELS[provider] ?? []);
+  const hasKnownModels = knownModels.length > 0;
+  const showCustomInput = model === CUSTOM_VALUE;
+
+  const selectClass =
+    'w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none';
+  const inputClass =
+    'w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600';
+
+  return (
+    <Panel>
+      <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+        Embedding Model
+      </h3>
+      <p className="text-sm text-zinc-600 mb-4">
+        Used for semantic memory search. Uses the same provider as the primary model.
+      </p>
+
+      {hasKnownModels ? (
+        <>
+          <select
+            value={model}
+            onChange={(e) => onChange(e.target.value, '')}
+            className={selectClass}
+          >
+            <option value="">Select an embedding model...</option>
+            {knownModels.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+            <option value={CUSTOM_VALUE}>Custom...</option>
+          </select>
+          {showCustomInput && (
+            <div className="mt-3">
+              <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                Custom Embedding Model
+              </label>
+              <input
+                type="text"
+                value={customModel}
+                onChange={(e) => onChange(CUSTOM_VALUE, e.target.value)}
+                placeholder="Enter embedding model identifier"
+                className={inputClass}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {provider && !hasKnownModels && (
+            <p className="text-[11px] text-zinc-500 mb-2">
+              No known embedding models for {PROVIDERS.find((p) => p.value === provider)?.label ?? provider}. Enter a model identifier manually.
+            </p>
+          )}
+          <input
+            type="text"
+            value={customModel}
+            onChange={(e) => onChange(CUSTOM_VALUE, e.target.value)}
+            placeholder="e.g. text-embedding-3-small, nomic-embed-text"
+            className={inputClass}
+          />
+        </>
+      )}
+
+      {changed && (
+        <p className="text-[11px] text-amber-500/80 mt-2">
+          Changing the embedding model will re-index all memories. Semantic search may be degraded for a few minutes.
+        </p>
+      )}
+    </Panel>
   );
 }
 

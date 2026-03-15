@@ -233,6 +233,7 @@ export interface SystemStatus {
   go_version: string;
   goroutines: number;
   provider_configured: boolean;
+  desktop_mode: boolean;
   memory: {
     alloc_mb: number;
     total_alloc_mb: number;

@@ -57,12 +57,12 @@ const BASE_NAV: NavItem[] = [
   { id: 'memory', label: 'Memory', icon: <Brain size={16} /> },
   { id: 'skills', label: 'Skills', icon: <Puzzle size={16} /> },
   { id: 'connectors', label: 'Connectors', icon: <Cable size={16} /> },
-  { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> },
-  // Admin inserted here for admin users (see nav memo below)
+  // Resources, Users, Admin inserted here for privileged users (see nav memo below)
   { id: 'account', label: 'Account', icon: <UserCircle size={16} /> },
   { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
 ];
 
+const RESOURCES_NAV_ITEM: NavItem = { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> };
 const ADMIN_NAV_ITEM: NavItem = { id: 'admin', label: 'Admin', icon: <Shield size={16} /> };
 const USERS_NAV_ITEM: NavItem = { id: 'users', label: 'Users', icon: <Users size={16} /> };
 
@@ -148,15 +148,22 @@ function AppShell() {
         window.location.hash = 'chat';
         setPage('chat');
       }
+      if (page === 'resources' && !isAdmin) {
+        window.location.hash = 'chat';
+        setPage('chat');
+      }
     }
   }, [page, authLoading, isAuthenticated, isAdmin, isModerator]);
 
   const nav = useMemo(() => {
     const items = [...BASE_NAV];
     const accountIdx = items.findIndex((i) => i.id === 'account');
+    if (isAdmin) {
+      items.splice(accountIdx, 0, RESOURCES_NAV_ITEM);
+    }
     // Users page visible to admin and moderator.
     if (isAdmin || isModerator) {
-      items.splice(accountIdx, 0, USERS_NAV_ITEM);
+      items.splice(items.findIndex((i) => i.id === 'account'), 0, USERS_NAV_ITEM);
     }
     // Admin page visible to admin only (inserted after Users if present).
     if (isAdmin) {
@@ -417,7 +424,7 @@ function AppShell() {
           {page === 'skills' && <Skills />}
           {page === 'connectors' && <Connectors />}
           {page === 'history' && <HistoryPage />}
-          {page === 'resources' && <Resources />}
+          {page === 'resources' && isAdmin && <Resources />}
           {page === 'settings' && <SettingsPage themePreference={themePreference} setTheme={setTheme} />}
           {page === 'account' && <Account />}
           {page === 'users' && (isAdmin || isModerator) && <UsersPage />}

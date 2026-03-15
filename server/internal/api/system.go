@@ -22,6 +22,7 @@ func (r *Router) handleSystemStatus(w http.ResponseWriter, req *http.Request) {
 		"go_version":          runtime.Version(),
 		"goroutines":          runtime.NumGoroutine(),
 		"provider_configured": providerConfigured,
+		"desktop_mode":        r.dashboardFS != nil,
 		"memory": map[string]any{
 			"alloc_mb":       memStats.Alloc / 1024 / 1024,
 			"total_alloc_mb": memStats.TotalAlloc / 1024 / 1024,

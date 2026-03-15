@@ -252,7 +252,8 @@ func (r *Router) handleBrowserStatus(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) handleBrowserEnable(w http.ResponseWriter, req *http.Request) {
-	if !requireAdmin(w, req) {
+	if r.dashboardFS == nil {
+		writeError(w, http.StatusForbidden, "browser connector is only available in desktop mode")
 		return
 	}
 	if r.browserConnector == nil {
@@ -267,7 +268,8 @@ func (r *Router) handleBrowserEnable(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) handleBrowserDisable(w http.ResponseWriter, req *http.Request) {
-	if !requireAdmin(w, req) {
+	if r.dashboardFS == nil {
+		writeError(w, http.StatusForbidden, "browser connector is only available in desktop mode")
 		return
 	}
 	if r.browserConnector == nil {

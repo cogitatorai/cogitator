@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link2, Unlink, Settings, ShieldCheck } from 'lucide-react';
+
 import {
   usePolling,
+  fetchJSON,
+  getServerUrl,
   fetchConnectors,
   startConnectorAuth,
   disconnectConnector,
@@ -11,8 +14,9 @@ import {
   fetchBrowserStatus,
   enableBrowserConnector,
   disableBrowserConnector,
+  isWebBrowser,
 } from '../api';
-import type { ConnectorInfo, CalendarEntry, BrowserConnectorStatus } from '../api';
+import type { ConnectorInfo, CalendarEntry, BrowserConnectorStatus, SystemStatus } from '../api';
 import PageHeader from '../components/PageHeader';
 import MCP from './MCP';
 
@@ -87,7 +91,7 @@ function ConnectorCard({
   );
 }
 
-function BrowserConnectorCard() {
+function BrowserConnectorCard({ canManage, isClientMode }: { canManage: boolean; isClientMode: boolean }) {
   const { data: status, refresh } = usePolling<BrowserConnectorStatus>(fetchBrowserStatus, 5000);
   const [busy, setBusy] = useState(false);
 
@@ -142,18 +146,24 @@ function BrowserConnectorCard() {
       dotClass={dotClass}
       error={status?.error}
       footer={
-        <button
-          onClick={handleToggle}
-          disabled={busy}
-          className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
-            status?.enabled
-              ? 'bg-red-950 text-red-500 hover:bg-red-900'
-              : 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25'
-          }`}
-        >
-          {status?.enabled ? <Unlink size={12} /> : <Link2 size={12} />}
-          {busy ? 'Working...' : status?.enabled ? 'Disable' : 'Enable'}
-        </button>
+        canManage ? (
+          <button
+            onClick={handleToggle}
+            disabled={busy}
+            className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md disabled:opacity-50 transition-colors ${
+              status?.enabled
+                ? 'bg-red-950 text-red-500 hover:bg-red-900'
+                : 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25'
+            }`}
+          >
+            {status?.enabled ? <Unlink size={12} /> : <Link2 size={12} />}
+            {busy ? 'Working...' : status?.enabled ? 'Disable' : 'Enable'}
+          </button>
+        ) : (
+          <span className="text-xs text-zinc-500">
+            {isClientMode && !isWebBrowser ? 'Not available in client mode' : 'Not available in web app'}
+          </span>
+        )
       }
     />
   );
@@ -169,6 +179,9 @@ const GoogleIcon = () => (
 );
 
 export default function Connectors() {
+  const { data: sysStatus } = usePolling<SystemStatus>(() => fetchJSON('/api/status'), 10000);
+  const isClientMode = !!getServerUrl();
+  const canManageBrowser = (sysStatus?.desktop_mode ?? false) && !isClientMode;
   const { data: connectors, refresh } = usePolling<ConnectorInfo[]>(fetchConnectors, 5000);
   const [busy, setBusy] = useState<string | null>(null);
   const [pending, setPending] = useState<Record<string, 'connecting' | 'disconnecting'>>({});
@@ -277,7 +290,7 @@ export default function Connectors() {
       {/* All Connectors */}
       <div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4 items-start">
-          <BrowserConnectorCard />
+          <BrowserConnectorCard canManage={canManageBrowser} isClientMode={isClientMode} />
           {connectors?.map((c) => {
               const p = pending[c.name];
               const statusLabel = p

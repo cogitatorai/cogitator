@@ -13,6 +13,7 @@ import {
   updateMCPServer,
 } from '../api';
 import type { MCPServer, MCPTool, MCPToolTestResult } from '../api';
+import { useAuth } from '../auth';
 import { useWebSocket } from '../ws';
 import PageHeader from '../components/PageHeader';
 
@@ -25,6 +26,7 @@ const STATUS_DOT: Record<MCPServer['status'], string> = {
 };
 
 export default function MCP() {
+  const { isAdmin } = useAuth();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tools, setTools] = useState<Record<string, MCPTool[]>>({});
   const [loadingTools, setLoadingTools] = useState<string | null>(null);
@@ -238,12 +240,14 @@ export default function MCP() {
           <p className="text-sm text-zinc-500 mb-4 uppercase tracking-widest">
             No MCP servers configured
           </p>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="bg-orange-900/20 border border-orange-600/50 hover:border-orange-500 hover:bg-orange-900/40 text-orange-500 hover:text-orange-400 uppercase font-mono tracking-widest text-xs font-bold px-4 py-2 cursor-pointer"
-          >
-            Add Server
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="bg-orange-900/20 border border-orange-600/50 hover:border-orange-500 hover:bg-orange-900/40 text-orange-500 hover:text-orange-400 uppercase font-mono tracking-widest text-xs font-bold px-4 py-2 cursor-pointer"
+            >
+              Add Server
+            </button>
+          )}
         </div>
       )}
 
@@ -254,13 +258,15 @@ export default function MCP() {
             <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">
               {servers.length} server{servers.length !== 1 ? 's' : ''}
             </span>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 uppercase font-mono tracking-widest text-xs font-bold px-3 py-2 cursor-pointer"
-            >
-              <Plus size={12} />
-              Add
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="flex items-center gap-1.5 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 uppercase font-mono tracking-widest text-xs font-bold px-3 py-2 cursor-pointer"
+              >
+                <Plus size={12} />
+                Add
+              </button>
+            )}
           </div>
 
           {servers.map((srv) => {
@@ -294,33 +300,35 @@ export default function MCP() {
                   <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">
                     {srv.status}
                   </span>
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    {(srv.status === 'stopped' || srv.status === 'error') && (
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {(srv.status === 'stopped' || srv.status === 'error') && (
+                        <button
+                          onClick={() => handleStart(srv.name)}
+                          title="Start"
+                          className="border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 p-1.5 cursor-pointer"
+                        >
+                          <Play size={12} />
+                        </button>
+                      )}
+                      {(srv.status === 'running' || srv.status === 'starting' || srv.status === 'reconnecting') && (
+                        <button
+                          onClick={() => handleStop(srv.name)}
+                          title="Stop"
+                          className="border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 p-1.5 cursor-pointer"
+                        >
+                          <Square size={12} />
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleStart(srv.name)}
-                        title="Start"
-                        className="border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 p-1.5 cursor-pointer"
+                        onClick={() => handleRemove(srv.name)}
+                        title="Remove"
+                        className="border border-red-600/50 text-red-500 bg-red-900/20 hover:bg-red-900/40 p-1.5 cursor-pointer"
                       >
-                        <Play size={12} />
+                        <Trash2 size={12} />
                       </button>
-                    )}
-                    {(srv.status === 'running' || srv.status === 'starting' || srv.status === 'reconnecting') && (
-                      <button
-                        onClick={() => handleStop(srv.name)}
-                        title="Stop"
-                        className="border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 p-1.5 cursor-pointer"
-                      >
-                        <Square size={12} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleRemove(srv.name)}
-                      title="Remove"
-                      className="border border-red-600/50 text-red-500 bg-red-900/20 hover:bg-red-900/40 p-1.5 cursor-pointer"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Expanded detail */}
@@ -395,12 +403,14 @@ export default function MCP() {
                                   </p>
                                 )}
                               </div>
-                              <button
-                                onClick={() => openTest(srv.name, tool)}
-                                className="shrink-0 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 uppercase font-mono tracking-widest text-xs font-bold px-2 py-1 cursor-pointer"
-                              >
-                                Test
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => openTest(srv.name, tool)}
+                                  className="shrink-0 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 uppercase font-mono tracking-widest text-xs font-bold px-2 py-1 cursor-pointer"
+                                >
+                                  Test
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -419,9 +429,10 @@ export default function MCP() {
                       <textarea
                         className="w-full border border-zinc-700 bg-transparent text-zinc-300 text-sm px-3 py-2 focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none font-mono resize-y"
                         rows={2}
-                        placeholder="No instructions configured. Describe what this server does..."
+                        readOnly={!isAdmin}
+                        placeholder={isAdmin ? "No instructions configured. Describe what this server does..." : "No instructions configured."}
                         value={editingInstructions[srv.name] ?? srv.instructions ?? ''}
-                        onChange={e => setEditingInstructions(prev => ({ ...prev, [srv.name]: e.target.value }))}
+                        onChange={e => { if (isAdmin) setEditingInstructions(prev => ({ ...prev, [srv.name]: e.target.value })); }}
                         onBlur={async () => {
                           const val = editingInstructions[srv.name];
                           if (val !== undefined && val !== (srv.instructions ?? '')) {

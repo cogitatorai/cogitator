@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchJSON, putJSON, getServerUrl, clearServerUrl } from '../api';
 import type { Settings, SettingsUpdateRequest } from '../api';
 import { isNotificationsEnabled, setNotificationsEnabled } from '../hooks/useDesktopNotifications';
+import { useAuth } from '../auth';
 import Panel from '../components/Panel';
 import PageHeader from '../components/PageHeader';
 import StripedButton from '../components/StripedButton';
@@ -16,6 +17,7 @@ interface TelegramFormState {
 import type { ThemePreference } from '../useTheme';
 
 export default function SettingsPage({ themePreference, setTheme }: { themePreference: ThemePreference; setTheme: (t: ThemePreference) => void }) {
+  const { isAdmin } = useAuth();
   const [workspacePath, setWorkspacePath] = useState('');
   const [workspaceOriginal, setWorkspaceOriginal] = useState('');
   const [telegram, setTelegram] = useState<TelegramFormState>({ enabled: false, botToken: '', botTokenSet: false, allowedChatIDs: '' });
@@ -25,9 +27,10 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isAdmin ? false : true);
 
   const load = useCallback(async () => {
+    if (!isAdmin) return;
     try {
       const s = await fetchJSON<Settings>('/api/settings');
       setWorkspacePath(s.workspace?.path ?? '');
@@ -47,7 +50,7 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
       setError(err instanceof Error ? err.message : 'Failed to load settings');
       setLoading(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -208,114 +211,118 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
           )}
         </Panel>
 
-        <SectionHeader title="Workspace" />
+        {isAdmin && (
+          <>
+            <SectionHeader title="Workspace" />
 
-        <Panel>
-          <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
-            Data Directory
-          </h3>
-          <p className="text-sm text-zinc-600 mb-4">
-            All data (database, memories, skills, config) is stored here.
-          </p>
-          <input
-            type="text"
-            value={workspacePath}
-            onChange={(e) => setWorkspacePath(e.target.value)}
-            placeholder="e.g. ~/.cogitator"
-            className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
-          />
-          {workspacePath !== workspaceOriginal && (
-            <p className="text-sm text-orange-500 mt-2">
-              Restart required for workspace changes to take effect.
-            </p>
-          )}
-        </Panel>
-
-        <SectionHeader title="Integrations" />
-
-        <Panel>
-          <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
-            Telegram
-          </h3>
-          <p className="text-sm text-zinc-600 mb-4">
-            Connect a Telegram bot to chat with the agent from your phone.
-          </p>
-
-          <label className="flex items-center gap-2 text-base text-zinc-300 mb-4 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={telegram.enabled}
-              onChange={(e) => setTelegram({ ...telegram, enabled: e.target.checked })}
-              className="accent-orange-600"
-            />
-            Enable Telegram channel
-          </label>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
-                Bot Token
-                {telegram.botTokenSet && (
-                  <span className="ml-2 text-green-600 normal-case tracking-normal font-normal">
-                    (already set)
-                  </span>
-                )}
-              </label>
-              <input
-                type="password"
-                value={telegram.botToken}
-                onChange={(e) => setTelegram({ ...telegram, botToken: e.target.value })}
-                placeholder={telegram.botTokenSet ? 'Leave blank to keep current token' : 'Enter bot token from @BotFather'}
-                className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
-              />
-            </div>
-            <div>
-              <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
-                Allowed Chat IDs
-              </label>
+            <Panel>
+              <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+                Data Directory
+              </h3>
+              <p className="text-sm text-zinc-600 mb-4">
+                All data (database, memories, skills, config) is stored here.
+              </p>
               <input
                 type="text"
-                value={telegram.allowedChatIDs}
-                onChange={(e) => setTelegram({ ...telegram, allowedChatIDs: e.target.value })}
-                placeholder="e.g. 123456789, 987654321"
+                value={workspacePath}
+                onChange={(e) => setWorkspacePath(e.target.value)}
+                placeholder="e.g. ~/.cogitator"
                 className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
               />
-              <p className="text-sm text-zinc-600 mt-1">
-                Comma-separated numeric chat IDs. Leave empty to allow all chats during initial setup.
+              {workspacePath !== workspaceOriginal && (
+                <p className="text-sm text-orange-500 mt-2">
+                  Restart required for workspace changes to take effect.
+                </p>
+              )}
+            </Panel>
+
+            <SectionHeader title="Integrations" />
+
+            <Panel>
+              <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+                Telegram
+              </h3>
+              <p className="text-sm text-zinc-600 mb-4">
+                Connect a Telegram bot to chat with the agent from your phone.
               </p>
+
+              <label className="flex items-center gap-2 text-base text-zinc-300 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={telegram.enabled}
+                  onChange={(e) => setTelegram({ ...telegram, enabled: e.target.checked })}
+                  className="accent-orange-600"
+                />
+                Enable Telegram channel
+              </label>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                    Bot Token
+                    {telegram.botTokenSet && (
+                      <span className="ml-2 text-green-600 normal-case tracking-normal font-normal">
+                        (already set)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="password"
+                    value={telegram.botToken}
+                    onChange={(e) => setTelegram({ ...telegram, botToken: e.target.value })}
+                    placeholder={telegram.botTokenSet ? 'Leave blank to keep current token' : 'Enter bot token from @BotFather'}
+                    className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                    Allowed Chat IDs
+                  </label>
+                  <input
+                    type="text"
+                    value={telegram.allowedChatIDs}
+                    onChange={(e) => setTelegram({ ...telegram, allowedChatIDs: e.target.value })}
+                    placeholder="e.g. 123456789, 987654321"
+                    className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
+                  />
+                  <p className="text-sm text-zinc-600 mt-1">
+                    Comma-separated numeric chat IDs. Leave empty to allow all chats during initial setup.
+                  </p>
+                </div>
+              </div>
+            </Panel>
+
+            <SectionHeader title="Security" />
+
+            <Panel>
+              <h2 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-4">Network Access</h2>
+              <p className="text-sm text-zinc-500 mb-4">
+                Domains that network commands (curl, wget, etc.) are allowed to reach.
+              </p>
+              <div>
+                <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                  Allowed Domains
+                </label>
+                <input
+                  type="text"
+                  value={allowedDomains}
+                  onChange={(e) => setAllowedDomains(e.target.value)}
+                  placeholder="e.g. api.openweathermap.org, *.github.com"
+                  className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
+                />
+                <p className="text-sm text-zinc-600 mt-1">
+                  Comma-separated. Supports wildcards (*.example.com). Leave empty to block all network commands.
+                </p>
+              </div>
+            </Panel>
+
+            <div className="flex justify-end">
+              <StripedButton onClick={save} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Settings'}
+              </StripedButton>
             </div>
-          </div>
-        </Panel>
-
-        <SectionHeader title="Security" />
-
-        <Panel>
-          <h2 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-4">Network Access</h2>
-          <p className="text-sm text-zinc-500 mb-4">
-            Domains that network commands (curl, wget, etc.) are allowed to reach.
-          </p>
-          <div>
-            <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
-              Allowed Domains
-            </label>
-            <input
-              type="text"
-              value={allowedDomains}
-              onChange={(e) => setAllowedDomains(e.target.value)}
-              placeholder="e.g. api.openweathermap.org, *.github.com"
-              className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none placeholder:text-zinc-600"
-            />
-            <p className="text-sm text-zinc-600 mt-1">
-              Comma-separated. Supports wildcards (*.example.com). Leave empty to block all network commands.
-            </p>
-          </div>
-        </Panel>
-
-        <div className="flex justify-end">
-          <StripedButton onClick={save} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Settings'}
-          </StripedButton>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

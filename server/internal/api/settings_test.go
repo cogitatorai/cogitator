@@ -13,6 +13,7 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/config"
 	"github.com/cogitatorai/cogitator/server/internal/database"
+	"github.com/cogitatorai/cogitator/server/internal/memory"
 	"github.com/cogitatorai/cogitator/server/internal/provider"
 	"github.com/cogitatorai/cogitator/server/internal/session"
 )
@@ -53,6 +54,7 @@ func setupSettingsRouter(t *testing.T) (*Router, string) {
 		Agent:           a,
 		ConfigStore:     store,
 		ProviderFactory: factory,
+		Memory:          memory.NewStore(db),
 	})
 
 	return router, cfgPath
@@ -233,6 +235,73 @@ func TestUpdateSettingsPublicURL_Invalid(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetSettings_IncludesEmbeddingModel(t *testing.T) {
+	router, _ := setupSettingsRouter(t)
+
+	req := httptest.NewRequest("GET", "/api/settings", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp settingsResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.Memory.EmbeddingModel != "text-embedding-3-small" {
+		t.Errorf("expected default embedding model, got %q", resp.Memory.EmbeddingModel)
+	}
+}
+
+func TestUpdateSettings_EmbeddingModel(t *testing.T) {
+	router, _ := setupSettingsRouter(t)
+
+	body := `{
+		"models": {"standard": {"provider": "openai", "model": "gpt-4o"}},
+		"providers": {"openai": {"api_key": "sk-test"}},
+		"memory": {"embedding_model": "text-embedding-3-large"}
+	}`
+	req := httptest.NewRequest("PUT", "/api/settings", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp settingsResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.Memory.EmbeddingModel != "text-embedding-3-large" {
+		t.Errorf("expected text-embedding-3-large, got %q", resp.Memory.EmbeddingModel)
+	}
+}
+
+func TestUpdateSettings_OllamaResolvesEmbeddingDefault(t *testing.T) {
+	router, _ := setupSettingsRouter(t)
+
+	body := `{
+		"models": {"standard": {"provider": "ollama", "model": "llama3"}}
+	}`
+	req := httptest.NewRequest("PUT", "/api/settings", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp settingsResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.Memory.EmbeddingModel != "nomic-embed-text" {
+		t.Errorf("expected nomic-embed-text for ollama, got %q", resp.Memory.EmbeddingModel)
 	}
 }
 

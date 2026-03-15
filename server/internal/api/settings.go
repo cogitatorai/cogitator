@@ -9,6 +9,7 @@ import (
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/provider"
+	"github.com/cogitatorai/cogitator/server/internal/worker"
 )
 
 type settingsResponse struct {
@@ -18,6 +19,7 @@ type settingsResponse struct {
 	Telegram  telegramSettingsResponse    `json:"telegram"`
 	Security  securitySettingsResponse    `json:"security"`
 	Server    serverSettingsResponse      `json:"server"`
+	Memory    memorySettingsResponse      `json:"memory"`
 }
 
 type serverSettingsResponse struct {
@@ -52,6 +54,14 @@ type providerResponse struct {
 	APIKeySet bool `json:"api_key_set"`
 }
 
+type memorySettingsResponse struct {
+	EmbeddingModel string `json:"embedding_model"`
+}
+
+type memorySettingsUpdate struct {
+	EmbeddingModel *string `json:"embedding_model"`
+}
+
 type settingsUpdateRequest struct {
 	Workspace *workspaceUpdate                 `json:"workspace"`
 	Models    *modelsUpdateRequest             `json:"models"`
@@ -59,6 +69,7 @@ type settingsUpdateRequest struct {
 	Telegram  *telegramSettingsUpdate          `json:"telegram"`
 	Security  *securitySettingsUpdate          `json:"security"`
 	Server    *serverSettingsUpdate            `json:"server"`
+	Memory    *memorySettingsUpdate            `json:"memory"`
 }
 
 type serverSettingsUpdate struct {
@@ -143,6 +154,9 @@ func (r *Router) handleGetSettings(w http.ResponseWriter, req *http.Request) {
 		Server: serverSettingsResponse{
 			PublicURL: cfg.Server.PublicURL,
 		},
+		Memory: memorySettingsResponse{
+			EmbeddingModel: cfg.Memory.EmbeddingModel,
+		},
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -159,6 +173,7 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 	}
 
 	cfg := r.configStore.Get()
+	oldEmbeddingModel := cfg.Memory.EmbeddingModel
 
 	if body.Workspace != nil && body.Workspace.Path != "" {
 		cfg.Workspace.Path = body.Workspace.Path
@@ -213,6 +228,10 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 		}
 	}
 
+	if body.Memory != nil && body.Memory.EmbeddingModel != nil && *body.Memory.EmbeddingModel != "" {
+		cfg.Memory.EmbeddingModel = *body.Memory.EmbeddingModel
+	}
+
 	if body.Server != nil && body.Server.PublicURL != nil {
 		u := strings.TrimRight(*body.Server.PublicURL, "/")
 		if u != "" {
@@ -224,6 +243,8 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 		}
 		cfg.Server.PublicURL = u
 	}
+
+	cfg.ResolveDefaults()
 
 	if err := r.configStore.Save(cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save config")
@@ -278,6 +299,23 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 			}
 			if r.nodeEmbedder != nil {
 				r.nodeEmbedder.SetEmbedder(embP, embModel)
+			}
+
+			// If the embedding model changed, purge old vectors and re-embed.
+			if embModel != oldEmbeddingModel {
+				if r.retriever != nil {
+					r.retriever.InvalidateCache()
+				}
+				if r.memory != nil && r.nodeEmbedder != nil {
+					ne := r.nodeEmbedder
+					ms := r.memory
+					go func() {
+						if _, err := ms.DeleteAllEmbeddings(); err != nil {
+							return
+						}
+						worker.RunBackfill(context.Background(), ms, ne, 50)
+					}()
+				}
 			}
 		}
 	}

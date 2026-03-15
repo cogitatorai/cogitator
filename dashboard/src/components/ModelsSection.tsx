@@ -372,7 +372,13 @@ function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }
     if (provider !== 'ollama') return;
     fetchOllamaModels()
       .then((res) => {
-        const pulled = new Set((res.models ?? []).map((m) => m.name));
+        // Ollama model names may include a tag (e.g. "nomic-embed-text:latest").
+        // Strip ":latest" and collect both forms so we match our curated list.
+        const pulled = new Set<string>();
+        for (const m of res.models ?? []) {
+          pulled.add(m.name);
+          pulled.add(m.name.replace(/:latest$/, ''));
+        }
         const embModels = (EMBEDDING_MODELS['ollama'] ?? []).filter((m) => pulled.has(m.value));
         setOllamaEmbModels(embModels);
       })

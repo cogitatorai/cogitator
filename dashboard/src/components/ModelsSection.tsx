@@ -163,6 +163,7 @@ export default function ModelsSection() {
   const [embeddingModel, setEmbeddingModel] = useState('');
   const [embeddingCustomModel, setEmbeddingCustomModel] = useState('');
   const [embeddingModelChanged, setEmbeddingModelChanged] = useState(false);
+  const [ollamaRefreshKey, setOllamaRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -287,6 +288,7 @@ export default function ModelsSection() {
 
       <OllamaPanel
         onModelPulled={(name) => {
+          setOllamaRefreshKey((k) => k + 1);
           // Auto-select as embedding model if it's a known embedding model and none is selected.
           const base = name.replace(/:latest$/, '');
           const isEmbModel = (EMBEDDING_MODELS['ollama'] ?? []).some((m) => m.value === base);
@@ -296,6 +298,7 @@ export default function ModelsSection() {
           }
         }}
         onModelDeleted={(name) => {
+          setOllamaRefreshKey((k) => k + 1);
           // Clear embedding model if the deleted model was selected.
           const base = name.replace(/:latest$/, '');
           const resolved = embeddingModel === CUSTOM_VALUE ? embeddingCustomModel : embeddingModel;
@@ -326,6 +329,7 @@ export default function ModelsSection() {
         model={embeddingModel}
         customModel={embeddingCustomModel}
         changed={embeddingModelChanged}
+        refreshKey={ollamaRefreshKey}
         onChange={(model, custom) => {
           setEmbeddingModel(model);
           setEmbeddingCustomModel(custom);
@@ -379,11 +383,12 @@ export default function ModelsSection() {
   );
 }
 
-function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }: {
+function EmbeddingModelPanel({ provider, model, customModel, changed, refreshKey, onChange }: {
   provider: string;
   model: string;
   customModel: string;
   changed: boolean;
+  refreshKey?: number;
   onChange: (model: string, custom: string) => void;
 }) {
   const [ollamaEmbModels, setOllamaEmbModels] = useState<{ value: string; label: string }[]>([]);
@@ -403,7 +408,7 @@ function EmbeddingModelPanel({ provider, model, customModel, changed, onChange }
         setOllamaEmbModels(embModels);
       })
       .catch(() => setOllamaEmbModels([]));
-  }, [provider]);
+  }, [provider, refreshKey]);
 
   const knownModels = provider === 'ollama' ? ollamaEmbModels : (EMBEDDING_MODELS[provider] ?? []);
   const hasKnownModels = knownModels.length > 0;

@@ -322,6 +322,7 @@ export default function ModelsSection() {
         description="Used for conversations, reflections, and complex reasoning."
         state={standard}
         onChange={setStandard}
+        ollamaRefreshKey={ollamaRefreshKey}
       />
 
       <ModelForm
@@ -329,6 +330,7 @@ export default function ModelsSection() {
         description="Used for enrichment, classification, and background tasks."
         state={cheap}
         onChange={setCheap}
+        ollamaRefreshKey={ollamaRefreshKey}
       />
 
       <EmbeddingModelPanel
@@ -734,11 +736,12 @@ function OllamaPanel({ onModelPulled, onModelDeleted }: {
   );
 }
 
-function ModelForm({ label, description, state, onChange }: {
+function ModelForm({ label, description, state, onChange, ollamaRefreshKey }: {
   label: string;
   description: string;
   state: ModelFormState;
   onChange: (s: ModelFormState) => void;
+  ollamaRefreshKey?: number;
 }) {
   const [ollamaModels, setOllamaModels] = useState<{ value: string; label: string }[]>([]);
 
@@ -754,7 +757,7 @@ function ModelForm({ label, description, state, onChange }: {
         );
       })
       .catch(() => setOllamaModels([]));
-  }, [state.provider]);
+  }, [state.provider, ollamaRefreshKey]);
 
   const providerDef = PROVIDERS.find((p) => p.value === state.provider);
   const models = state.provider === 'ollama' ? ollamaModels : (providerDef?.models ?? []);

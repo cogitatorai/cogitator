@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -67,7 +69,7 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Read the audio form file.
-	audioFile, _, err := req.FormFile("audio")
+	audioFile, audioHeader, err := req.FormFile("audio")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "audio file is required")
 		return
@@ -109,9 +111,12 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 	sttCtx, sttCancel := context.WithTimeout(req.Context(), sttTimeout)
 	defer sttCancel()
 
-	audioFormat := cfg.Voice.AudioFormat
-	if audioFormat == "" {
-		audioFormat = "m4a"
+	// Extract format from the uploaded filename (e.g. "recording.m4a" -> "m4a").
+	audioFormat := "m4a"
+	if audioHeader != nil && audioHeader.Filename != "" {
+		if ext := filepath.Ext(audioHeader.Filename); ext != "" {
+			audioFormat = strings.TrimPrefix(ext, ".")
+		}
 	}
 	transcription, err := sttProvider.Transcribe(sttCtx, audioData, audioFormat)
 	if err != nil {

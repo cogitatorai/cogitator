@@ -125,19 +125,19 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 	transcription, err := sttProvider.Transcribe(sttCtx, audioData, audioFormat)
 	if err != nil {
 		if errors.Is(err, voice.ErrTranscriptionEmpty) {
-			// Empty transcription: publish error event, return OK with empty transcription.
-			r.publishVoiceError(uid, threadID, "transcription returned empty text")
+			// Empty transcription: return OK with empty transcription.
+			// The client handles this via the HTTP response (no bus event needed).
 			writeJSON(w, http.StatusOK, voiceResponse{
 				ThreadID:      threadID,
 				Transcription: "",
 			})
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "transcription failed: "+err.Error())
+		slog.Warn("voice: transcription failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "transcription failed")
 		return
 	}
 	if transcription == "" {
-		r.publishVoiceError(uid, threadID, "transcription returned empty text")
 		writeJSON(w, http.StatusOK, voiceResponse{
 			ThreadID:      threadID,
 			Transcription: "",
@@ -228,7 +228,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 			"user_id":    userID,
 			"thread_id":  threadID,
 			"message_id": msgID,
-			"format":     cfg.Voice.AudioFormat,
+			"format":     "mp3",
 		},
 	})
 
@@ -289,12 +289,13 @@ func (r *Router) publishVoiceError(userID, threadID, reason string) {
 	if r.eventBus == nil {
 		return
 	}
+	slog.Warn("voice: error", "user_id", userID, "thread_id", threadID, "reason", reason)
 	r.eventBus.Publish(bus.Event{
 		Type: bus.VoiceError,
 		Payload: map[string]any{
 			"user_id":   userID,
 			"thread_id": threadID,
-			"error":     reason,
+			"error":     "voice processing failed",
 		},
 	})
 }

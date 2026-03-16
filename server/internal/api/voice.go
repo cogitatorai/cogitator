@@ -19,8 +19,6 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/voice"
 )
 
-const voiceChunkSize = 8 * 1024 // 8KB per TTS audio chunk
-
 type voiceResponse struct {
 	ThreadID      string `json:"thread_id"`
 	MessageID     string `json:"message_id"`
@@ -234,7 +232,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 		},
 	})
 
-	// Synthesize and stream audio chunks.
+	// Synthesize audio.
 	ttsVoice := cfg.Voice.TTSVoice
 	audioReader, err := ttsProvider.Synthesize(agentResp.Content, ttsVoice)
 	if err != nil {
@@ -244,47 +242,35 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 	}
 	defer audioReader.Close()
 
-	buf := make([]byte, voiceChunkSize)
-	seq := 0
-	for {
-		if ctx.Err() != nil {
-			slog.Info("voice: cancelled during TTS streaming", "thread_id", threadID, "message_id", msgID)
-			r.eventBus.Publish(bus.Event{
-				Type: bus.VoiceAudioEnd,
-				Payload: map[string]any{
-					"user_id":    userID,
-					"thread_id":  threadID,
-					"message_id": msgID,
-					"chunks":     seq,
-				},
-			})
-			return
-		}
-
-		n, readErr := audioReader.Read(buf)
-		if n > 0 {
-			encoded := base64.RawStdEncoding.EncodeToString(buf[:n])
-			r.eventBus.Publish(bus.Event{
-				Type: bus.VoiceAudioChunk,
-				Payload: map[string]any{
-					"user_id":    userID,
-					"thread_id":  threadID,
-					"message_id": msgID,
-					"seq":        seq,
-					"data":       encoded,
-				},
-			})
-			seq++
-		}
-		if readErr != nil {
-			if errors.Is(readErr, io.EOF) {
-				break
-			}
-			slog.Warn("voice: error reading TTS audio", "thread_id", threadID, "error", readErr)
-			r.publishVoiceError(userID, threadID, fmt.Sprintf("TTS read error: %v", readErr))
-			return
-		}
+	if ctx.Err() != nil {
+		return
 	}
+
+	// Read the entire TTS response and encode as a single base64 string.
+	// Typical voice responses are 100-300KB of MP3, safe to hold in memory.
+	// Chunked base64 encoding is broken (each chunk's 3-byte grouping boundary
+	// corrupts the data when concatenated), so we encode once and send whole.
+	audioBytes, err := io.ReadAll(audioReader)
+	if err != nil {
+		slog.Warn("voice: error reading TTS audio", "thread_id", threadID, "error", err)
+		r.publishVoiceError(userID, threadID, fmt.Sprintf("TTS read error: %v", err))
+		return
+	}
+
+	if ctx.Err() != nil {
+		return
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(audioBytes)
+	r.eventBus.Publish(bus.Event{
+		Type: bus.VoiceAudioChunk,
+		Payload: map[string]any{
+			"user_id":    userID,
+			"thread_id":  threadID,
+			"message_id": msgID,
+			"data":       encoded,
+		},
+	})
 
 	// Publish VoiceAudioEnd.
 	r.eventBus.Publish(bus.Event{
@@ -293,7 +279,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 			"user_id":    userID,
 			"thread_id":  threadID,
 			"message_id": msgID,
-			"chunks":     seq,
+			"bytes":      len(audioBytes),
 		},
 	})
 }

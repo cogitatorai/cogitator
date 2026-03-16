@@ -104,7 +104,8 @@ func (r *Router) handleResetPassword(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if _, err := r.users.Get(targetID); err != nil {
+	existing, err := r.users.Get(targetID)
+	if err != nil {
 		writeError(w, http.StatusNotFound, "user not found")
 		return
 	}
@@ -115,7 +116,7 @@ func (r *Router) handleResetPassword(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	h := string(hash)
-	if err := r.users.UpdateUser(targetID, "", &h); err != nil {
+	if err := r.users.UpdateUser(targetID, existing.Name, &h); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update password")
 		return
 	}

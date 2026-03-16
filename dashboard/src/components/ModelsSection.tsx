@@ -581,11 +581,11 @@ function OllamaPanel({ onModelPulled, onModelDeleted }: {
             if (evt.error) {
               const friendly = humanizeOllamaError(evt.error, name);
               setError(friendly);
-              sendNotification('Model pull failed', `${name}: ${friendly}`.slice(0, 120), { page: 'admin' });
+              sendNotification('Model pull failed', `${name}: ${friendly}`.slice(0, 120), { page: 'models' });
             } else if (evt.status === 'success') {
               setPullProgress('Complete');
               setPullPercent(100);
-              sendNotification('Model downloaded', name, { page: 'admin' });
+              sendNotification('Model downloaded', name, { page: 'models' });
               onModelPulled?.(name);
             } else if (evt.total && evt.total > 0) {
               const pct = Math.round((evt.completed / evt.total) * 100);
@@ -605,7 +605,7 @@ function OllamaPanel({ onModelPulled, onModelDeleted }: {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Pull failed';
       setError(msg);
-      sendNotification('Model pull failed', `${name}: ${msg}`.slice(0, 120), { page: 'admin' });
+      sendNotification('Model pull failed', `${name}: ${msg}`.slice(0, 120), { page: 'models' });
     } finally {
       setPulling(false);
       setPullProgress('');

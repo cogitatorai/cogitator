@@ -19,7 +19,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import SignUp from './pages/SignUp';
 import Connect from './pages/Connect';
-import Admin from './pages/Admin';
+import Models from './pages/Models';
 import UsersPage from './pages/Users';
 import Account from './pages/Account';
 import NotificationBell from './components/NotificationBell';
@@ -57,7 +57,7 @@ const BASE_NAV: NavItem[] = [
   { id: 'memory', label: 'Memory', icon: <Brain size={16} /> },
   { id: 'skills', label: 'Skills', icon: <Puzzle size={16} /> },
   { id: 'connectors', label: 'Connectors', icon: <Cable size={16} /> },
-  // Resources, Users, Admin inserted here for privileged users (see nav memo below)
+  // Resources, Users, Models inserted here for privileged users (see nav memo below)
   { id: 'account', label: 'Account', icon: <UserCircle size={16} /> },
   { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
 ];
@@ -428,7 +428,7 @@ function AppShell() {
           {page === 'settings' && <SettingsPage themePreference={themePreference} setTheme={setTheme} />}
           {page === 'account' && <Account />}
           {page === 'users' && (isAdmin || isModerator) && <UsersPage />}
-          {page === 'models' && isAdmin && <Admin />}
+          {page === 'models' && isAdmin && <Models />}
         </div>
       </main>
     </div>

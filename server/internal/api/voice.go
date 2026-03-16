@@ -263,7 +263,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 
 		n, readErr := audioReader.Read(buf)
 		if n > 0 {
-			encoded := base64.StdEncoding.EncodeToString(buf[:n])
+			encoded := base64.RawStdEncoding.EncodeToString(buf[:n])
 			r.eventBus.Publish(bus.Event{
 				Type: bus.VoiceAudioChunk,
 				Payload: map[string]any{

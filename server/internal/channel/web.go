@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/auth"
 	"github.com/cogitatorai/cogitator/server/internal/bus"
@@ -16,16 +17,20 @@ import (
 )
 
 type wsMessage struct {
-	Type       string          `json:"type"`
-	Message    string          `json:"message,omitempty"`
-	SessionKey string          `json:"session_key,omitempty"`
-	ChatID     string          `json:"chat_id,omitempty"`
-	Content    string          `json:"content,omitempty"`
-	Error      string          `json:"error,omitempty"`
-	Status     string          `json:"status,omitempty"`
-	Tool       string          `json:"tool,omitempty"`
-	ToolsUsed  json.RawMessage `json:"tools_used,omitempty"`
-	Private    bool            `json:"private,omitempty"`
+	Type          string          `json:"type"`
+	Message       string          `json:"message,omitempty"`
+	SessionKey    string          `json:"session_key,omitempty"`
+	ChatID        string          `json:"chat_id,omitempty"`
+	Content       string          `json:"content,omitempty"`
+	Error         string          `json:"error,omitempty"`
+	Status        string          `json:"status,omitempty"`
+	Tool          string          `json:"tool,omitempty"`
+	ToolsUsed     json.RawMessage `json:"tools_used,omitempty"`
+	Private       bool            `json:"private,omitempty"`
+	VoiceData     string          `json:"voice_data,omitempty"`
+	VoiceFormat   string          `json:"voice_format,omitempty"`
+	VoiceDuration int             `json:"voice_duration,omitempty"`
+	MessageID     string          `json:"message_id,omitempty"`
 }
 
 // connInfo tracks per-connection ownership: which session it is bound to and
@@ -74,8 +79,9 @@ func (wc *WebChannel) SetUserIDsFunc(fn func() []string) {
 
 func (wc *WebChannel) Name() string { return "web" }
 
-func (wc *WebChannel) Start(_ context.Context) error {
+func (wc *WebChannel) Start(ctx context.Context) error {
 	if wc.eventBus != nil {
+		wc.startVoiceSubscriber(ctx)
 		wc.stopNotify = make(chan struct{})
 		ch := wc.eventBus.Subscribe(bus.TaskNotifyChat, bus.TaskCompleted, bus.TaskFailed, bus.UserNotification)
 		go func() {
@@ -413,6 +419,19 @@ func (wc *WebChannel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Cancel an in-flight voice synthesis request.
+		if msg.Type == "voice_cancel" {
+			wc.eventBus.Publish(bus.Event{
+				Type: bus.VoiceCancel,
+				Payload: map[string]any{
+					"user_id":    userID,
+					"message_id": msg.MessageID,
+				},
+				Timestamp: time.Now(),
+			})
+			continue
+		}
+
 		if msg.Message == "" {
 			wc.writeMessage(ctx, conn, wsMessage{Type: "error", Error: "message is required"})
 			continue
@@ -490,6 +509,65 @@ func (wc *WebChannel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			wc.writeMessage(ctx, conn, outMsg)
 		}(sessionKey, incoming, reqCtx, reqCancel)
 	}
+}
+
+// startVoiceSubscriber subscribes to voice audio events and fans them out
+// to the owning user's WebSocket connections. Uses a large buffer to absorb
+// bursts of audio chunks without blocking the publisher.
+func (wc *WebChannel) startVoiceSubscriber(ctx context.Context) {
+	ch := wc.eventBus.SubscribeWithBuffer(256, bus.VoiceAudioStart, bus.VoiceAudioChunk, bus.VoiceAudioEnd, bus.VoiceError)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				wc.eventBus.Unsubscribe(ch)
+				return
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				userID, _ := evt.Payload["user_id"].(string)
+				if userID == "" {
+					continue
+				}
+				messageID, _ := evt.Payload["message_id"].(string)
+				var msg wsMessage
+				switch evt.Type {
+				case bus.VoiceAudioStart:
+					format, _ := evt.Payload["format"].(string)
+					duration, _ := evt.Payload["duration"].(int)
+					msg = wsMessage{
+						Type:          string(evt.Type),
+						MessageID:     messageID,
+						VoiceFormat:   format,
+						VoiceDuration: duration,
+					}
+				case bus.VoiceAudioChunk:
+					data, _ := evt.Payload["data"].(string)
+					msg = wsMessage{
+						Type:      string(evt.Type),
+						MessageID: messageID,
+						VoiceData: data,
+					}
+				case bus.VoiceAudioEnd:
+					msg = wsMessage{
+						Type:      string(evt.Type),
+						MessageID: messageID,
+					}
+				case bus.VoiceError:
+					errMsg, _ := evt.Payload["error"].(string)
+					msg = wsMessage{
+						Type:      string(evt.Type),
+						MessageID: messageID,
+						Error:     errMsg,
+					}
+				default:
+					continue
+				}
+				wc.sendToUser(userID, msg)
+			}
+		}
+	}()
 }
 
 // forwardActivity subscribes to agent activity events and sends them as

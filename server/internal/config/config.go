@@ -22,10 +22,20 @@ type Config struct {
 	Channels   ChannelsConfig            `yaml:"channels"`
 	Security   SecurityConfig            `yaml:"security"`
 	Update     UpdateConfig              `yaml:"update"`
+	Voice      VoiceConfig               `yaml:"voice"`
 }
 
 type UpdateConfig struct {
 	SkippedVersion string `yaml:"skipped_version,omitempty"`
+}
+
+type VoiceConfig struct {
+	STTProvider    string `json:"stt_provider" yaml:"stt_provider"`
+	TTSProvider    string `json:"tts_provider" yaml:"tts_provider"`
+	TTSVoice       string `json:"tts_voice" yaml:"tts_voice"`
+	AudioFormat    string `json:"audio_format" yaml:"audio_format"`
+	MaxUploadBytes int    `json:"max_upload_bytes" yaml:"max_upload_bytes"`
+	STTTimeoutSec  int    `json:"stt_timeout_s" yaml:"stt_timeout_s"`
 }
 
 type SecurityConfig struct {
@@ -173,6 +183,12 @@ func Default() *Config {
 		},
 		Channels: ChannelsConfig{
 			Web: WebChannelConfig{Enabled: true},
+		},
+		Voice: VoiceConfig{
+			TTSVoice:       "alloy",
+			AudioFormat:    "aac",
+			MaxUploadBytes: 10 * 1024 * 1024,
+			STTTimeoutSec:  30,
 		},
 	}
 }

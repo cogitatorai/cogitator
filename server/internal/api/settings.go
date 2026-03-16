@@ -13,6 +13,14 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/worker"
 )
 
+type voiceCapability struct {
+	Enabled        bool   `json:"enabled"`
+	STTProvider    string `json:"stt_provider,omitempty"`
+	TTSProvider    string `json:"tts_provider,omitempty"`
+	TTSVoice       string `json:"tts_voice,omitempty"`
+	MaxUploadBytes int    `json:"max_upload_bytes,omitempty"`
+}
+
 type settingsResponse struct {
 	Workspace workspaceResponse            `json:"workspace"`
 	Models    modelsResponse              `json:"models"`
@@ -21,6 +29,7 @@ type settingsResponse struct {
 	Security  securitySettingsResponse    `json:"security"`
 	Server    serverSettingsResponse      `json:"server"`
 	Memory    memorySettingsResponse      `json:"memory"`
+	Voice     voiceCapability             `json:"voice"`
 }
 
 type serverSettingsResponse struct {
@@ -157,6 +166,13 @@ func (r *Router) handleGetSettings(w http.ResponseWriter, req *http.Request) {
 		},
 		Memory: memorySettingsResponse{
 			EmbeddingModel: cfg.Memory.EmbeddingModel,
+		},
+		Voice: voiceCapability{
+			Enabled:        cfg.Voice.STTProvider != "" && cfg.Voice.TTSProvider != "",
+			STTProvider:    cfg.Voice.STTProvider,
+			TTSProvider:    cfg.Voice.TTSProvider,
+			TTSVoice:       cfg.Voice.TTSVoice,
+			MaxUploadBytes: cfg.Voice.MaxUploadBytes,
 		},
 	}
 	writeJSON(w, http.StatusOK, resp)

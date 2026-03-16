@@ -266,7 +266,8 @@ func (cb *ContextBuilder) buildConnectorSection(connectors []ConnectorStatus) st
 	sb.WriteString("\nConnected connectors have tools available (prefixed with the connector name, e.g. google_calendar_list).\n")
 	sb.WriteString("If a connector tool returns empty results and the connector is connected, the data may genuinely be empty.\n")
 	sb.WriteString("If a connector is disconnected, tell the user to connect it in the Connectors page of the dashboard.\n")
-	sb.WriteString("Never suggest connecting a connector that is already connected.")
+	sb.WriteString("Never suggest connecting a connector that is already connected.\n")
+	sb.WriteString("When presenting connector results (calendar events, emails), be concise: summarize key details in a few sentences rather than listing every field or raw data.")
 
 	return sb.String()
 }

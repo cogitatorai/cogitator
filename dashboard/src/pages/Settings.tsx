@@ -56,7 +56,7 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
         setVoice({
           sttProvider: s.voice.stt_provider ?? '',
           ttsProvider: s.voice.tts_provider ?? '',
-          ttsVoice: s.voice.tts_voice || 'alloy',
+          ttsVoice: s.voice.tts_voice || (s.voice.tts_provider ? 'alloy' : ''),
         });
       }
       setLoading(false);
@@ -120,7 +120,7 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
         setVoice({
           sttProvider: updated.voice.stt_provider ?? '',
           ttsProvider: updated.voice.tts_provider ?? '',
-          ttsVoice: updated.voice.tts_voice || 'alloy',
+          ttsVoice: updated.voice.tts_voice || (updated.voice.tts_provider ? 'alloy' : ''),
         });
       }
 
@@ -365,7 +365,8 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
                   <select
                     value={voice.ttsVoice}
                     onChange={(e) => setVoice({ ...voice, ttsVoice: e.target.value })}
-                    className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none"
+                    disabled={!voice.ttsProvider}
+                    className={`w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none ${!voice.ttsProvider ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <option value="alloy">Alloy</option>
                     <option value="ash">Ash</option>

@@ -373,6 +373,11 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 		}
 	}
 
+	// Hot-reload voice providers when config changes.
+	if r.voiceRegistryBuilder != nil {
+		r.voiceRegistry = r.voiceRegistryBuilder(cfg)
+	}
+
 	if restartTelegram && r.telegram != nil {
 		go r.telegram.Restart(context.Background())
 	}

@@ -107,8 +107,9 @@ type Router struct {
 	metricsRing     *metrics.Ring
 	internalSecret  string
 	drainManager    *drain.Manager
-	reembedCancel   context.CancelFunc // cancels any in-flight re-embed goroutine
-	voiceRegistry   *voice.Registry
+	reembedCancel        context.CancelFunc // cancels any in-flight re-embed goroutine
+	voiceRegistry        *voice.Registry
+	voiceRegistryBuilder func(*config.Config) *voice.Registry
 }
 
 type RouterConfig struct {
@@ -152,7 +153,8 @@ type RouterConfig struct {
 	MetricsRing     *metrics.Ring
 	InternalSecret  string
 	DrainManager    *drain.Manager
-	VoiceRegistry   *voice.Registry
+	VoiceRegistry        *voice.Registry
+	VoiceRegistryBuilder func(*config.Config) *voice.Registry
 }
 
 func NewRouter(cfg RouterConfig) *Router {
@@ -198,7 +200,8 @@ func NewRouter(cfg RouterConfig) *Router {
 		metricsRing:     cfg.MetricsRing,
 		internalSecret:  cfg.InternalSecret,
 		drainManager:    cfg.DrainManager,
-		voiceRegistry:   cfg.VoiceRegistry,
+		voiceRegistry:        cfg.VoiceRegistry,
+		voiceRegistryBuilder: cfg.VoiceRegistryBuilder,
 	}
 	r.registerRoutes()
 

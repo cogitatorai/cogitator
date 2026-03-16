@@ -24,7 +24,7 @@ import UsersPage from './pages/Users';
 import Account from './pages/Account';
 import NotificationBell from './components/NotificationBell';
 
-type Page = 'tasks' | 'history' | 'resources' | 'chat' | 'memory' | 'skills' | 'connectors' | 'settings' | 'account' | 'admin' | 'users' | 'register' | 'connect';
+type Page = 'tasks' | 'history' | 'resources' | 'chat' | 'memory' | 'skills' | 'connectors' | 'settings' | 'account' | 'models' | 'users' | 'register' | 'connect';
 
 /** Strip leading "v" and any pre-release suffix so "v0.3.1" and "0.3.1" compare equal. */
 function bareVersion(v: string): string {
@@ -46,7 +46,7 @@ function isNewer(a: string, b: string): boolean {
   return false;
 }
 
-const PAGES = new Set<Page>(['tasks', 'history', 'resources', 'chat', 'memory', 'skills', 'connectors', 'settings', 'account', 'admin', 'users', 'register', 'connect']);
+const PAGES = new Set<Page>(['tasks', 'history', 'resources', 'chat', 'memory', 'skills', 'connectors', 'settings', 'account', 'models', 'users', 'register', 'connect']);
 
 type NavItem = { id: Page; label: string; icon: React.ReactNode };
 
@@ -63,7 +63,7 @@ const BASE_NAV: NavItem[] = [
 ];
 
 const RESOURCES_NAV_ITEM: NavItem = { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> };
-const ADMIN_NAV_ITEM: NavItem = { id: 'admin', label: 'Models', icon: <Shield size={16} /> };
+const ADMIN_NAV_ITEM: NavItem = { id: 'models', label: 'Models', icon: <Shield size={16} /> };
 const USERS_NAV_ITEM: NavItem = { id: 'users', label: 'Users', icon: <Users size={16} /> };
 
 function readHash(): Page {
@@ -140,7 +140,7 @@ function AppShell() {
   // Guard: redirect unauthorized users away from restricted pages.
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      if (page === 'admin' && !isAdmin) {
+      if (page === 'models' && !isAdmin) {
         window.location.hash = 'chat';
         setPage('chat');
       }
@@ -351,7 +351,7 @@ function AppShell() {
           <div className="shrink-0 px-6 pt-6 space-y-4">
             {showBanner && (
               <button
-                onClick={() => navigate('admin')}
+                onClick={() => navigate('models')}
                 className="w-full border border-orange-600/40 bg-orange-950/30 p-4 text-left cursor-pointer hover:bg-orange-950/50 transition-colors"
               >
                 <p className="text-[12px] uppercase tracking-widest font-medium text-orange-500 mb-1">
@@ -428,7 +428,7 @@ function AppShell() {
           {page === 'settings' && <SettingsPage themePreference={themePreference} setTheme={setTheme} />}
           {page === 'account' && <Account />}
           {page === 'users' && (isAdmin || isModerator) && <UsersPage />}
-          {page === 'admin' && isAdmin && <Admin />}
+          {page === 'models' && isAdmin && <Admin />}
         </div>
       </main>
     </div>

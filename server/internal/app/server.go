@@ -49,6 +49,8 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/user"
 	"github.com/cogitatorai/cogitator/server/internal/version"
 	"github.com/cogitatorai/cogitator/server/internal/worker"
+	"github.com/cogitatorai/cogitator/server/internal/voice"
+	voiceopenai "github.com/cogitatorai/cogitator/server/internal/voice/openai"
 	"github.com/cogitatorai/cogitator/server/internal/workspace"
 
 	"gopkg.in/yaml.v3"
@@ -726,6 +728,10 @@ func New(opts Options) (*Server, error) {
 	appleAudiences = append(appleAudiences, debugAppleAudiences...)
 	socialVerifier := social.NewVerifier(googleClientID, appleAudiences...)
 
+	// Build voice provider registry. Providers reuse the same API keys
+	// configured for LLM providers (e.g. the "openai" key covers Whisper + TTS).
+	voiceRegistry := buildVoiceRegistry(cfg)
+
 	routerCfg := api.RouterConfig{
 		Agent:           a,
 		Sessions:        sessionStore,
@@ -766,6 +772,7 @@ func New(opts Options) (*Server, error) {
 		MetricsRing:        metricsRing,
 		InternalSecret:     internalSecret,
 		DrainManager:       drainMgr,
+		VoiceRegistry:      voiceRegistry,
 	}
 
 	// Use an indirect shutdown function so the router can trigger server shutdown
@@ -1002,5 +1009,21 @@ func buildNameResolver(users *user.Store) memory.NameResolver {
 		}
 		return u.Name
 	}
+}
+
+// buildVoiceRegistry creates a voice provider registry and registers any
+// providers whose API keys are already configured. The registry is safe to
+// pass even when voice is not configured (the handler checks config fields).
+func buildVoiceRegistry(cfg *config.Config) *voice.Registry {
+	reg := voice.NewRegistry()
+
+	// OpenAI: register if we have an API key (reuses the LLM provider key).
+	if key := cfg.ProviderAPIKey("openai"); key != "" {
+		client := voiceopenai.NewClient("https://api.openai.com", key)
+		reg.RegisterSTT("openai", voiceopenai.NewSTT(client))
+		reg.RegisterTTS("openai", voiceopenai.NewTTS(client))
+	}
+
+	return reg
 }
 

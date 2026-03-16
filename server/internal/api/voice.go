@@ -157,6 +157,11 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Build the agent ChatRequest following the handleChat pattern.
+	// Append a voice-mode hint so the LLM keeps responses concise.
+	// The response will be read aloud via TTS, so brevity is essential.
+	voiceMessage := transcription + "\n\n[This message was spoken via voice. " +
+		"Reply in 1-2 short sentences. Be concise and conversational. " +
+		"Do not use markdown, bullet points, or long explanations unless explicitly asked.]"
 	chatReq := agent.ChatRequest{
 		SessionKey:       threadID,
 		Channel:          "web",
@@ -164,7 +169,7 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 		UserID:           uid,
 		UserName:         userName,
 		UserRole:         userRole,
-		Message:          transcription,
+		Message:          voiceMessage,
 		ProfileOverrides: profileOverrides,
 	}
 

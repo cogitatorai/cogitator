@@ -97,7 +97,7 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 
 	// Create a new session key for new threads.
 	if newThread {
-		threadID = "mobile:" + ulid.Make().String()
+		threadID = "web:" + ulid.Make().String()
 	}
 
 	// Resolve STT provider and transcribe with timeout.
@@ -159,7 +159,7 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 	// Build the agent ChatRequest following the handleChat pattern.
 	chatReq := agent.ChatRequest{
 		SessionKey:       threadID,
-		Channel:          "mobile",
+		Channel:          "web",
 		ChatID:           threadID,
 		UserID:           uid,
 		UserName:         userName,

@@ -161,14 +161,14 @@ function AppShell() {
     if (isAdmin) {
       items.splice(accountIdx, 0, RESOURCES_NAV_ITEM);
     }
-    // Users page visible to admin and moderator.
-    if (isAdmin || isModerator) {
-      items.splice(items.findIndex((i) => i.id === 'account'), 0, USERS_NAV_ITEM);
-    }
-    // Models page visible to admin only (inserted after Users if present).
+    // Models page visible to admin only.
     if (isAdmin) {
-      const insertIdx = items.findIndex((i) => i.id === 'users');
-      items.splice(insertIdx >= 0 ? insertIdx + 1 : accountIdx, 0, MODELS_NAV_ITEM);
+      items.splice(items.findIndex((i) => i.id === 'account'), 0, MODELS_NAV_ITEM);
+    }
+    // Users page visible to admin and moderator (inserted after Models if present).
+    if (isAdmin || isModerator) {
+      const insertIdx = items.findIndex((i) => i.id === 'models');
+      items.splice(insertIdx >= 0 ? insertIdx + 1 : items.findIndex((i) => i.id === 'account'), 0, USERS_NAV_ITEM);
     }
     return items;
   }, [isAdmin, isModerator]);

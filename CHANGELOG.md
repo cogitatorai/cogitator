@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.39.1 (2026-03-16)
+
+### Improvements
+
+- Voice responses are concise: LLM instructed to reply in 1-2 sentences without markdown when responding to voice input (5983b40)
+- Connector results (calendar events, emails) summarized concisely instead of dumping raw fields (4c31336)
+
 ## 0.39.0 (2026-03-16)
 
 ### Features

@@ -63,7 +63,7 @@ const BASE_NAV: NavItem[] = [
 ];
 
 const RESOURCES_NAV_ITEM: NavItem = { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> };
-const ADMIN_NAV_ITEM: NavItem = { id: 'admin', label: 'Admin', icon: <Shield size={16} /> };
+const ADMIN_NAV_ITEM: NavItem = { id: 'admin', label: 'Models', icon: <Shield size={16} /> };
 const USERS_NAV_ITEM: NavItem = { id: 'users', label: 'Users', icon: <Users size={16} /> };
 
 function readHash(): Page {
@@ -165,7 +165,7 @@ function AppShell() {
     if (isAdmin || isModerator) {
       items.splice(items.findIndex((i) => i.id === 'account'), 0, USERS_NAV_ITEM);
     }
-    // Admin page visible to admin only (inserted after Users if present).
+    // Models page visible to admin only (inserted after Users if present).
     if (isAdmin) {
       const insertIdx = items.findIndex((i) => i.id === 'users');
       items.splice(insertIdx >= 0 ? insertIdx + 1 : accountIdx, 0, ADMIN_NAV_ITEM);
@@ -358,7 +358,7 @@ function AppShell() {
                   No LLM Provider Configured
                 </p>
                 <p className="text-sm text-zinc-400">
-                  Chat and background tasks require an LLM provider. Go to Admin to configure one.
+                  Chat and background tasks require an LLM provider. Go to Models to configure one.
                 </p>
               </button>
             )}

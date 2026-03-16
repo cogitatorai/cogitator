@@ -80,6 +80,13 @@ type settingsUpdateRequest struct {
 	Security  *securitySettingsUpdate          `json:"security"`
 	Server    *serverSettingsUpdate            `json:"server"`
 	Memory    *memorySettingsUpdate            `json:"memory"`
+	Voice     *voiceSettingsUpdate             `json:"voice"`
+}
+
+type voiceSettingsUpdate struct {
+	STTProvider *string `json:"stt_provider"`
+	TTSProvider *string `json:"tts_provider"`
+	TTSVoice    *string `json:"tts_voice"`
 }
 
 type serverSettingsUpdate struct {
@@ -247,6 +254,18 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 
 	if body.Memory != nil && body.Memory.EmbeddingModel != nil && *body.Memory.EmbeddingModel != "" {
 		cfg.Memory.EmbeddingModel = *body.Memory.EmbeddingModel
+	}
+
+	if body.Voice != nil {
+		if body.Voice.STTProvider != nil {
+			cfg.Voice.STTProvider = *body.Voice.STTProvider
+		}
+		if body.Voice.TTSProvider != nil {
+			cfg.Voice.TTSProvider = *body.Voice.TTSProvider
+		}
+		if body.Voice.TTSVoice != nil {
+			cfg.Voice.TTSVoice = *body.Voice.TTSVoice
+		}
 	}
 
 	if body.Server != nil && body.Server.PublicURL != nil {

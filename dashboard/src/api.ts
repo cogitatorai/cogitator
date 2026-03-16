@@ -383,6 +383,13 @@ export interface Settings {
   security: { allowed_domains: string[] };
   server: { public_url: string };
   memory: { embedding_model: string };
+  voice: {
+    enabled: boolean;
+    stt_provider: string;
+    tts_provider: string;
+    tts_voice: string;
+    max_upload_bytes: number;
+  };
 }
 
 export interface ModelUpdateRequest {
@@ -400,6 +407,12 @@ export interface TelegramUpdateRequest {
   allowed_chat_ids?: number[];
 }
 
+export interface VoiceUpdateRequest {
+  stt_provider?: string;
+  tts_provider?: string;
+  tts_voice?: string;
+}
+
 export interface SettingsUpdateRequest {
   workspace?: { path: string };
   models?: {
@@ -411,6 +424,7 @@ export interface SettingsUpdateRequest {
   security?: { allowed_domains?: string[] };
   server?: { public_url?: string };
   memory?: { embedding_model?: string };
+  voice?: VoiceUpdateRequest;
 }
 
 // Ollama (local models)

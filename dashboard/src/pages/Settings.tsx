@@ -14,6 +14,12 @@ interface TelegramFormState {
   allowedChatIDs: string;
 }
 
+interface VoiceFormState {
+  sttProvider: string;
+  ttsProvider: string;
+  ttsVoice: string;
+}
+
 import type { ThemePreference } from '../useTheme';
 
 export default function SettingsPage({ themePreference, setTheme }: { themePreference: ThemePreference; setTheme: (t: ThemePreference) => void }) {
@@ -22,6 +28,7 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
   const [workspaceOriginal, setWorkspaceOriginal] = useState('');
   const [telegram, setTelegram] = useState<TelegramFormState>({ enabled: false, botToken: '', botTokenSet: false, allowedChatIDs: '' });
   const [allowedDomains, setAllowedDomains] = useState('');
+  const [voice, setVoice] = useState<VoiceFormState>({ sttProvider: '', ttsProvider: '', ttsVoice: 'alloy' });
   const [notifEnabled, setNotifEnabled] = useState(isNotificationsEnabled);
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -45,6 +52,13 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
         });
       }
       setAllowedDomains((s.security?.allowed_domains ?? []).join(', '));
+      if (s.voice) {
+        setVoice({
+          sttProvider: s.voice.stt_provider ?? '',
+          ttsProvider: s.voice.tts_provider ?? '',
+          ttsVoice: s.voice.tts_voice || 'alloy',
+        });
+      }
       setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load settings');
@@ -82,6 +96,12 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
     const parsedDomains = allowedDomains.split(',').map((s) => s.trim()).filter(Boolean);
     body.security = { allowed_domains: parsedDomains };
 
+    body.voice = {
+      stt_provider: voice.sttProvider,
+      tts_provider: voice.ttsProvider,
+      tts_voice: voice.ttsVoice,
+    };
+
     try {
       const updated = await putJSON<Settings>('/api/settings', body);
       setWorkspacePath(updated.workspace?.path ?? '');
@@ -96,6 +116,13 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
         });
       }
       setAllowedDomains((updated.security?.allowed_domains ?? []).join(', '));
+      if (updated.voice) {
+        setVoice({
+          sttProvider: updated.voice.stt_provider ?? '',
+          ttsProvider: updated.voice.tts_provider ?? '',
+          ttsVoice: updated.voice.tts_voice || 'alloy',
+        });
+      }
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -289,6 +316,78 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
                     Comma-separated numeric chat IDs. Leave empty to allow all chats during initial setup.
                   </p>
                 </div>
+              </div>
+            </Panel>
+
+            <SectionHeader title="Voice" />
+
+            <Panel>
+              <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+                Voice Conversation
+              </h3>
+              <p className="text-sm text-zinc-600 mb-4">
+                Enable voice input and output in the mobile app. Requires a provider that supports speech-to-text and text-to-speech APIs.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                    Speech-to-Text Provider
+                  </label>
+                  <select
+                    value={voice.sttProvider}
+                    onChange={(e) => setVoice({ ...voice, sttProvider: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none"
+                  >
+                    <option value="">Disabled</option>
+                    <option value="openai">OpenAI (Whisper)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                    Text-to-Speech Provider
+                  </label>
+                  <select
+                    value={voice.ttsProvider}
+                    onChange={(e) => setVoice({ ...voice, ttsProvider: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none"
+                  >
+                    <option value="">Disabled</option>
+                    <option value="openai">OpenAI TTS</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+                    Voice
+                  </label>
+                  <select
+                    value={voice.ttsVoice}
+                    onChange={(e) => setVoice({ ...voice, ttsVoice: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none"
+                  >
+                    <option value="alloy">Alloy</option>
+                    <option value="ash">Ash</option>
+                    <option value="ballad">Ballad</option>
+                    <option value="coral">Coral</option>
+                    <option value="echo">Echo</option>
+                    <option value="fable">Fable</option>
+                    <option value="nova">Nova</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="sage">Sage</option>
+                    <option value="shimmer">Shimmer</option>
+                  </select>
+                  <p className="text-sm text-zinc-600 mt-1">
+                    The voice used for AI responses. Requires an OpenAI-compatible TTS provider.
+                  </p>
+                </div>
+
+                {voice.sttProvider && voice.ttsProvider && (
+                  <p className="text-sm text-green-600">
+                    Voice mode is enabled. The mobile app will show voice conversation controls.
+                  </p>
+                )}
               </div>
             </Panel>
 

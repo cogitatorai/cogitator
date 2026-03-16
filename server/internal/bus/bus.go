@@ -31,6 +31,11 @@ const (
 	NotificationsRead        EventType = "notifications.read"
 	AgentCancelled           EventType = "agent.cancelled"
 	UserNotification         EventType = "user.notification"
+	VoiceAudioStart          EventType = "voice.audio.start"
+	VoiceAudioChunk          EventType = "voice.audio.chunk"
+	VoiceAudioEnd            EventType = "voice.audio.end"
+	VoiceError               EventType = "voice.error"
+	VoiceCancel              EventType = "voice.cancel"
 )
 
 type Event struct {
@@ -65,6 +70,23 @@ func (b *Bus) Subscribe(types ...EventType) chan Event {
 
 	sub := &subscriber{
 		ch:    make(chan Event, 64),
+		types: typeMap,
+	}
+	b.subscribers = append(b.subscribers, sub)
+	return sub.ch
+}
+
+func (b *Bus) SubscribeWithBuffer(bufSize int, types ...EventType) chan Event {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	typeMap := make(map[EventType]bool, len(types))
+	for _, t := range types {
+		typeMap[t] = true
+	}
+
+	sub := &subscriber{
+		ch:    make(chan Event, bufSize),
 		types: typeMap,
 	}
 	b.subscribers = append(b.subscribers, sub)

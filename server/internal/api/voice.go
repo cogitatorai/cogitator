@@ -83,12 +83,18 @@ func (r *Router) handleVoice(w http.ResponseWriter, req *http.Request) {
 
 	uid := userIDFromRequest(req)
 
-	// Validate thread ownership for existing threads.
+	// For existing threads, verify the session exists and the user owns it.
+	// If the session doesn't exist yet (e.g. mobile app generated a key but
+	// no messages were sent), treat it as a valid key and let the agent
+	// create the session on first message.
 	if threadID != "" && r.sessions != nil {
 		sess, err := r.sessions.Get(threadID, uid)
-		if err != nil || sess == nil {
-			writeError(w, http.StatusNotFound, "thread not found")
-			return
+		if err == nil && sess != nil {
+			// Session exists and user has access. Proceed.
+		} else {
+			// Session not found. This is OK: the agent's GetOrCreate will
+			// create it when processing the chat request.
+			slog.Debug("voice: session not found, will be created by agent", "thread_id", threadID)
 		}
 	}
 

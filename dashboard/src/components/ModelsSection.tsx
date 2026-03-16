@@ -171,6 +171,9 @@ export default function ModelsSection() {
   const [embeddingCustomModel, setEmbeddingCustomModel] = useState('');
   const [embeddingModelChanged, setEmbeddingModelChanged] = useState(false);
   const [ollamaRefreshKey, setOllamaRefreshKey] = useState(0);
+  const [voiceSTT, setVoiceSTT] = useState('');
+  const [voiceTTS, setVoiceTTS] = useState('');
+  const [voiceTTSVoice, setVoiceTTSVoice] = useState('alloy');
 
   const load = useCallback(async () => {
     try {
@@ -187,6 +190,11 @@ export default function ModelsSection() {
       const knownEmb = EMBEDDING_MODELS[stdProv]?.some((m) => m.value === loadedEmb);
       setEmbeddingModel(knownEmb ? loadedEmb : (loadedEmb ? CUSTOM_VALUE : ''));
       setEmbeddingCustomModel(knownEmb ? '' : loadedEmb);
+      if (s.voice) {
+        setVoiceSTT(s.voice.stt_provider ?? '');
+        setVoiceTTS(s.voice.tts_provider ?? '');
+        setVoiceTTSVoice(s.voice.tts_voice || (s.voice.tts_provider ? 'alloy' : ''));
+      }
       setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load model settings');
@@ -244,6 +252,12 @@ export default function ModelsSection() {
       body.memory = { embedding_model: resolvedEmb };
     }
 
+    body.voice = {
+      stt_provider: voiceSTT,
+      tts_provider: voiceTTS,
+      tts_voice: voiceTTSVoice,
+    };
+
     try {
       const updated = await putJSON<Settings>('/api/settings', body);
       setStandard(modelStateFromSettings(updated.models.standard.provider, updated.models.standard.model));
@@ -259,6 +273,11 @@ export default function ModelsSection() {
       setEmbeddingModel(knownUpdatedEmb ? updatedEmb : (updatedEmb ? CUSTOM_VALUE : ''));
       setEmbeddingCustomModel(knownUpdatedEmb ? '' : updatedEmb);
       setEmbeddingModelChanged(false);
+      if (updated.voice) {
+        setVoiceSTT(updated.voice.stt_provider ?? '');
+        setVoiceTTS(updated.voice.tts_provider ?? '');
+        setVoiceTTSVoice(updated.voice.tts_voice || (updated.voice.tts_provider ? 'alloy' : ''));
+      }
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -382,6 +401,73 @@ export default function ModelsSection() {
           </div>
         </Panel>
       )}
+
+      <SectionHeader title="Voice" />
+
+      <Panel>
+        <p className="text-sm text-zinc-600 mb-4">
+          Enable voice input and output in the mobile app. Uses the API key from the selected LLM provider above.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+              Speech-to-Text
+            </label>
+            <select
+              value={voiceSTT}
+              onChange={(e) => setVoiceSTT(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none"
+            >
+              <option value="">Disabled</option>
+              <option value="openai">OpenAI (Whisper)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+              Text-to-Speech
+            </label>
+            <select
+              value={voiceTTS}
+              onChange={(e) => setVoiceTTS(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none"
+            >
+              <option value="">Disabled</option>
+              <option value="openai">OpenAI TTS</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 block mb-1.5">
+              Voice
+            </label>
+            <select
+              value={voiceTTSVoice}
+              onChange={(e) => setVoiceTTSVoice(e.target.value)}
+              disabled={!voiceTTS}
+              className={`w-full bg-zinc-900 border border-zinc-700 p-2.5 text-zinc-300 text-base focus:border-orange-600 focus:ring-1 focus:ring-orange-600/20 focus:outline-none ${!voiceTTS ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              <option value="alloy">Alloy</option>
+              <option value="ash">Ash</option>
+              <option value="ballad">Ballad</option>
+              <option value="coral">Coral</option>
+              <option value="echo">Echo</option>
+              <option value="fable">Fable</option>
+              <option value="nova">Nova</option>
+              <option value="onyx">Onyx</option>
+              <option value="sage">Sage</option>
+              <option value="shimmer">Shimmer</option>
+            </select>
+          </div>
+
+          {voiceSTT && voiceTTS && (
+            <p className="text-sm text-green-600">
+              Voice mode is enabled. The mobile app will show voice conversation controls.
+            </p>
+          )}
+        </div>
+      </Panel>
 
       <div className="flex justify-end">
         <StripedButton onClick={save} disabled={saving}>

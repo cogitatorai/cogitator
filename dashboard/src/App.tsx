@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { WebSocketProvider, useWebSocket } from './ws';
-import { ListTodo, History, Gauge, MessageSquare, Brain, Puzzle, Cable, Settings, Shield, LogOut, UserCircle, Users } from 'lucide-react';
+import { ListTodo, History, Gauge, MessageSquare, Brain, Puzzle, Cable, Settings, Cpu, LogOut, UserCircle, Users } from 'lucide-react';
 import { fetchJSON, usePolling, fetchVersionInfo, downloadUpdate, restartUpdate, skipVersion, listNotifications, fetchNeedsSetup } from './api';
 import { useTheme } from './useTheme';
 import { requestPermissionOnFirstLaunch, sendNotification } from './hooks/useDesktopNotifications';
@@ -63,7 +63,7 @@ const BASE_NAV: NavItem[] = [
 ];
 
 const RESOURCES_NAV_ITEM: NavItem = { id: 'resources', label: 'Resources', icon: <Gauge size={16} /> };
-const ADMIN_NAV_ITEM: NavItem = { id: 'models', label: 'Models', icon: <Shield size={16} /> };
+const MODELS_NAV_ITEM: NavItem = { id: 'models', label: 'Models', icon: <Cpu size={16} /> };
 const USERS_NAV_ITEM: NavItem = { id: 'users', label: 'Users', icon: <Users size={16} /> };
 
 function readHash(): Page {
@@ -168,7 +168,7 @@ function AppShell() {
     // Models page visible to admin only (inserted after Users if present).
     if (isAdmin) {
       const insertIdx = items.findIndex((i) => i.id === 'users');
-      items.splice(insertIdx >= 0 ? insertIdx + 1 : accountIdx, 0, ADMIN_NAV_ITEM);
+      items.splice(insertIdx >= 0 ? insertIdx + 1 : accountIdx, 0, MODELS_NAV_ITEM);
     }
     return items;
   }, [isAdmin, isModerator]);

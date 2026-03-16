@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -242,35 +241,41 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 	}
 	defer audioReader.Close()
 
-	if ctx.Err() != nil {
-		return
-	}
+	// Stream TTS audio chunks to the client as they arrive from the provider.
+	// Each chunk is independently base64-encoded (valid on its own). The client
+	// decodes each chunk to raw bytes on arrival and accumulates them, avoiding
+	// the base64 boundary corruption that occurs when concatenating base64 strings.
+	// This overlaps TTS generation with network transfer and client-side decoding.
+	buf := make([]byte, 8192)
+	totalBytes := 0
+	for {
+		if ctx.Err() != nil {
+			break
+		}
 
-	// Read the entire TTS response and encode as a single base64 string.
-	// Typical voice responses are 100-300KB of MP3, safe to hold in memory.
-	// Chunked base64 encoding is broken (each chunk's 3-byte grouping boundary
-	// corrupts the data when concatenated), so we encode once and send whole.
-	audioBytes, err := io.ReadAll(audioReader)
-	if err != nil {
-		slog.Warn("voice: error reading TTS audio", "thread_id", threadID, "error", err)
-		r.publishVoiceError(userID, threadID, fmt.Sprintf("TTS read error: %v", err))
-		return
+		n, readErr := audioReader.Read(buf)
+		if n > 0 {
+			encoded := base64.StdEncoding.EncodeToString(buf[:n])
+			r.eventBus.Publish(bus.Event{
+				Type: bus.VoiceAudioChunk,
+				Payload: map[string]any{
+					"user_id":    userID,
+					"thread_id":  threadID,
+					"message_id": msgID,
+					"data":       encoded,
+				},
+			})
+			totalBytes += n
+		}
+		if readErr != nil {
+			if !errors.Is(readErr, io.EOF) {
+				slog.Warn("voice: error reading TTS audio", "thread_id", threadID, "error", readErr)
+				r.publishVoiceError(userID, threadID, "TTS streaming failed")
+				return
+			}
+			break
+		}
 	}
-
-	if ctx.Err() != nil {
-		return
-	}
-
-	encoded := base64.StdEncoding.EncodeToString(audioBytes)
-	r.eventBus.Publish(bus.Event{
-		Type: bus.VoiceAudioChunk,
-		Payload: map[string]any{
-			"user_id":    userID,
-			"thread_id":  threadID,
-			"message_id": msgID,
-			"data":       encoded,
-		},
-	})
 
 	// Publish VoiceAudioEnd.
 	r.eventBus.Publish(bus.Event{
@@ -279,7 +284,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 			"user_id":    userID,
 			"thread_id":  threadID,
 			"message_id": msgID,
-			"bytes":      len(audioBytes),
+			"bytes":      totalBytes,
 		},
 	})
 }

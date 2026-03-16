@@ -29,7 +29,7 @@ func (s *TTS) Synthesize(text string, voiceName string) (io.ReadCloser, error) {
 		Model:          "tts-1",
 		Input:          text,
 		Voice:          voiceName,
-		ResponseFormat: "aac",
+		ResponseFormat: "mp3",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("voice/openai: marshal request: %w", err)

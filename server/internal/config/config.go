@@ -186,7 +186,7 @@ func Default() *Config {
 		},
 		Voice: VoiceConfig{
 			TTSVoice:       "alloy",
-			AudioFormat:    "aac",
+			AudioFormat:    "mp3",
 			MaxUploadBytes: 10 * 1024 * 1024,
 			STTTimeoutSec:  30,
 		},

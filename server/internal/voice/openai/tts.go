@@ -24,7 +24,7 @@ type ttsRequest struct {
 	ResponseFormat string `json:"response_format"`
 }
 
-func (s *TTS) Synthesize(text string, voiceName string) (io.Reader, error) {
+func (s *TTS) Synthesize(text string, voiceName string) (io.ReadCloser, error) {
 	body, err := json.Marshal(ttsRequest{
 		Model:          "tts-1",
 		Input:          text,

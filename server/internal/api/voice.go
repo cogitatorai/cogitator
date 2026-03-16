@@ -186,8 +186,9 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 	// Watch for cancel events matching our message ID.
 	go func() {
 		for evt := range cancelCh {
+			uid, _ := evt.Payload["user_id"].(string)
 			mid, _ := evt.Payload["message_id"].(string)
-			if mid == msgID {
+			if uid == userID && mid == msgID {
 				cancel()
 				return
 			}
@@ -218,6 +219,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 			"user_id":    userID,
 			"thread_id":  threadID,
 			"message_id": msgID,
+			"format":     cfg.Voice.AudioFormat,
 		},
 	})
 
@@ -229,12 +231,22 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 		r.publishVoiceError(userID, threadID, "synthesis failed: "+err.Error())
 		return
 	}
+	defer audioReader.Close()
 
 	buf := make([]byte, voiceChunkSize)
 	seq := 0
 	for {
 		if ctx.Err() != nil {
 			slog.Info("voice: cancelled during TTS streaming", "thread_id", threadID, "message_id", msgID)
+			r.eventBus.Publish(bus.Event{
+				Type: bus.VoiceAudioEnd,
+				Payload: map[string]any{
+					"user_id":    userID,
+					"thread_id":  threadID,
+					"message_id": msgID,
+					"chunks":     seq,
+				},
+			})
 			return
 		}
 
@@ -248,7 +260,7 @@ func (r *Router) processVoiceResponse(userID, threadID, msgID string, chatReq ag
 					"thread_id":  threadID,
 					"message_id": msgID,
 					"seq":        seq,
-					"audio":      encoded,
+					"data":       encoded,
 				},
 			})
 			seq++

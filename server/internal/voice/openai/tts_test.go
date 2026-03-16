@@ -35,6 +35,7 @@ func TestTTSSynthesize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer reader.Close()
 	got, err := io.ReadAll(reader)
 	if err != nil {
 		t.Fatalf("read error: %v", err)

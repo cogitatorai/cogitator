@@ -14,11 +14,11 @@ type mockTTS struct {
 	err  error
 }
 
-func (m *mockTTS) Synthesize(text string, voiceName string) (io.Reader, error) {
+func (m *mockTTS) Synthesize(text string, voiceName string) (io.ReadCloser, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return bytes.NewReader(m.data), nil
+	return io.NopCloser(bytes.NewReader(m.data)), nil
 }
 
 func TestTTSInterface(t *testing.T) {

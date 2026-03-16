@@ -33,6 +33,7 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/tools"
 	"github.com/cogitatorai/cogitator/server/internal/updater"
 	"github.com/cogitatorai/cogitator/server/internal/user"
+	"github.com/cogitatorai/cogitator/server/internal/voice"
 )
 
 // ProviderSetter is implemented by components that accept a hot-swapped LLM provider.
@@ -107,6 +108,7 @@ type Router struct {
 	internalSecret  string
 	drainManager    *drain.Manager
 	reembedCancel   context.CancelFunc // cancels any in-flight re-embed goroutine
+	voiceRegistry   *voice.Registry
 }
 
 type RouterConfig struct {
@@ -150,6 +152,7 @@ type RouterConfig struct {
 	MetricsRing     *metrics.Ring
 	InternalSecret  string
 	DrainManager    *drain.Manager
+	VoiceRegistry   *voice.Registry
 }
 
 func NewRouter(cfg RouterConfig) *Router {
@@ -195,6 +198,7 @@ func NewRouter(cfg RouterConfig) *Router {
 		metricsRing:     cfg.MetricsRing,
 		internalSecret:  cfg.InternalSecret,
 		drainManager:    cfg.DrainManager,
+		voiceRegistry:   cfg.VoiceRegistry,
 	}
 	r.registerRoutes()
 
@@ -274,6 +278,7 @@ func (r *Router) registerRoutes() {
 	if r.agent != nil {
 		r.mux.HandleFunc("POST /api/chat", r.handleChat)
 		r.mux.HandleFunc("POST /api/chat/message", r.handleChatWithFile)
+		r.mux.HandleFunc("POST /api/chat/voice", r.handleVoice)
 	}
 
 	if r.sessions != nil {

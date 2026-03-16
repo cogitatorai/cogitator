@@ -254,6 +254,7 @@ All endpoints require JWT authentication. The WebSocket endpoint is at `/ws`.
 | GET | `/api/status` | System status |
 | POST | `/api/chat` | Send a chat message |
 | POST | `/api/chat/message` | Send message with file attachment |
+| POST | `/api/chat/voice` | Send voice audio for transcription + LLM response (TTS streamed via WebSocket) |
 | GET | `/api/sessions` | List sessions |
 | GET | `/api/sessions/{key}` | Get session with messages |
 | PUT | `/api/sessions/{key}/activate` | Set session as active |

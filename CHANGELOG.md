@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.39.0 (2026-03-16)
+
+### Features
+
+- Voice conversation mode with bidirectional speech-to-text and text-to-speech (186329f..c75c4a4)
+- Provider-agnostic voice interfaces with OpenAI Whisper (STT) and OpenAI TTS as first implementations (186329f, a1edc15, 4e9c650)
+- Voice settings in the dashboard Models page: STT/TTS provider selection and voice picker (9598fc1, 7cf7adb)
+- Hot-reload voice providers when settings change without server restart (13c48c1)
+- Streaming TTS audio chunks from provider to client in real-time (52e1ace)
+- `POST /api/chat/voice` endpoint with async LLM + TTS processing (c75c4a4)
+- Voice event types on the event bus with high-throughput subscriber buffering (ff47812, ca15971)
+
+### Fixes
+
+- Preserve user display name when resetting password via admin panel (c8ecce7)
+- Sanitize voice error messages sent to clients to prevent API key leakage (86ca7b7)
+
+### Improvements
+
+- Rename Admin page to Models in the dashboard navigation (49f66c9, 8dcda42, f79585c)
+- Models page icon changed from Shield to Cpu (83ee423)
+- Models page shown before Users in the navigation menu (8a04a69)
+
 ## 0.38.0 (2026-03-15)
 
 Closes [#2](https://github.com/cogitatorai/cogitator/issues/2).

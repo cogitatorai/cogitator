@@ -152,6 +152,7 @@ type ChatRequest struct {
 	UserRole         string
 	Private          bool
 	Message          string
+	MessageSuffix    string                 // Appended to message for LLM but not stored in history.
 	Attachments      []fileproc.ContentBlock // File content blocks to prepend.
 	Summary          string
 	Memory           string
@@ -357,7 +358,11 @@ func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error
 	}
 	a.logger.Info("context: skills for prompt", "count", len(skillInfo))
 	systemPrompt := a.contextBuilder.BuildSystemPrompt(req.Summary, req.Memory, mcpInfo, connectorInfo, skillInfo, req.ProfileOverrides, UserContext{Name: req.UserName})
-	messages := a.contextBuilder.BuildMessages(systemPrompt, history, req.Message, req.Attachments)
+	llmMessage := req.Message
+	if req.MessageSuffix != "" {
+		llmMessage = req.Message + "\n\n" + req.MessageSuffix
+	}
+	messages := a.contextBuilder.BuildMessages(systemPrompt, history, llmMessage, req.Attachments)
 
 	// Inject chat scope so downstream tools (e.g. save_memory) can
 	// determine memory ownership based on user and privacy mode.

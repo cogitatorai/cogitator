@@ -93,6 +93,59 @@ func TestChatBasicResponse(t *testing.T) {
 	}
 }
 
+func TestChatMessageSuffix(t *testing.T) {
+	agent, mock, store, _ := setupTestAgent(t,
+		provider.Response{Content: "Short answer."},
+	)
+
+	_, err := agent.Chat(context.Background(), ChatRequest{
+		SessionKey:    "suffix-test",
+		Channel:       "web",
+		ChatID:        "chat1",
+		Message:       "What is Go?",
+		MessageSuffix: "[Be concise]",
+	})
+	if err != nil {
+		t.Fatalf("Chat() error: %v", err)
+	}
+
+	// Verify the suffix was sent to the LLM.
+	calls := mock.GetCalls()
+	if len(calls) < 1 {
+		t.Fatal("expected at least 1 provider call")
+	}
+	firstCall := calls[0]
+	// Find the last user message in the call.
+	var userContent string
+	for _, m := range firstCall {
+		if m.Role == "user" {
+			userContent = m.ContentText()
+		}
+	}
+	if !strings.Contains(userContent, "[Be concise]") {
+		t.Errorf("expected suffix in LLM message, got %q", userContent)
+	}
+	if !strings.Contains(userContent, "What is Go?") {
+		t.Errorf("expected original message in LLM message, got %q", userContent)
+	}
+
+	// Verify the suffix was NOT stored in session history.
+	msgs, err := store.GetMessages("suffix-test", 0)
+	if err != nil {
+		t.Fatalf("GetMessages error: %v", err)
+	}
+	if len(msgs) < 1 {
+		t.Fatal("expected at least 1 stored message")
+	}
+	storedUser := msgs[0]
+	if storedUser.Content != "What is Go?" {
+		t.Errorf("stored message should be just the transcription, got %q", storedUser.Content)
+	}
+	if strings.Contains(storedUser.Content, "[Be concise]") {
+		t.Error("suffix should not be in stored message")
+	}
+}
+
 func TestChatEmitsEvents(t *testing.T) {
 	agent, _, _, eventBus := setupTestAgent(t,
 		provider.Response{Content: "Response"},

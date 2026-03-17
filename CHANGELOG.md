@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.39.3 (2026-03-17)
+
+### Improvements
+
+- README updated with voice feature documentation, architecture, and mobile voice support (e6e5512)
+
 ## 0.39.2 (2026-03-17)
 
 ### Fixes

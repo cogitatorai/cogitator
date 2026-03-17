@@ -50,6 +50,7 @@ Open `http://localhost:8484`. Create your admin account, configure an LLM provid
 - Go 1.25+
 - Node.js 20+ (for dashboard build)
 - An OpenAI-compatible LLM provider (OpenAI, Anthropic, Groq, Together, OpenRouter, or local Ollama)
+- For voice: an OpenAI API key (used for Whisper STT and TTS; other providers can be added)
 
 
 ## Development
@@ -113,6 +114,7 @@ server/
     task/               Scheduled task execution, runs, cancellation
     tools/              Built-in and custom tool registry
     user/               User store, invite codes, authentication
+    voice/              Voice STT/TTS provider interfaces and implementations
     worker/             Background workers: enrichment, profiling, consolidation
     workspace/          File system layout for data, memories, skills, tools
 
@@ -166,6 +168,10 @@ Connect external tools via the Model Context Protocol. Add local (stdio) or remo
 OAuth-based integrations with external services. Google Calendar and Gmail ship built in. The agent calls calendar tools during conversation to check schedules, list events, and search across multiple calendars. The connector runtime supports custom connectors defined as YAML manifests with OAuth config, REST endpoints, and jq-based response mapping.
 
 **Chrome Browser connector** gives the agent CDP-based browser control: navigate pages, read content via accessibility tree snapshots, click elements, type text, evaluate JavaScript, take screenshots, and more. Requires Chrome 146+ with debugging enabled in `chrome://inspect/#remote-debugging`. Enable on the Connectors page in the dashboard.
+
+### Voice
+
+Full voice conversation on the mobile app. Speak to the agent and hear responses read aloud. The voice pipeline uses a hybrid REST + WebSocket architecture: audio is uploaded via `POST /api/chat/voice`, transcribed server-side (OpenAI Whisper), processed through the LLM, and the TTS response (OpenAI TTS) is streamed back as audio chunks over the existing WebSocket connection. Provider interfaces are pluggable so other STT/TTS providers can be added. Configure voice providers and voice selection on the Models page.
 
 ### Security
 
@@ -320,7 +326,7 @@ All endpoints require JWT authentication. The WebSocket endpoint is at `/ws`.
 
 **macOS app.** A native .app bundle wraps the server with a WebKit-based UI, system notifications, and auto-updates from GitHub releases. Available at [cogitator.cloud](https://cogitator.cloud).
 
-**iOS and Android.** A React Native companion app connects to a running Cogitator instance.
+**iOS and Android.** A React Native companion app connects to a running Cogitator instance. Supports voice conversation mode with real-time waveform visualization, continuous conversation toggle, and silence detection.
 
 **Docker.** Single container, single volume. See the Docker section above.
 

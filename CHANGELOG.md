@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.39.2 (2026-03-17)
+
+### Fixes
+
+- Voice brevity hint no longer visible in chat history; added MessageSuffix field to ChatRequest that is sent to the LLM but excluded from stored messages (8e1b738)
+- Test coverage for MessageSuffix storage/LLM split (fba267e)
+
 ## 0.39.1 (2026-03-16)
 
 ### Improvements

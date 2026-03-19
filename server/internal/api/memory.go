@@ -112,7 +112,7 @@ func (r *Router) handleGetMemoryNode(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get node")
 		return
 	}
-	if !canAccessNode(req, node.UserID) {
+	if !canAccessNode(req, node.Private, node.UserID) {
 		writeError(w, http.StatusNotFound, "node not found")
 		return
 	}
@@ -133,7 +133,7 @@ func (r *Router) handleDeleteMemoryNode(w http.ResponseWriter, req *http.Request
 	// Private nodes: only the owner or admin can delete.
 	// Shared nodes: only admin or moderator can delete.
 	if node.UserID != nil {
-		if !canAccessNode(req, node.UserID) {
+		if !canAccessNode(req, node.Private, node.UserID) {
 			writeError(w, http.StatusNotFound, "node not found")
 			return
 		}
@@ -154,7 +154,7 @@ func (r *Router) handleGetMemoryEdges(w http.ResponseWriter, req *http.Request) 
 	id := req.PathValue("id")
 	// Verify the source node is visible to the caller.
 	node, err := r.memory.GetNode(id)
-	if err != nil || !canAccessNode(req, node.UserID) {
+	if err != nil || !canAccessNode(req, node.Private, node.UserID) {
 		writeError(w, http.StatusNotFound, "node not found")
 		return
 	}
@@ -179,7 +179,7 @@ func (r *Router) handleGetConnectedNodes(w http.ResponseWriter, req *http.Reques
 	id := req.PathValue("id")
 	// Verify the source node is visible to the caller.
 	node, err := r.memory.GetNode(id)
-	if err != nil || !canAccessNode(req, node.UserID) {
+	if err != nil || !canAccessNode(req, node.Private, node.UserID) {
 		writeError(w, http.StatusNotFound, "node not found")
 		return
 	}
@@ -233,7 +233,7 @@ func (r *Router) handlePinNode(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusNotFound, "node not found")
 		return
 	}
-	if !canAccessNode(req, node.UserID) {
+	if !canAccessNode(req, node.Private, node.UserID) {
 		writeError(w, http.StatusNotFound, "node not found")
 		return
 	}
@@ -265,25 +265,12 @@ func (r *Router) handleToggleNodePrivacy(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	uid := userIDFromRequest(req)
-
-	// Authorization: owner or admin can toggle.
-	// Shared nodes: any authenticated user can claim (make private).
-	if node.UserID != nil && !canAccessNode(req, node.UserID) {
+	if !canAccessNode(req, node.Private, node.UserID) {
 		writeError(w, http.StatusNotFound, "node not found")
 		return
 	}
 
-	var newUserID *string
-	if body.Private {
-		if uid == "" {
-			writeError(w, http.StatusBadRequest, "cannot make private without authentication")
-			return
-		}
-		newUserID = &uid
-	}
-
-	if err := r.memory.SetNodePrivacy(id, newUserID); err != nil {
+	if err := r.memory.SetNodeVisibility(id, body.Private); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to toggle privacy")
 		return
 	}

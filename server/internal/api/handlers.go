@@ -82,17 +82,17 @@ func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // canAccessNode returns true if the caller can see the given node.
-// Shared nodes (UserID == nil) are visible to everyone.
+// Public nodes (private=false) are visible to everyone.
 // Private nodes are visible only to their owner or admin users.
-func canAccessNode(r *http.Request, nodeUserID *string) bool {
-	if nodeUserID == nil {
-		return true // shared node
+func canAccessNode(r *http.Request, private bool, nodeUserID *string) bool {
+	if !private {
+		return true // public node
 	}
 	uid := userIDFromRequest(r)
 	if uid == "" {
 		return true // no auth context (single-user mode)
 	}
-	return *nodeUserID == uid || isAdmin(r)
+	return nodeUserID != nil && *nodeUserID == uid || isAdmin(r)
 }
 
 // ownsResource checks that the caller owns a resource identified by its ownerID.

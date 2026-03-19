@@ -73,7 +73,7 @@ type SkillManager interface {
 // MemoryWriter abstracts creating memory nodes so the executor does not
 // depend on the memory package directly.
 type MemoryWriter interface {
-	SaveMemory(title, content string, pinned bool, userID, subjectID *string) (string, error)
+	SaveMemory(title, content string, pinned, private bool, userID, subjectID *string) (string, error)
 }
 
 // MemoryPrivacyToggler toggles memory node privacy.
@@ -819,12 +819,14 @@ func (e *Executor) saveMemory(ctx context.Context, args string) (string, error) 
 		return "", fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	// Determine node ownership from chat scope.
-	// Private sessions create user-owned nodes; standard sessions create shared nodes.
+	// Determine node ownership and visibility from chat scope.
+	// user_id is always set to the creator. Private sessions create private nodes.
 	var userID *string
-	if scope, ok := ChatScopeFromContext(ctx); ok && scope.Private && scope.UserID != "" {
+	var private bool
+	if scope, ok := ChatScopeFromContext(ctx); ok && scope.UserID != "" {
 		uid := scope.UserID
 		userID = &uid
+		private = scope.Private
 	}
 
 	// Default subject to the current user when no explicit subject_id is
@@ -844,7 +846,7 @@ func (e *Executor) saveMemory(ctx context.Context, args string) (string, error) 
 		subjectID = &uid
 	}
 
-	nodeID, err := e.memoryWriter.SaveMemory(p.Title, p.Content, p.Pinned, userID, subjectID)
+	nodeID, err := e.memoryWriter.SaveMemory(p.Title, p.Content, p.Pinned, private, userID, subjectID)
 	if err != nil {
 		return "", fmt.Errorf("failed to save memory: %w", err)
 	}

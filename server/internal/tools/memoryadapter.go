@@ -26,17 +26,12 @@ func (a *MemoryWriterAdapter) ToggleMemoryPrivacy(nodeID string, private bool, c
 		return fmt.Errorf("memory not found: %w", err)
 	}
 
-	// Authorization: caller must own the memory or it must be shared.
-	if node.UserID != nil && *node.UserID != callerID {
+	// Only the owner can toggle privacy.
+	if node.UserID == nil || *node.UserID != callerID {
 		return fmt.Errorf("access denied: you can only toggle your own memories")
 	}
 
-	var newUserID *string
-	if private {
-		newUserID = &callerID
-	}
-
-	if err := a.Store.SetNodePrivacy(nodeID, newUserID); err != nil {
+	if err := a.Store.SetNodeVisibility(nodeID, !node.Private); err != nil {
 		return err
 	}
 
@@ -46,7 +41,7 @@ func (a *MemoryWriterAdapter) ToggleMemoryPrivacy(nodeID string, private bool, c
 	return nil
 }
 
-func (a *MemoryWriterAdapter) SaveMemory(title, content string, pinned bool, userID, subjectID *string) (string, error) {
+func (a *MemoryWriterAdapter) SaveMemory(title, content string, pinned, private bool, userID, subjectID *string) (string, error) {
 	if title == "" {
 		title = content
 		if i := strings.IndexAny(title, ".!?\n"); i > 0 {
@@ -65,6 +60,7 @@ func (a *MemoryWriterAdapter) SaveMemory(title, content string, pinned bool, use
 		Origin:           "agent",
 		EnrichmentStatus: memory.EnrichmentPending,
 		Pinned:           pinned,
+		Private:          private,
 		UserID:           userID,
 		SubjectID:        subjectID,
 	}

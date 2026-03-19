@@ -37,6 +37,7 @@ type Enricher struct {
 	cancel       context.CancelFunc
 	nodeEmbedder *memory.NodeEmbedder
 	retriever    *memory.Retriever
+	nameResolver memory.NameResolver
 	active       atomic.Int32
 }
 
@@ -76,6 +77,15 @@ func (e *Enricher) SetRetriever(r *memory.Retriever) {
 	defer e.mu.Unlock()
 	e.retriever = r
 }
+
+// SetNameResolver sets the function used to resolve user IDs to display names
+// during enrichment, so the LLM knows who each memory belongs to.
+func (e *Enricher) SetNameResolver(nr memory.NameResolver) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.nameResolver = nr
+}
+
 
 // SetProvider hot-swaps the LLM provider and model used for enrichment.
 // If there are pending nodes, it publishes an EnrichmentQueued event to
@@ -226,7 +236,19 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	summaries, _ := e.memory.GetNodeSummaries(scopeUID)
 	summaryBlock := buildSummaryBlock(summaries, node.ID)
 
-	prompt := buildEnrichmentPrompt(node, content, summaryBlock)
+	// Resolve owner and subject names so the LLM knows who this memory is about.
+	ownerName := ""
+	subjectName := ""
+	if e.nameResolver != nil {
+		if node.UserID != nil {
+			ownerName = e.nameResolver(*node.UserID)
+		}
+		if node.SubjectID != nil {
+			subjectName = e.nameResolver(*node.SubjectID)
+		}
+	}
+
+	prompt := buildEnrichmentPrompt(node, content, summaryBlock, ownerName, subjectName)
 
 	messages := []provider.Message{
 		{
@@ -316,12 +338,20 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	return nil
 }
 
-func buildEnrichmentPrompt(node memory.Node, content, summaryBlock string) string {
+func buildEnrichmentPrompt(node memory.Node, content, summaryBlock, ownerName, subjectName string) string {
 	var b strings.Builder
 	b.WriteString("Enrich this memory node.\n\n")
 	b.WriteString("Node ID: " + node.ID + "\n")
 	b.WriteString("Type: " + string(node.Type) + "\n")
 	b.WriteString("Title: " + node.Title + "\n")
+	if ownerName != "" {
+		aboutName := ownerName
+		if subjectName != "" {
+			aboutName = subjectName
+		}
+		b.WriteString("About: " + aboutName + "\n")
+		b.WriteString("IMPORTANT: This memory belongs to " + aboutName + ". When 'user' or 'the user' appears in the title or content, it refers to " + aboutName + ". Use their name in the summary.\n")
+	}
 	if content != "" {
 		b.WriteString("Content:\n" + content + "\n\n")
 	}

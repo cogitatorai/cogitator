@@ -197,8 +197,40 @@ func (r *Reflector) shouldStore(sig reflectionSignal) bool {
 	return false
 }
 
-// classify sends the conversation messages to the LLM and parses the response.
+// classify dispatches to pattern-based detection for English messages and falls
+// back to LLM classification for non-English content.
 func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]reflectionSignal, error) {
+	var combinedText strings.Builder
+	for _, m := range msgs {
+		if m.Role == "user" {
+			combinedText.WriteString(m.Content)
+			combinedText.WriteByte(' ')
+		}
+	}
+
+	if !isLikelyNonEnglish(combinedText.String()) {
+		detected := detectSignals(msgs)
+		if len(detected) == 0 {
+			return nil, nil
+		}
+		signals := make([]reflectionSignal, 0, len(detected))
+		for _, d := range detected {
+			signals = append(signals, reflectionSignal{
+				Type:         d.Type,
+				Summary:      msgs[d.MessageIndex].Content,
+				Confidence:   d.Confidence,
+				MessageIndex: d.MessageIndex,
+			})
+		}
+		return signals, nil
+	}
+
+	return r.classifyViaLLM(ctx, msgs)
+}
+
+// classifyViaLLM sends the conversation messages to the LLM and parses the response.
+// Used as a fallback for non-English content where pattern matching is unreliable.
+func (r *Reflector) classifyViaLLM(ctx context.Context, msgs []session.Message) ([]reflectionSignal, error) {
 	r.mu.Lock()
 	prov, model := r.provider, r.model
 	r.mu.Unlock()

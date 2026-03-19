@@ -30,6 +30,7 @@ func (s *Store) DB() *database.DB { return s.db }
 type EmbeddingMeta struct {
 	Type          NodeType
 	ContentLength int // 0 when content_length is NULL
+	Confidence    float64
 	Embedding     []float32
 }
 
@@ -523,7 +524,7 @@ func (s *Store) DeleteAllEmbeddings() (int64, error) {
 // When userID is non-empty, only visible nodes are returned. Only nodes matching
 // the given types are included.
 func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[string]EmbeddingMeta, error) {
-	query := `SELECT ne.node_id, n.type, n.content_length, ne.embedding
+	query := `SELECT ne.node_id, n.type, n.content_length, n.confidence, ne.embedding
 		FROM node_embeddings ne
 		JOIN nodes n ON ne.node_id = n.id`
 	var args []any
@@ -556,8 +557,9 @@ func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[stri
 		var id string
 		var nodeType NodeType
 		var contentLength sql.NullInt64
+		var confidence float64
 		var blob []byte
-		if err := rows.Scan(&id, &nodeType, &contentLength, &blob); err != nil {
+		if err := rows.Scan(&id, &nodeType, &contentLength, &confidence, &blob); err != nil {
 			return nil, err
 		}
 		cl := 0
@@ -567,6 +569,7 @@ func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[stri
 		result[id] = EmbeddingMeta{
 			Type:          nodeType,
 			ContentLength: cl,
+			Confidence:    confidence,
 			Embedding:     blobToVec(blob),
 		}
 	}

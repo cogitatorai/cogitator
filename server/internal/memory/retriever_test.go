@@ -894,11 +894,11 @@ func TestRetrieverTypeBoost(t *testing.T) {
 	cm := NewContentManager(dir)
 	mock := provider.NewMock()
 
-	idPattern, _ := store.CreateNode(&Node{Type: NodePattern, Title: "pattern"})
+	idPattern, _ := store.CreateNode(&Node{Type: NodePattern, Title: "pattern", Confidence: 0.9})
 	store.SaveEmbedding(idPattern, []float32{0.70, 0.30, 0.0}, "test-model")
 	store.UpdateContentLength(idPattern, 100)
 
-	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "preference"})
+	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "preference", Confidence: 0.9})
 	store.SaveEmbedding(idPref, []float32{0.68, 0.32, 0.0}, "test-model")
 	store.UpdateContentLength(idPref, 100)
 

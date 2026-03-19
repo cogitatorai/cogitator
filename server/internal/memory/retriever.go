@@ -356,7 +356,7 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 			continue
 		}
 
-		score := sim
+		score := sim * meta.Confidence
 
 		// Apply type boost for preference and fact nodes.
 		if meta.Type == NodePreference || meta.Type == NodeFact {

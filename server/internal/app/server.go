@@ -246,6 +246,15 @@ func New(opts Options) (*Server, error) {
 
 	// Enricher: processes pending memory nodes by calling the LLM.
 	enricher := worker.NewEnricher(memoryStore, contentManager, nil, eventBus, "", slog.Default(), nodeEmbedder, nil)
+	if users, err := userStore.List(); err == nil {
+		var names []string
+		for _, u := range users {
+			if u.Name != "" {
+				names = append(names, u.Name)
+			}
+		}
+		enricher.SetUserNames(names)
+	}
 	enricher.Start(context.Background())
 
 	// Profiler: revises the behavioral profile on ProfileRevisionDue events and

@@ -165,8 +165,10 @@ func TestEnricherCreatesEdges(t *testing.T) {
 	for _, e := range edges {
 		if e.TargetID == targetID && e.Relation == memory.RelSupports {
 			found = true
-			if e.Weight != 0.9 {
-				t.Errorf("edge weight = %v, want 0.9", e.Weight)
+			// Weight is derived from cosine similarity; no embeddings are stored
+		// in this test so the fallback of 0.5 is expected.
+			if e.Weight != 0.5 {
+				t.Errorf("edge weight = %v, want 0.5 (cosine fallback)", e.Weight)
 			}
 		}
 	}

@@ -38,6 +38,7 @@ type Enricher struct {
 	nodeEmbedder *memory.NodeEmbedder
 	retriever    *memory.Retriever
 	active       atomic.Int32
+	userNames    []string
 }
 
 // IsActive reports whether the enricher is currently processing nodes.
@@ -68,6 +69,13 @@ func NewEnricher(
 		nodeEmbedder: nodeEmbedder,
 		retriever:    retriever,
 	}
+}
+
+// SetUserNames sets the list of known user names used to sanitize LLM summaries.
+func (e *Enricher) SetUserNames(names []string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.userNames = names
 }
 
 // SetRetriever sets the retriever used to invalidate cache after embedding.
@@ -260,9 +268,21 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 		}
 	}
 
-	node.Summary = result.Summary
-	node.Tags = result.Tags
-	node.RetrievalTriggers = result.RetrievalTriggers
+	// Run server-side validation to sanitize and normalise the LLM output.
+	e.mu.RLock()
+	names := e.userNames
+	e.mu.RUnlock()
+
+	validated := memory.ValidateEnrichmentResult(
+		result.NodeType, result.Summary,
+		result.Tags, result.RetrievalTriggers,
+		names, content,
+	)
+
+	node.Type = validated.NodeType
+	node.Summary = validated.Summary
+	node.Tags = validated.Tags
+	node.RetrievalTriggers = validated.Triggers
 	node.EnrichmentStatus = memory.EnrichmentComplete
 
 	if err := e.memory.UpdateNode(&node); err != nil {
@@ -283,30 +303,67 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	now := time.Now()
 
 	for _, rel := range result.RelatedNodes {
-		w := rel.Weight
-		if w <= 0 || w > 1 {
-			w = 0.5
+		targetNode, err := e.memory.GetNode(rel.ID)
+		if err != nil || targetNode == nil {
+			continue
 		}
+
+		relType := memory.RelationType(rel.Relation)
+		switch relType {
+		case memory.RelRefines, memory.RelContradicts, memory.RelSupports,
+			memory.RelDerivedFrom, memory.RelExampleOf, memory.RelRelatedTo:
+			// valid relation type
+		default:
+			continue
+		}
+
+		// Derive edge weight from embedding similarity rather than the
+		// LLM-proposed value, which is unreliable.
+		srcEmb, _ := e.memory.GetEmbedding(node.ID)
+		tgtEmb, _ := e.memory.GetEmbedding(rel.ID)
+		w := 0.5
+		if srcEmb != nil && tgtEmb != nil {
+			w = memory.CosineSimilarity(srcEmb, tgtEmb)
+		}
+
 		// Ignore edge creation errors: best-effort graph wiring.
 		_ = e.memory.CreateEdge(&memory.Edge{
 			SourceID:  node.ID,
 			TargetID:  rel.ID,
 			UserID:    node.UserID,
-			Relation:  memory.RelationType(rel.Relation),
+			Relation:  relType,
 			Weight:    w,
 			CreatedAt: now,
 		})
 	}
 
 	for _, contraID := range result.Contradictions {
+		if _, err := e.memory.GetNode(contraID); err != nil {
+			continue
+		}
+
+		// Require embedding similarity >= 0.5 to accept a contradiction.
+		// Nodes that are semantically distant are unlikely true contradictions.
+		srcEmb, _ := e.memory.GetEmbedding(node.ID)
+		tgtEmb, _ := e.memory.GetEmbedding(contraID)
+		sim := 0.5
+		if srcEmb != nil && tgtEmb != nil {
+			sim = memory.CosineSimilarity(srcEmb, tgtEmb)
+			if sim < 0.5 {
+				continue // drop false contradiction
+			}
+		}
+
 		_ = e.memory.CreateEdge(&memory.Edge{
 			SourceID:  node.ID,
 			TargetID:  contraID,
 			UserID:    node.UserID,
 			Relation:  memory.RelContradicts,
-			Weight:    0.8,
+			Weight:    sim,
 			CreatedAt: now,
 		})
+
+		_ = e.memory.AdjustConfidence(contraID, -0.1, 0.1)
 	}
 
 	e.logger.Info("enriched node",

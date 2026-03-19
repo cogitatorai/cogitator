@@ -91,6 +91,57 @@ func TitleJaccard(a, b string) float64 {
 	return float64(intersection) / float64(union)
 }
 
+// ValidatedEnrichment holds the server-validated enrichment result.
+type ValidatedEnrichment struct {
+	NodeType NodeType
+	Summary  string
+	Tags     []string
+	Triggers []string
+}
+
+// preferenceKeywords are subjective language indicators that bias toward NodePreference.
+var preferenceKeywords = []string{"likes", "prefers", "enjoys", "hates", "dislikes", "loves", "favorite"}
+
+// ValidateEnrichmentResult cleans and validates raw LLM enrichment output.
+// userNames is a list of person names to strip from the summary.
+// content is the node's raw content, used for preference keyword detection.
+func ValidateEnrichmentResult(nodeType string, summary string, tags, triggers []string, userNames []string, content string) ValidatedEnrichment {
+	// Validate node type.
+	nt := NodeType(nodeType)
+	switch nt {
+	case NodeFact, NodePreference, NodePattern:
+		// valid
+	default:
+		nt = NodeFact
+	}
+
+	// Preference keyword bias: if content contains subjective language, override to preference.
+	if nt == NodeFact && content != "" {
+		lower := strings.ToLower(content)
+		for _, kw := range preferenceKeywords {
+			if strings.Contains(lower, kw) {
+				nt = NodePreference
+				break
+			}
+		}
+	}
+
+	// Strip person names from summary.
+	for _, name := range userNames {
+		summary = strings.ReplaceAll(summary, name, "the user")
+	}
+	if len(summary) > 200 {
+		summary = summary[:200]
+	}
+
+	return ValidatedEnrichment{
+		NodeType: nt,
+		Summary:  summary,
+		Tags:     CleanTags(tags),
+		Triggers: CleanTriggers(triggers),
+	}
+}
+
 // stopWords are common English words to exclude from Jaccard comparison.
 var stopWords = map[string]bool{
 	"the": true, "a": true, "an": true, "is": true, "are": true,

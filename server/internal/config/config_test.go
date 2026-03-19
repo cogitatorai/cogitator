@@ -338,3 +338,19 @@ func TestApplyEnvNewMemoryFields(t *testing.T) {
 		t.Errorf("EnrichmentVersion = %d, want 2", cfg.Memory.EnrichmentVersion)
 	}
 }
+
+func TestDedupSimilarityThresholdDefault(t *testing.T) {
+	cfg := Default()
+	if cfg.Memory.DedupSimilarityThreshold != 0.90 {
+		t.Errorf("DedupSimilarityThreshold default = %f, want 0.90", cfg.Memory.DedupSimilarityThreshold)
+	}
+}
+
+func TestApplyEnvDedupThreshold(t *testing.T) {
+	t.Setenv("COGITATOR_DEDUP_SIMILARITY_THRESHOLD", "0.95")
+	cfg := Default()
+	cfg.ApplyEnv()
+	if cfg.Memory.DedupSimilarityThreshold != 0.95 {
+		t.Errorf("DedupSimilarityThreshold = %f, want 0.95", cfg.Memory.DedupSimilarityThreshold)
+	}
+}

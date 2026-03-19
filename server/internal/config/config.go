@@ -109,7 +109,8 @@ type MemoryConfig struct {
 	RetrievalTokenBudget  int     `yaml:"retrieval_token_budget"`
 	RetrievalMinSimilarity float64 `yaml:"retrieval_min_similarity"`
 	RetrievalTypeBoost    float64 `yaml:"retrieval_type_boost"`
-	EnrichmentVersion     int     `yaml:"enrichment_version"`
+	EnrichmentVersion        int     `yaml:"enrichment_version"`
+	DedupSimilarityThreshold float64 `yaml:"dedup_similarity_threshold"`
 }
 
 type ReflectionConfig struct {
@@ -174,7 +175,8 @@ func Default() *Config {
 			RetrievalTokenBudget:   2000,
 			RetrievalMinSimilarity: 0.3,
 			RetrievalTypeBoost:     1.1,
-			EnrichmentVersion:      1,
+			EnrichmentVersion:        1,
+			DedupSimilarityThreshold: 0.90,
 		},
 		Reflection: ReflectionConfig{
 			MessageInterval:     5,
@@ -313,6 +315,11 @@ func (c *Config) ApplyEnv() {
 	if v := os.Getenv("COGITATOR_ENRICHMENT_VERSION"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			c.Memory.EnrichmentVersion = n
+		}
+	}
+	if v := os.Getenv("COGITATOR_DEDUP_SIMILARITY_THRESHOLD"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			c.Memory.DedupSimilarityThreshold = f
 		}
 	}
 }

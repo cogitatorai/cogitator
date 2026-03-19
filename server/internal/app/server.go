@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/agent"
@@ -568,6 +569,25 @@ func New(opts Options) (*Server, error) {
 	go func() {
 		if nodeEmbedder != nil {
 			worker.RunBackfill(context.Background(), memoryStore, nodeEmbedder, 50)
+			retriever.InvalidateCache()
+		}
+
+		// Backfill content_length for nodes that have content but no length recorded.
+		worker.RunContentLengthBackfill(context.Background(), memoryStore, contentManager)
+
+		// Check enrichment version: if the configured version is higher than the
+		// stored version, trigger re-enrichment of all nodes.
+		storedVersion := 0
+		var sv string
+		if err := db.QueryRow("SELECT value FROM system_settings WHERE key = 'enrichment_version'").Scan(&sv); err == nil {
+			storedVersion, _ = strconv.Atoi(sv)
+		}
+		if cfg.Memory.EnrichmentVersion > storedVersion {
+			slog.Info("enrichment version changed, triggering re-enrichment",
+				"stored", storedVersion, "configured", cfg.Memory.EnrichmentVersion)
+			worker.RunReenrichment(context.Background(), memoryStore, eventBus, 50)
+			db.Exec(`INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('enrichment_version', ?, CURRENT_TIMESTAMP)`,
+				strconv.Itoa(cfg.Memory.EnrichmentVersion))
 			retriever.InvalidateCache()
 		}
 	}()

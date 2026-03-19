@@ -223,6 +223,14 @@ func TestEnricherHandlesLLMError(t *testing.T) {
 	}
 }
 
+func TestBuildEnrichmentPromptIncludesNodeType(t *testing.T) {
+	node := memory.Node{ID: "test", Type: memory.NodeFact, Title: "test"}
+	prompt := buildEnrichmentPrompt(node, "", "")
+	if !strings.Contains(prompt, "node_type") {
+		t.Error("prompt should request node_type classification")
+	}
+}
+
 func TestBuildEnrichmentPromptBroaderTriggers(t *testing.T) {
 	node := memory.Node{
 		ID:    "test-id",

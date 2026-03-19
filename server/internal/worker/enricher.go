@@ -191,6 +191,7 @@ func (e *Enricher) processPending(ctx context.Context) {
 
 // enrichResult is the structured response expected from the LLM.
 type enrichResult struct {
+	NodeType          string   `json:"node_type"`
 	Summary           string   `json:"summary"`
 	Tags              []string `json:"tags"`
 	RetrievalTriggers []string `json:"retrieval_triggers"`
@@ -329,6 +330,7 @@ func buildEnrichmentPrompt(node memory.Node, content, summaryBlock string) strin
 		b.WriteString("Existing nodes in the knowledge graph:\n" + summaryBlock + "\n\n")
 	}
 	b.WriteString(`Respond with a JSON object containing:
+- "node_type": Classify this memory as one of: "fact" (objective information), "preference" (subjective likes/dislikes/habits), "pattern" (recurring behavior). Choose based on content, not title.
 - "summary": A concise 1-2 sentence summary of this node's content. Do NOT include person names. The system tracks ownership separately. Use "the user" if a person reference is needed
 - "tags": Array of 3-7 lowercase tags for categorization
 - "retrieval_triggers": Array of up to 100 short phrases or questions that should trigger retrieval of this node. Generate triggers across three categories:

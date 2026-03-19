@@ -157,6 +157,36 @@ var stopWords = map[string]bool{
 	"likes": true, "prefers": true, "enjoys": true, "wants": true, "uses": true,
 }
 
+// FindDuplicate checks if a node with the given embedding is a near-duplicate
+// of an existing node of the same type and ownership scope. It returns the
+// existing node ID if one passes both the cosine similarity threshold and the
+// title Jaccard gate (>= 0.5), or an empty string when no duplicate is found.
+// excludeID prevents a node from matching itself during re-enrichment.
+func FindDuplicate(store *Store, excludeID, title string, nodeType NodeType, userID *string, embedding []float32, threshold float64) string {
+	existing, err := store.GetEmbeddingsByTypeAndOwner(nodeType, userID)
+	if err != nil || len(existing) == 0 {
+		return ""
+	}
+
+	for id, vec := range existing {
+		if id == excludeID {
+			continue
+		}
+		sim := CosineSimilarity(embedding, vec)
+		if sim < threshold {
+			continue
+		}
+		node, err := store.GetNode(id)
+		if err != nil {
+			continue
+		}
+		if TitleJaccard(title, node.Title) >= 0.5 {
+			return id
+		}
+	}
+	return ""
+}
+
 func titleWords(s string) map[string]bool {
 	words := make(map[string]bool)
 	for _, w := range strings.Fields(strings.ToLower(s)) {

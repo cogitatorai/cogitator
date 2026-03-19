@@ -5,6 +5,41 @@ import (
 	"testing"
 )
 
+func TestFindDuplicate(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	id1, _ := store.CreateNode(&Node{Type: NodeFact, Title: "User likes hiking"})
+	store.SaveEmbedding(id1, []float32{0.9, 0.1, 0.0}, "test")
+
+	// Similar title and embedding: should be detected as duplicate.
+	dup := FindDuplicate(store, "new-node-id", "User enjoys hiking", NodeFact, nil, []float32{0.9, 0.1, 0.0}, 0.90)
+	if dup == "" {
+		t.Error("expected duplicate to be found")
+	}
+	if dup != id1 {
+		t.Errorf("expected dup=%s, got %s", id1, dup)
+	}
+
+	// Self-match excluded.
+	self := FindDuplicate(store, id1, "User likes hiking", NodeFact, nil, []float32{0.9, 0.1, 0.0}, 0.90)
+	if self != "" {
+		t.Error("self-match should be excluded")
+	}
+
+	// Different type: not a duplicate.
+	dup2 := FindDuplicate(store, "new-node-id", "User enjoys hiking", NodePreference, nil, []float32{0.9, 0.1, 0.0}, 0.90)
+	if dup2 != "" {
+		t.Error("different type should not match")
+	}
+
+	// Low similarity: not a duplicate.
+	dup3 := FindDuplicate(store, "new-node-id", "User likes hiking", NodeFact, nil, []float32{0.0, 0.0, 1.0}, 0.90)
+	if dup3 != "" {
+		t.Error("low similarity should not match")
+	}
+}
+
 func TestCleanTriggers(t *testing.T) {
 	tests := []struct {
 		name  string

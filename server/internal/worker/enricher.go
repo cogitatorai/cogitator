@@ -298,6 +298,29 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 				e.retriever.InvalidateCache()
 			}
 		}
+
+		// Check for near-duplicate nodes after re-embedding: the fresh vector
+		// gives the most accurate similarity signal.
+		emb, _ := e.memory.GetEmbedding(node.ID)
+		if emb != nil {
+			const dedupThreshold = 0.90
+			dupID := memory.FindDuplicate(e.memory, node.ID, node.Title, node.Type, node.UserID, emb, dedupThreshold)
+			if dupID != "" {
+				e.logger.Info("dedup: merging node into existing",
+					"new_id", node.ID, "existing_id", dupID)
+				existing, _ := e.memory.GetNode(dupID)
+				if existing != nil {
+					existing.RetrievalTriggers = memory.CleanTriggers(
+						append(existing.RetrievalTriggers, node.RetrievalTriggers...),
+					)
+					e.memory.UpdateNode(existing)
+				}
+				node.ConsolidatedInto = dupID
+				node.EnrichmentStatus = memory.EnrichmentComplete
+				e.memory.UpdateNode(&node)
+				return nil
+			}
+		}
 	}
 
 	now := time.Now()

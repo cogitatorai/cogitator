@@ -29,11 +29,21 @@ type Retriever struct {
 	// Vector retrieval fields.
 	embedder       provider.Embedder
 	embeddingModel string
-	embeddingCache map[string]map[string][]float32 // userID -> nodeID -> embedding
 	cacheDirty     bool
 	recencyAlpha   float64
 	recencyLambda  float64
 	contextWindow  int
+	tokenBudget    int
+	minSimilarity  float64
+	typeBoost      float64
+	types          []NodeType
+
+	// Enriched cache: userID -> nodeID -> EmbeddingMeta
+	metaCache   map[string]map[string]EmbeddingMeta
+	cachedTypes []NodeType // types used to populate the cache
+
+	// Raw embedding cache: userID -> nodeID -> embedding vector.
+	embeddingCache map[string]map[string][]float32
 }
 
 // RetrieverConfig holds configuration for constructing a Retriever.
@@ -51,9 +61,13 @@ type RetrieverConfig struct {
 	// Vector retrieval configuration.
 	Embedder       provider.Embedder
 	EmbeddingModel string
-	RecencyAlpha   float64 // defaults to 0.5
-	RecencyLambda  float64 // defaults to 0.01
-	ContextWindow  int     // defaults to 5
+	RecencyAlpha   float64    // defaults to 0.5
+	RecencyLambda  float64    // defaults to 0.01
+	ContextWindow  int        // defaults to 5
+	TokenBudget    int        // max estimated tokens of retrieved context, defaults to 2000
+	MinSimilarity  float64    // cosine similarity floor, defaults to 0.3
+	TypeBoost      float64    // score multiplier for preference/fact, defaults to 1.1
+	Types          []NodeType // retrievable types, defaults to fact/preference/pattern/skill
 }
 
 // NewRetriever constructs a Retriever from the given config, applying defaults
@@ -77,6 +91,18 @@ func NewRetriever(cfg RetrieverConfig) *Retriever {
 	if cfg.ContextWindow <= 0 {
 		cfg.ContextWindow = 5
 	}
+	if cfg.TokenBudget <= 0 {
+		cfg.TokenBudget = 2000
+	}
+	if cfg.MinSimilarity <= 0 {
+		cfg.MinSimilarity = 0.3
+	}
+	if cfg.TypeBoost <= 0 {
+		cfg.TypeBoost = 1.1
+	}
+	if len(cfg.Types) == 0 {
+		cfg.Types = []NodeType{NodeFact, NodePreference, NodePattern, NodeSkill}
+	}
 	return &Retriever{
 		store:            cfg.Store,
 		content:          cfg.Content,
@@ -93,6 +119,10 @@ func NewRetriever(cfg RetrieverConfig) *Retriever {
 		recencyAlpha:     cfg.RecencyAlpha,
 		recencyLambda:    cfg.RecencyLambda,
 		contextWindow:    cfg.ContextWindow,
+		tokenBudget:      cfg.TokenBudget,
+		minSimilarity:    cfg.MinSimilarity,
+		typeBoost:        cfg.TypeBoost,
+		types:            cfg.Types,
 	}
 }
 
@@ -133,7 +163,8 @@ func (r *Retriever) SetEmbedder(e provider.Embedder, model string) {
 func (r *Retriever) InvalidateCache() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.embeddingCache = nil
+	r.metaCache = nil
+	r.cachedTypes = nil
 	r.cacheDirty = true
 }
 

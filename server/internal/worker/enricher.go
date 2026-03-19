@@ -331,7 +331,11 @@ func buildEnrichmentPrompt(node memory.Node, content, summaryBlock string) strin
 	b.WriteString(`Respond with a JSON object containing:
 - "summary": A concise 1-2 sentence summary of this node's content
 - "tags": Array of 3-7 lowercase tags for categorization
-- "retrieval_triggers": Array of 3-5 phrases/questions that should trigger retrieval of this node
+- "retrieval_triggers": Array of up to 100 short phrases or questions that should trigger retrieval of this node. Generate triggers across three categories:
+  * Direct: what the node is explicitly about (e.g., topics, names, concepts)
+  * Contextual: situations where this knowledge would be useful (e.g., recommendations, decisions, planning)
+  * Lateral: cross-domain connections requiring world knowledge (e.g., cultural associations, geographic links, historical parallels). Think beyond obvious associations.
+  The number of triggers should reflect the richness of the content. A simple preference may have 20; a complex fact may have 80. Quality matters more than quantity.
 - "related_nodes": Array of {id, relation, weight} for related existing nodes. Relation must be one of: refines, contradicts, supports, derived_from, example_of, related_to. Weight is 0.0-1.0.
 - "contradictions": Array of node IDs that contradict this node's content`)
 	return b.String()

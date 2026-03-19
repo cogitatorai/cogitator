@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -219,5 +220,21 @@ func TestEnricherHandlesLLMError(t *testing.T) {
 	if n.EnrichmentStatus != memory.EnrichmentPending {
 		t.Errorf("enrichment_status = %q after LLM error, want %q",
 			n.EnrichmentStatus, memory.EnrichmentPending)
+	}
+}
+
+func TestBuildEnrichmentPromptBroaderTriggers(t *testing.T) {
+	node := memory.Node{
+		ID:    "test-id",
+		Type:  memory.NodePreference,
+		Title: "Enjoys Tolkien books",
+	}
+	prompt := buildEnrichmentPrompt(node, "The user loves reading Tolkien novels.", "")
+
+	if !strings.Contains(prompt, "100") {
+		t.Error("prompt should mention up to 100 triggers")
+	}
+	if !strings.Contains(prompt, "Direct") || !strings.Contains(prompt, "Contextual") || !strings.Contains(prompt, "Lateral") {
+		t.Error("prompt should mention Direct, Contextual, and Lateral trigger categories")
 	}
 }

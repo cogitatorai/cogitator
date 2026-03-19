@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 	version            TEXT,
 	skill_path         TEXT,
 	pinned             BOOLEAN NOT NULL DEFAULT 0,
+	private            BOOLEAN NOT NULL DEFAULT 0,
 	consolidated_into  TEXT DEFAULT '',
 	user_id            TEXT REFERENCES users(id),
 	subject_id         TEXT,
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS edges (
 	relation   TEXT NOT NULL,
 	weight     REAL DEFAULT 0.5,
 	user_id    TEXT REFERENCES users(id),
+	private    BOOLEAN NOT NULL DEFAULT 0,
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (source_id, target_id, relation)
 );
@@ -197,6 +199,8 @@ CREATE INDEX IF NOT EXISTS idx_nodes_user ON nodes(user_id);
 CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
 CREATE INDEX IF NOT EXISTS idx_edges_user ON edges(user_id);
+CREATE INDEX IF NOT EXISTS idx_nodes_private_user ON nodes(private, user_id);
+CREATE INDEX IF NOT EXISTS idx_edges_private_user ON edges(private, user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_key);
 CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);

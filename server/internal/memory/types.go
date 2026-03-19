@@ -39,8 +39,9 @@ type Node struct {
 	CreatedAt         time.Time        `json:"created_at"`
 	UpdatedAt         time.Time        `json:"updated_at"`
 	LastAccessed      *time.Time       `json:"last_accessed,omitempty"`
-	Pinned            bool             `json:"pinned"`
-	ConsolidatedInto  string           `json:"consolidated_into,omitempty"`
+	Pinned           bool             `json:"pinned"`
+	Private          bool             `json:"private"`
+	ConsolidatedInto string           `json:"consolidated_into,omitempty"`
 }
 
 type RelationType string
@@ -58,6 +59,7 @@ type Edge struct {
 	SourceID  string       `json:"source_id"`
 	TargetID  string       `json:"target_id"`
 	UserID    *string      `json:"user_id,omitempty"`
+	Private   bool         `json:"private"`
 	Relation  RelationType `json:"relation"`
 	Weight    float64      `json:"weight"`
 	CreatedAt time.Time    `json:"created_at"`

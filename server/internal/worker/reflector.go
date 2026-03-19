@@ -272,6 +272,7 @@ func (r *Reflector) storeSignal(sig reflectionSignal, sessionKey string, ownerID
 			node.ID = nodeID
 			node.ContentPath = relPath
 			_ = r.memory.UpdateNode(node)
+			_ = r.memory.UpdateContentLength(nodeID, len(content))
 		}
 	}
 

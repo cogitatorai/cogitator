@@ -65,6 +65,7 @@ func (a *MemoryWriterAdapter) SaveMemory(nodeType, title, content string, trigge
 	if a.Content != nil && content != "" {
 		// Best-effort: write full content for retrieval enrichment.
 		a.Content.Write(nodeID, content)
+		a.Store.UpdateContentLength(nodeID, len(content))
 	}
 
 	// Notify the enricher so edges are generated immediately.

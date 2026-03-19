@@ -183,6 +183,7 @@ func (m *Manager) InstallFromContent(ctx context.Context, meta SkillMeta, data [
 		if _, err := m.content.Write(nodeID, string(data)); err != nil {
 			m.logger.Warn("skill content write failed", "node_id", nodeID, "err", err)
 		}
+		m.memory.UpdateContentLength(nodeID, len(data))
 	}
 
 	// Emit installation and enrichment events.
@@ -285,6 +286,7 @@ func (m *Manager) CreateSkill(slug, name, summary, content string) (string, erro
 		if _, err := m.content.Write(nodeID, content); err != nil {
 			m.logger.Warn("learned skill content write failed", "node_id", nodeID, "err", err)
 		}
+		m.memory.UpdateContentLength(nodeID, len(content))
 	}
 
 	if m.eventBus != nil {
@@ -386,6 +388,7 @@ func (m *Manager) EnsureBundled(sk BundledSkill) (string, error) {
 		if _, err := m.content.Write(nodeID, sk.Content); err != nil {
 			m.logger.Warn("bundled skill content write failed", "node_id", nodeID, "err", err)
 		}
+		m.memory.UpdateContentLength(nodeID, len(sk.Content))
 	}
 
 	m.logger.Info("bundled skill installed", "name", sk.Name, "slug", sk.Slug, "node_id", nodeID)
@@ -491,6 +494,7 @@ func (m *Manager) UpdateSkill(nodeID, title, summary, content string) (*memory.N
 			if _, err := m.content.Write(nodeID, content); err != nil {
 				m.logger.Warn("skill content sync failed", "node_id", nodeID, "err", err)
 			}
+			m.memory.UpdateContentLength(nodeID, len(content))
 		}
 		// Re-run domain allowlisting on the new content.
 		if domains := security.ExtractDomainsFromText(content); len(domains) > 0 && m.configStore != nil {

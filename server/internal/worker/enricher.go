@@ -330,6 +330,7 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	}
 
 	now := time.Now()
+	srcEmb, _ := e.memory.GetEmbedding(node.ID)
 
 	for _, rel := range result.RelatedNodes {
 		targetNode, err := e.memory.GetNode(rel.ID)
@@ -348,7 +349,6 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 
 		// Derive edge weight from embedding similarity rather than the
 		// LLM-proposed value, which is unreliable.
-		srcEmb, _ := e.memory.GetEmbedding(node.ID)
 		tgtEmb, _ := e.memory.GetEmbedding(rel.ID)
 		w := 0.5
 		if srcEmb != nil && tgtEmb != nil {
@@ -373,7 +373,6 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 
 		// Require embedding similarity >= 0.5 to accept a contradiction.
 		// Nodes that are semantically distant are unlikely true contradictions.
-		srcEmb, _ := e.memory.GetEmbedding(node.ID)
 		tgtEmb, _ := e.memory.GetEmbedding(contraID)
 		sim := 0.5
 		if srcEmb != nil && tgtEmb != nil {

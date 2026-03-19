@@ -405,8 +405,9 @@ func New(opts Options) (*Server, error) {
 		retriever.SetEmbedder(embP, cfg.Memory.EmbeddingModel)
 	}
 
-	// Wire retriever back into enricher and memoryWriter now that it exists.
+	// Wire retriever back into enricher, reflector, and memoryWriter now that it exists.
 	enricher.SetRetriever(retriever)
+	reflector.SetRetriever(retriever)
 	memoryWriter.Retriever = retriever
 
 	// Only create a budget guard when at least one limit is configured.

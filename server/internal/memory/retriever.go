@@ -332,7 +332,6 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 	for _, pn := range pinnedNodes {
 		seen[pn.ID] = true
 		_ = r.store.TouchAccess(pn.ID)
-		_ = r.store.AdjustConfidence(pn.ID, 0.02, 0.95)
 		content := r.loadContent(pn.ContentPath)
 		result.Pinned = append(result.Pinned, RetrievedNode{Node: pn, Content: content})
 	}

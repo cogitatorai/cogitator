@@ -35,6 +35,7 @@ type Reflector struct {
 	msgWindow int
 	logger    *slog.Logger
 	cancel    context.CancelFunc
+	retriever *memory.Retriever
 
 	mu sync.Mutex
 }
@@ -67,6 +68,11 @@ func NewReflector(
 		msgWindow: msgWindow,
 		logger:    logger,
 	}
+}
+
+// SetRetriever sets the retriever whose cache is invalidated after confidence adjustments.
+func (r *Reflector) SetRetriever(ret *memory.Retriever) {
+	r.retriever = ret
 }
 
 func (r *Reflector) Start(ctx context.Context) {
@@ -333,6 +339,10 @@ func (r *Reflector) storeSignal(sig reflectionSignal, sessionKey string, ownerID
 				_ = r.memory.AdjustConfidence(ns.ID, -0.2, 0.1)
 			}
 		}
+	}
+
+	if r.retriever != nil {
+		r.retriever.InvalidateCache()
 	}
 
 	return nodeID, nil

@@ -2,8 +2,9 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 
@@ -238,51 +239,64 @@ func (c *Consolidator) clusterNodes(nodes []memory.Node, embeddings map[string][
 	return clusters
 }
 
-func (c *Consolidator) synthesizePattern(ctx context.Context, p provider.Provider, model string, cluster []memory.Node) {
-	var sb strings.Builder
-	sb.WriteString("Synthesize a concise pattern from these related memories:\n")
+// synthesizePattern builds a pattern node from a cluster of related nodes
+// without calling an LLM. The provider and model parameters are accepted for
+// interface compatibility with callers but are not used.
+func (c *Consolidator) synthesizePattern(ctx context.Context, _ provider.Provider, _ string, cluster []memory.Node) {
+	// Collect tags by frequency and gather all triggers.
+	tagCounts := make(map[string]int)
+	var allTriggers []string
+	var allTags []string
+	var titles []string
+	var totalConfidence float64
+
 	for _, n := range cluster {
-		sb.WriteString("- ")
-		sb.WriteString(n.Title)
-		if n.Summary != "" {
-			sb.WriteString(": ")
-			sb.WriteString(n.Summary)
+		titles = append(titles, n.Title)
+		totalConfidence += n.Confidence
+		for _, tag := range n.Tags {
+			t := strings.ToLower(strings.TrimSpace(tag))
+			if t != "" {
+				tagCounts[t]++
+				allTags = append(allTags, t)
+			}
 		}
-		sb.WriteString("\n")
-	}
-	sb.WriteString("\nRespond with a JSON object: {\"title\": \"...\", \"description\": \"...\", \"triggers\": [\"...\"]}")
-
-	messages := []provider.Message{
-		{Role: "system", Content: "You are a knowledge synthesis agent. You identify patterns from clusters of related observations. Respond ONLY with valid JSON."},
-		{Role: "user", Content: sb.String()},
+		allTriggers = append(allTriggers, n.RetrievalTriggers...)
 	}
 
-	resp, err := p.Chat(ctx, messages, nil, model, nil)
-	if err != nil {
-		c.logger.Error("consolidator: LLM synthesis failed", "error", err)
-		return
+	// Build title from top 3 tags by frequency. Fall back to top words from
+	// titles when no tags are available.
+	topTags := topNByCount(tagCounts, 3)
+	var title string
+	if len(topTags) > 0 {
+		title = "Pattern: " + strings.Join(topTags, ", ")
+	} else {
+		topWords := topNWords(titles, 3)
+		if len(topWords) > 0 {
+			title = "Pattern: " + strings.Join(topWords, ", ")
+		} else {
+			title = fmt.Sprintf("Pattern across %d memories", len(cluster))
+		}
 	}
 
-	var result struct {
-		Title       string   `json:"title"`
-		Description string   `json:"description"`
-		Triggers    []string `json:"triggers"`
+	// Build summary from source titles, capping at 5 with a suffix for the rest.
+	var summaryTitles []string
+	const maxSummaryTitles = 5
+	if len(titles) <= maxSummaryTitles {
+		summaryTitles = titles
+	} else {
+		summaryTitles = titles[:maxSummaryTitles]
 	}
-	raw := strings.TrimSpace(resp.Content)
-	raw = strings.TrimPrefix(raw, "```json")
-	raw = strings.TrimPrefix(raw, "```")
-	raw = strings.TrimSuffix(raw, "```")
-	raw = strings.TrimSpace(raw)
-
-	if err := json.Unmarshal([]byte(raw), &result); err != nil {
-		c.logger.Error("consolidator: parse synthesis failed", "raw", raw, "error", err)
-		return
+	summary := fmt.Sprintf("Recurring theme across %d memories: %s", len(cluster), strings.Join(summaryTitles, ", "))
+	if len(titles) > maxSummaryTitles {
+		summary += fmt.Sprintf(" ...and %d more", len(titles)-maxSummaryTitles)
 	}
 
-	if result.Title == "" {
-		c.logger.Warn("consolidator: synthesis returned empty title, skipping")
-		return
-	}
+	// Clean triggers and tags using validated deduplication.
+	cleanedTriggers := memory.CleanTriggers(allTriggers)
+	cleanedTags := memory.CleanTags(allTags)
+
+	// Compute average confidence across source nodes.
+	avgConfidence := totalConfidence / float64(len(cluster))
 
 	// Inherit ownership from the cluster. All nodes in a cluster share the
 	// same UserID (enforced by clusterNodes), so we use the first node's value.
@@ -295,10 +309,12 @@ func (c *Consolidator) synthesizePattern(ctx context.Context, p provider.Provide
 	patternNode := &memory.Node{
 		Type:              memory.NodePattern,
 		UserID:            ownerID,
-		Title:             result.Title,
-		Summary:           result.Description,
-		RetrievalTriggers: result.Triggers,
-		EnrichmentStatus:  memory.EnrichmentComplete,
+		Title:             title,
+		Summary:           summary,
+		Tags:              cleanedTags,
+		RetrievalTriggers: cleanedTriggers,
+		Confidence:        avgConfidence,
+		EnrichmentStatus:  memory.EnrichmentPending,
 		Origin:            "consolidation",
 	}
 	patternID, err := c.store.CreateNode(patternNode)
@@ -325,7 +341,55 @@ func (c *Consolidator) synthesizePattern(ctx context.Context, p provider.Provide
 
 	c.logger.Info("pattern synthesized",
 		"pattern_id", patternID,
-		"title", result.Title,
+		"title", title,
 		"source_count", len(cluster),
 	)
+}
+
+// topNByCount returns up to n keys from counts sorted by count descending,
+// with ties broken alphabetically for deterministic output.
+func topNByCount(counts map[string]int, n int) []string {
+	type entry struct {
+		key   string
+		count int
+	}
+	entries := make([]entry, 0, len(counts))
+	for k, v := range counts {
+		entries = append(entries, entry{k, v})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].count != entries[j].count {
+			return entries[i].count > entries[j].count
+		}
+		return entries[i].key < entries[j].key
+	})
+	result := make([]string, 0, n)
+	for i := 0; i < n && i < len(entries); i++ {
+		result = append(result, entries[i].key)
+	}
+	return result
+}
+
+// topNWords extracts the top n most common non-trivial words from a slice of
+// titles. Single-character tokens and common stop words are excluded.
+func topNWords(titles []string, n int) []string {
+	stopWords := map[string]bool{
+		"the": true, "a": true, "an": true, "is": true, "are": true,
+		"was": true, "were": true, "and": true, "or": true, "of": true,
+		"in": true, "to": true, "for": true, "on": true, "at": true,
+		"with": true, "by": true, "from": true, "that": true, "this": true,
+		"it": true, "not": true, "no": true,
+	}
+	counts := make(map[string]int)
+	for _, title := range titles {
+		for _, word := range strings.Fields(strings.ToLower(title)) {
+			// Strip non-alphabetic runes at word boundaries.
+			word = strings.Trim(word, ".,!?;:'\"()")
+			if len(word) <= 1 || stopWords[word] {
+				continue
+			}
+			counts[word]++
+		}
+	}
+	return topNByCount(counts, n)
 }

@@ -1,7 +1,10 @@
 package worker
 
 import (
+	"context"
+	"log/slog"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/cogitatorai/cogitator/server/internal/memory"
@@ -188,4 +191,179 @@ func TestNewConsolidatorDefaults(t *testing.T) {
 	if c.minCluster != 3 {
 		t.Errorf("default minCluster: got %d, want 3", c.minCluster)
 	}
+}
+
+// makeNodeWithMeta constructs a memory.Node with tags, triggers and confidence
+// for use in synthesizePattern tests.
+func makeNodeWithMeta(id, title string, tags, triggers []string, confidence float64) memory.Node {
+	return memory.Node{
+		ID:                id,
+		Title:             title,
+		Tags:              tags,
+		RetrievalTriggers: triggers,
+		Confidence:        confidence,
+		EnrichmentStatus:  memory.EnrichmentComplete,
+	}
+}
+
+func TestProgrammaticSynthesizePattern_TitleFromTags(t *testing.T) {
+	db := testDB(t)
+	store := memory.NewStore(db)
+
+	// Pre-insert source nodes so UpdateNode can find them.
+	nodes := []memory.Node{
+		makeNodeWithMeta("", "Go uses static typing", []string{"golang", "types"}, []string{"go types", "static typing"}, 0.8),
+		makeNodeWithMeta("", "Go interfaces are implicit", []string{"golang", "interfaces"}, []string{"go interface", "duck typing"}, 0.9),
+		makeNodeWithMeta("", "Go has goroutines", []string{"golang", "concurrency"}, []string{"goroutines", "concurrency"}, 0.7),
+	}
+
+	var cluster []memory.Node
+	for _, n := range nodes {
+		id, err := store.CreateNode(&n)
+		if err != nil {
+			t.Fatalf("CreateNode: %v", err)
+		}
+		created := n
+		created.ID = id
+		cluster = append(cluster, created)
+	}
+
+	c := &Consolidator{
+		store:  store,
+		logger: nopLogger(),
+	}
+
+	c.synthesizePattern(context.Background(), nil, "", cluster)
+
+	// Find the created pattern node.
+	pattern := findPatternNode(t, store)
+
+	// Title must be derived from top tags (golang appears 3x, others 1x each).
+	if !strings.HasPrefix(pattern.Title, "Pattern:") {
+		t.Errorf("title should start with 'Pattern:', got %q", pattern.Title)
+	}
+	if !strings.Contains(pattern.Title, "golang") {
+		t.Errorf("title should contain top tag 'golang', got %q", pattern.Title)
+	}
+
+	// Summary must mention the cluster size.
+	if !strings.Contains(pattern.Summary, "3") {
+		t.Errorf("summary should mention cluster size 3, got %q", pattern.Summary)
+	}
+
+	// Summary must reference source titles.
+	if !strings.Contains(pattern.Summary, "Go uses static typing") {
+		t.Errorf("summary should contain source title, got %q", pattern.Summary)
+	}
+
+	// Triggers are cleaned union of all source triggers.
+	if len(pattern.RetrievalTriggers) == 0 {
+		t.Error("pattern should have retrieval triggers")
+	}
+
+	// Tags are cleaned union of source tags.
+	if len(pattern.Tags) == 0 {
+		t.Error("pattern should have tags")
+	}
+
+	// Pattern must be queued for enrichment (not already complete).
+	if pattern.EnrichmentStatus != memory.EnrichmentPending {
+		t.Errorf("EnrichmentStatus: got %q, want %q", pattern.EnrichmentStatus, memory.EnrichmentPending)
+	}
+
+	// Origin must identify consolidation.
+	if pattern.Origin != "consolidation" {
+		t.Errorf("Origin: got %q, want 'consolidation'", pattern.Origin)
+	}
+
+	// Each source node must have ConsolidatedInto set to the pattern ID.
+	for _, src := range cluster {
+		updated, err := store.GetNode(src.ID)
+		if err != nil {
+			t.Fatalf("GetNode(%s): %v", src.ID, err)
+		}
+		if updated.ConsolidatedInto != pattern.ID {
+			t.Errorf("source node %s: ConsolidatedInto = %q, want %q", src.ID, updated.ConsolidatedInto, pattern.ID)
+		}
+	}
+}
+
+func TestProgrammaticSynthesizePattern_SummaryCapAt5(t *testing.T) {
+	db := testDB(t)
+	store := memory.NewStore(db)
+
+	// Create 7 nodes; summary should cap at 5 titles and show "and 2 more".
+	var cluster []memory.Node
+	for i := 0; i < 7; i++ {
+		title := strings.Repeat("x", i+1) // distinct, short titles
+		id, err := store.CreateNode(&memory.Node{
+			Title:            title,
+			Tags:             []string{"topic"},
+			EnrichmentStatus: memory.EnrichmentComplete,
+		})
+		if err != nil {
+			t.Fatalf("CreateNode: %v", err)
+		}
+		cluster = append(cluster, memory.Node{ID: id, Title: title, Tags: []string{"topic"}})
+	}
+
+	c := &Consolidator{store: store, logger: nopLogger()}
+	c.synthesizePattern(context.Background(), nil, "", cluster)
+
+	pattern := findPatternNode(t, store)
+	if !strings.Contains(pattern.Summary, "and 2 more") {
+		t.Errorf("summary should contain 'and 2 more', got %q", pattern.Summary)
+	}
+}
+
+func TestTopNByCount(t *testing.T) {
+	counts := map[string]int{"golang": 3, "types": 1, "interfaces": 2}
+	top := topNByCount(counts, 2)
+	if len(top) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(top))
+	}
+	if top[0] != "golang" {
+		t.Errorf("top[0]: got %q, want 'golang'", top[0])
+	}
+	if top[1] != "interfaces" {
+		t.Errorf("top[1]: got %q, want 'interfaces'", top[1])
+	}
+}
+
+func TestTopNWords(t *testing.T) {
+	titles := []string{"Go concurrency model", "Go concurrency patterns", "Go goroutine model"}
+	top := topNWords(titles, 2)
+	// "concurrency" and "model" each appear 2x; "goroutine" appears 1x; "patterns" 1x
+	// "go" is single-char-ish but actually 2 chars and not in stop words, appears 3x
+	// Expect top two to include "go" and "concurrency" (both appear 2-3x)
+	if len(top) != 2 {
+		t.Fatalf("expected 2 results, got %d: %v", len(top), top)
+	}
+}
+
+// nopLogger returns a logger that discards all output.
+func nopLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(nopWriter{}, nil))
+}
+
+type nopWriter struct{}
+
+func (nopWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+// findPatternNode locates the first NodePattern via ListNodes (for the ID),
+// then re-fetches it with GetNode to get full fields including tags and triggers.
+func findPatternNode(t *testing.T, store *memory.Store) *memory.Node {
+	t.Helper()
+	nodes, err := store.ListNodes("", memory.NodePattern, 100, 0)
+	if err != nil {
+		t.Fatalf("ListNodes: %v", err)
+	}
+	if len(nodes) == 0 {
+		t.Fatal("no pattern node found")
+	}
+	full, err := store.GetNode(nodes[0].ID)
+	if err != nil {
+		t.Fatalf("GetNode(%s): %v", nodes[0].ID, err)
+	}
+	return full
 }

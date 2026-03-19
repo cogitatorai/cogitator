@@ -291,9 +291,13 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	node.Tags = validated.Tags
 	node.RetrievalTriggers = validated.Triggers
 
-	// Sanitize title: replace person names with "User".
+	// Sanitize title: replace person name only when it appears as the subject
+	// (start of title). Avoid replacing names that are values, e.g.
+	// "User's name is Andrei" must not become "User's name is User".
 	for _, name := range names {
-		node.Title = strings.ReplaceAll(node.Title, name, "User")
+		if strings.HasPrefix(node.Title, name) {
+			node.Title = "User" + node.Title[len(name):]
+		}
 	}
 	node.EnrichmentStatus = memory.EnrichmentComplete
 

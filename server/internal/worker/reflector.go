@@ -326,6 +326,12 @@ func (r *Reflector) storeSignal(sig reflectionSignal, sessionKey string, ownerID
 				Weight:    sig.Confidence,
 				CreatedAt: now,
 			})
+			switch sig.Type {
+			case "acknowledgment":
+				_ = r.memory.AdjustConfidence(ns.ID, 0.05, 0.95)
+			case "correction", "refinement":
+				_ = r.memory.AdjustConfidence(ns.ID, -0.2, 0.1)
+			}
 		}
 	}
 

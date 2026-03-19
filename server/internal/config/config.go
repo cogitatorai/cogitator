@@ -103,9 +103,13 @@ type MemoryConfig struct {
 	RecencyLambda       float64 `yaml:"recency_lambda"`
 	ContextWindow       int     `yaml:"context_window"`
 	ProfileRegenThresh  int     `yaml:"profile_regen_threshold"`
-	ConsolidationMin    int     `yaml:"consolidation_min"`
-	ConsolidationMax    int     `yaml:"consolidation_max"`
-	ConsolidationScale  int     `yaml:"consolidation_scale"`
+	ConsolidationMin      int     `yaml:"consolidation_min"`
+	ConsolidationMax      int     `yaml:"consolidation_max"`
+	ConsolidationScale    int     `yaml:"consolidation_scale"`
+	RetrievalTokenBudget  int     `yaml:"retrieval_token_budget"`
+	RetrievalMinSimilarity float64 `yaml:"retrieval_min_similarity"`
+	RetrievalTypeBoost    float64 `yaml:"retrieval_type_boost"`
+	EnrichmentVersion     int     `yaml:"enrichment_version"`
 }
 
 type ReflectionConfig struct {
@@ -156,7 +160,7 @@ func Default() *Config {
 			MaxConcurrentTasks: 2,
 		},
 		Memory: MemoryConfig{
-			RetrievalTopK:       10,
+			RetrievalTopK:       20,
 			MaxRetrievalHops:    1,
 			ConfidenceDecayDays: 30,
 			EmbeddingModel:      "text-embedding-3-small",
@@ -164,9 +168,13 @@ func Default() *Config {
 			RecencyLambda:       0.01,
 			ContextWindow:       5,
 			ProfileRegenThresh:  5,
-			ConsolidationMin:    5,
-			ConsolidationMax:    50,
-			ConsolidationScale:  20,
+			ConsolidationMin:       5,
+			ConsolidationMax:       50,
+			ConsolidationScale:     20,
+			RetrievalTokenBudget:   2000,
+			RetrievalMinSimilarity: 0.3,
+			RetrievalTypeBoost:     1.1,
+			EnrichmentVersion:      1,
 		},
 		Reflection: ReflectionConfig{
 			MessageInterval:     5,
@@ -286,6 +294,26 @@ func (c *Config) ApplyEnv() {
 	// Embedding model from environment.
 	if v := os.Getenv("COGITATOR_MEMORY_EMBEDDING_MODEL"); v != "" {
 		c.Memory.EmbeddingModel = v
+	}
+	if v := os.Getenv("COGITATOR_RETRIEVAL_TOKEN_BUDGET"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Memory.RetrievalTokenBudget = n
+		}
+	}
+	if v := os.Getenv("COGITATOR_RETRIEVAL_MIN_SIMILARITY"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			c.Memory.RetrievalMinSimilarity = f
+		}
+	}
+	if v := os.Getenv("COGITATOR_RETRIEVAL_TYPE_BOOST"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			c.Memory.RetrievalTypeBoost = f
+		}
+	}
+	if v := os.Getenv("COGITATOR_ENRICHMENT_VERSION"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Memory.EnrichmentVersion = n
+		}
 	}
 }
 

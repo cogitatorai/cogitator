@@ -20,8 +20,8 @@ func TestDefaults(t *testing.T) {
 	if cfg.Resources.MaxConcurrentTasks != 2 {
 		t.Errorf("expected max concurrent tasks 2, got %d", cfg.Resources.MaxConcurrentTasks)
 	}
-	if cfg.Memory.RetrievalTopK != 10 {
-		t.Errorf("expected default retrieval top-k 10, got %d", cfg.Memory.RetrievalTopK)
+	if cfg.Memory.RetrievalTopK != 20 {
+		t.Errorf("expected default retrieval top-k 20, got %d", cfg.Memory.RetrievalTopK)
 	}
 	if cfg.Memory.MaxRetrievalHops != 1 {
 		t.Errorf("expected default max retrieval hops 1, got %d", cfg.Memory.MaxRetrievalHops)
@@ -102,8 +102,8 @@ channels:
 		t.Errorf("expected bot token 'test-token', got %s", cfg.Channels.Telegram.BotToken)
 	}
 	// Unset values should keep defaults
-	if cfg.Memory.RetrievalTopK != 10 {
-		t.Errorf("expected default retrieval top-k 10, got %d", cfg.Memory.RetrievalTopK)
+	if cfg.Memory.RetrievalTopK != 20 {
+		t.Errorf("expected default retrieval top-k 20, got %d", cfg.Memory.RetrievalTopK)
 	}
 	if cfg.Tasks.MaxConcurrent != 2 {
 		t.Errorf("expected default max concurrent 2, got %d", cfg.Tasks.MaxConcurrent)
@@ -294,5 +294,47 @@ func TestResolveDefaults_OpenAIProvider(t *testing.T) {
 
 	if cfg.Memory.EmbeddingModel != "text-embedding-3-small" {
 		t.Errorf("expected text-embedding-3-small for openai, got %q", cfg.Memory.EmbeddingModel)
+	}
+}
+
+func TestMemoryConfigNewFields(t *testing.T) {
+	cfg := Default()
+	if cfg.Memory.RetrievalTokenBudget != 2000 {
+		t.Errorf("RetrievalTokenBudget default = %d, want 2000", cfg.Memory.RetrievalTokenBudget)
+	}
+	if cfg.Memory.RetrievalMinSimilarity != 0.3 {
+		t.Errorf("RetrievalMinSimilarity default = %f, want 0.3", cfg.Memory.RetrievalMinSimilarity)
+	}
+	if cfg.Memory.RetrievalTypeBoost != 1.1 {
+		t.Errorf("RetrievalTypeBoost default = %f, want 1.1", cfg.Memory.RetrievalTypeBoost)
+	}
+	if cfg.Memory.EnrichmentVersion != 1 {
+		t.Errorf("EnrichmentVersion default = %d, want 1", cfg.Memory.EnrichmentVersion)
+	}
+	if cfg.Memory.RetrievalTopK != 20 {
+		t.Errorf("RetrievalTopK default = %d, want 20", cfg.Memory.RetrievalTopK)
+	}
+}
+
+func TestApplyEnvNewMemoryFields(t *testing.T) {
+	t.Setenv("COGITATOR_RETRIEVAL_TOKEN_BUDGET", "3000")
+	t.Setenv("COGITATOR_RETRIEVAL_MIN_SIMILARITY", "0.4")
+	t.Setenv("COGITATOR_RETRIEVAL_TYPE_BOOST", "1.2")
+	t.Setenv("COGITATOR_ENRICHMENT_VERSION", "2")
+
+	cfg := Default()
+	cfg.ApplyEnv()
+
+	if cfg.Memory.RetrievalTokenBudget != 3000 {
+		t.Errorf("RetrievalTokenBudget = %d, want 3000", cfg.Memory.RetrievalTokenBudget)
+	}
+	if cfg.Memory.RetrievalMinSimilarity != 0.4 {
+		t.Errorf("RetrievalMinSimilarity = %f, want 0.4", cfg.Memory.RetrievalMinSimilarity)
+	}
+	if cfg.Memory.RetrievalTypeBoost != 1.2 {
+		t.Errorf("RetrievalTypeBoost = %f, want 1.2", cfg.Memory.RetrievalTypeBoost)
+	}
+	if cfg.Memory.EnrichmentVersion != 2 {
+		t.Errorf("EnrichmentVersion = %d, want 2", cfg.Memory.EnrichmentVersion)
 	}
 }

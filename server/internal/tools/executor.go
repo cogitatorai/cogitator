@@ -73,7 +73,7 @@ type SkillManager interface {
 // MemoryWriter abstracts creating memory nodes so the executor does not
 // depend on the memory package directly.
 type MemoryWriter interface {
-	SaveMemory(nodeType, title, content string, triggers []string, pinned bool, userID, subjectID *string) (string, error)
+	SaveMemory(title, content string, pinned bool, userID, subjectID *string) (string, error)
 }
 
 // MemoryPrivacyToggler toggles memory node privacy.
@@ -810,12 +810,10 @@ func (e *Executor) saveMemory(ctx context.Context, args string) (string, error) 
 		return "", fmt.Errorf("memory is not available")
 	}
 	var p struct {
-		Title             string   `json:"title"`
-		Content           string   `json:"content"`
-		NodeType          string   `json:"node_type"`
-		RetrievalTriggers []string `json:"retrieval_triggers"`
-		Pinned            bool     `json:"pinned"`
-		SubjectID         string   `json:"subject_id"`
+		Title     string `json:"title"`
+		Content   string `json:"content"`
+		Pinned    bool   `json:"pinned"`
+		SubjectID string `json:"subject_id"`
 	}
 	if err := json.Unmarshal([]byte(args), &p); err != nil {
 		return "", fmt.Errorf("invalid arguments: %w", err)
@@ -846,11 +844,11 @@ func (e *Executor) saveMemory(ctx context.Context, args string) (string, error) 
 		subjectID = &uid
 	}
 
-	nodeID, err := e.memoryWriter.SaveMemory(p.NodeType, p.Title, p.Content, p.RetrievalTriggers, p.Pinned, userID, subjectID)
+	nodeID, err := e.memoryWriter.SaveMemory(p.Title, p.Content, p.Pinned, userID, subjectID)
 	if err != nil {
 		return "", fmt.Errorf("failed to save memory: %w", err)
 	}
-	return fmt.Sprintf("Saved to memory (id=%s, type=%s): %s", nodeID, p.NodeType, p.Title), nil
+	return fmt.Sprintf("Saved to memory (id=%s): %s", nodeID, p.Title), nil
 }
 
 func (e *Executor) allowDomain(ctx context.Context, args string) (string, error) {

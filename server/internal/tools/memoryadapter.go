@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/memory"
@@ -45,18 +46,27 @@ func (a *MemoryWriterAdapter) ToggleMemoryPrivacy(nodeID string, private bool, c
 	return nil
 }
 
-func (a *MemoryWriterAdapter) SaveMemory(nodeType, title, content string, triggers []string, pinned bool, userID, subjectID *string) (string, error) {
+func (a *MemoryWriterAdapter) SaveMemory(title, content string, pinned bool, userID, subjectID *string) (string, error) {
+	if title == "" {
+		title = content
+		if i := strings.IndexAny(title, ".!?\n"); i > 0 {
+			title = title[:i]
+		}
+		if len(title) > 80 {
+			title = title[:80]
+		}
+	}
+
 	node := &memory.Node{
-		Type:              memory.NodeType(nodeType),
-		Title:             title,
-		Summary:           content,
-		RetrievalTriggers: triggers,
-		Confidence:        0.9,
-		Origin:            "agent",
-		EnrichmentStatus:  memory.EnrichmentPending,
-		Pinned:            pinned,
-		UserID:            userID,
-		SubjectID:         subjectID,
+		Type:             memory.NodeFact,
+		Title:            title,
+		Summary:          content,
+		Confidence:       0.9,
+		Origin:           "agent",
+		EnrichmentStatus: memory.EnrichmentPending,
+		Pinned:           pinned,
+		UserID:           userID,
+		SubjectID:        subjectID,
 	}
 	nodeID, err := a.Store.CreateNode(node)
 	if err != nil {

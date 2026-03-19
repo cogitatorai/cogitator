@@ -222,6 +222,8 @@ func (rc RetrievedContext) Format(resolve NameResolver, currentUserID string) st
 		}
 	}
 
+	b.WriteString("When these memories inform your response, briefly explain why (e.g., \"since you enjoy hiking...\" or \"knowing your preference for...\"). Keep it natural, not mechanical.\n\n")
+
 	if len(rc.Pinned) > 0 {
 		b.WriteString("### Pinned Memories\n")
 		for _, n := range rc.Pinned {

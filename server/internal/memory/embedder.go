@@ -9,21 +9,27 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/provider"
 )
 
+const (
+	maxContentLen       = 6000  // max chars of content to include
+	maxEmbeddingTextLen = 30000 // final safeguard on total assembled text
+)
+
 // NodeEmbedder wraps an Embedder provider and Store to handle the logic
 // of building embedding text from a node and persisting the result.
 type NodeEmbedder struct {
 	mu       sync.RWMutex
 	store    *Store
+	content  *ContentManager
 	embedder provider.Embedder
 	model    string
 	logger   *slog.Logger
 }
 
-func NewNodeEmbedder(store *Store, embedder provider.Embedder, model string, logger *slog.Logger) *NodeEmbedder {
+func NewNodeEmbedder(store *Store, content *ContentManager, embedder provider.Embedder, model string, logger *slog.Logger) *NodeEmbedder {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &NodeEmbedder{store: store, embedder: embedder, model: model, logger: logger}
+	return &NodeEmbedder{store: store, content: content, embedder: embedder, model: model, logger: logger}
 }
 
 // SetEmbedder hot-swaps the embedding provider and model.
@@ -48,7 +54,14 @@ func (ne *NodeEmbedder) EmbedNode(ctx context.Context, node *Node) error {
 		return nil
 	}
 
-	text := buildEmbeddingText(node)
+	var nodeContent string
+	if node.ContentPath != "" && ne.content != nil {
+		if c, err := ne.content.Read(node.ContentPath); err == nil {
+			nodeContent = c
+		}
+	}
+
+	text := buildEmbeddingTextWithContent(node, nodeContent)
 	vecs, err := e.Embed(ctx, []string{text}, model)
 	if err != nil {
 		return err
@@ -62,6 +75,12 @@ func (ne *NodeEmbedder) EmbedNode(ctx context.Context, node *Node) error {
 
 // buildEmbeddingText constructs the text to embed from a node's metadata.
 func buildEmbeddingText(node *Node) string {
+	return buildEmbeddingTextWithContent(node, "")
+}
+
+// buildEmbeddingTextWithContent constructs the text to embed from a node's
+// metadata and optional full content, with length safeguards.
+func buildEmbeddingTextWithContent(node *Node, content string) string {
 	var parts []string
 	parts = append(parts, node.Title)
 	if node.Summary != "" {
@@ -73,5 +92,15 @@ func buildEmbeddingText(node *Node) string {
 	if len(node.RetrievalTriggers) > 0 {
 		parts = append(parts, strings.Join(node.RetrievalTriggers, " "))
 	}
-	return strings.Join(parts, " ")
+	if content != "" {
+		if len(content) > maxContentLen {
+			content = content[:maxContentLen]
+		}
+		parts = append(parts, content)
+	}
+	text := strings.Join(parts, " ")
+	if len(text) > maxEmbeddingTextLen {
+		text = text[:maxEmbeddingTextLen]
+	}
+	return text
 }

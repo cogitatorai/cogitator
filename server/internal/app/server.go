@@ -219,7 +219,7 @@ func New(opts Options) (*Server, error) {
 		stdKey := cfg.ProviderAPIKey(stdProv)
 		if stdKey != "" || provider.IsKeyless(stdProv) {
 			embP := provider.NewOpenAI(stdProv, stdKey)
-			nodeEmbedder = memory.NewNodeEmbedder(memoryStore, embP, cfg.Memory.EmbeddingModel, slog.Default())
+			nodeEmbedder = memory.NewNodeEmbedder(memoryStore, contentManager, embP, cfg.Memory.EmbeddingModel, slog.Default())
 		}
 	}
 

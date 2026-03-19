@@ -23,7 +23,7 @@ func TestBackfillEmbedsUnembeddedNodes(t *testing.T) {
 	id2, _ := store.CreateNode(&memory.Node{Type: memory.NodeFact, Title: "fact two"})
 
 	mock := provider.NewMock(provider.Response{})
-	ne := memory.NewNodeEmbedder(store, mock, "test-model", nil)
+	ne := memory.NewNodeEmbedder(store, nil, mock, "test-model", nil)
 
 	count, err := RunBackfill(context.Background(), store, ne, 50)
 	if err != nil {
@@ -57,7 +57,7 @@ func TestBackfillSkipsAlreadyEmbedded(t *testing.T) {
 	store.SaveEmbedding(id1, []float32{1, 0, 0}, "m")
 
 	mock := provider.NewMock(provider.Response{})
-	ne := memory.NewNodeEmbedder(store, mock, "test-model", nil)
+	ne := memory.NewNodeEmbedder(store, nil, mock, "test-model", nil)
 
 	count, err := RunBackfill(context.Background(), store, ne, 50)
 	if err != nil {

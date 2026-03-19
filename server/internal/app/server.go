@@ -384,6 +384,9 @@ func New(opts Options) (*Server, error) {
 		RecencyLambda: cfg.Memory.RecencyLambda,
 		ContextWindow: cfg.Memory.ContextWindow,
 		TopK:          cfg.Memory.RetrievalTopK,
+		TokenBudget:   cfg.Memory.RetrievalTokenBudget,
+		MinSimilarity: cfg.Memory.RetrievalMinSimilarity,
+		TypeBoost:     cfg.Memory.RetrievalTypeBoost,
 	})
 	if nodeEmbedder != nil {
 		stdProv := cfg.Models.Standard.Provider

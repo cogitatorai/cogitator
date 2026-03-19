@@ -222,7 +222,7 @@ func (rc RetrievedContext) Format(resolve NameResolver, currentUserID string) st
 		}
 	}
 
-	b.WriteString("When these memories inform your response, briefly explain why (e.g., \"since you enjoy hiking...\" or \"knowing your preference for...\"). Keep it natural, not mechanical.\n\n")
+	b.WriteString("## Memory Instructions\nThe memories below are things you know about the user. You MUST actively use them to personalize your responses. NEVER ask the user for information that is already contained in these memories. When a memory is relevant, weave it in naturally (e.g., \"since your daughter is 9...\" or \"knowing you enjoy hiking...\").\n\n")
 
 	if len(rc.Pinned) > 0 {
 		b.WriteString("### Pinned Memories\n")

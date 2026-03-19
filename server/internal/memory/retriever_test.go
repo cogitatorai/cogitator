@@ -920,3 +920,93 @@ func TestRetrieverTypeBoost(t *testing.T) {
 		t.Errorf("expected preference first (boosted), got %s", got.Nodes[0].Node.Type)
 	}
 }
+
+func TestRetrieverNZTolkienScenario(t *testing.T) {
+	dir := t.TempDir()
+	db := testDB(t)
+	store := NewStore(db)
+	cm := NewContentManager(dir)
+	mock := provider.NewMock()
+
+	// Preference: Tolkien books with lateral triggers that connect to NZ.
+	tolkienTriggers := []string{
+		"Tolkien", "Lord of the Rings", "fantasy novels", "favorite authors",
+		"book recommendations", "New Zealand filming locations", "Hobbiton",
+		"adventure stories", "Middle-earth",
+	}
+	idTolkien, _ := store.CreateNode(&Node{
+		Type:              NodePreference,
+		Title:             "Enjoys Tolkien books",
+		Summary:           "The user loves reading Tolkien novels, especially Lord of the Rings.",
+		RetrievalTriggers: tolkienTriggers,
+		EnrichmentStatus:  EnrichmentComplete,
+	})
+	path, _ := cm.Write(idTolkien, "The user is a big fan of J.R.R. Tolkien.")
+	tolkienNode, _ := store.GetNode(idTolkien)
+	tolkienNode.ContentPath = path
+	store.UpdateNode(tolkienNode)
+	store.UpdateContentLength(idTolkien, 40)
+
+	// Preference: outdoor activities with triggers for adventure tourism.
+	outdoorTriggers := []string{
+		"outdoor activities", "hiking", "camping", "adventure tourism",
+		"nature destinations", "hiking destinations", "trekking",
+	}
+	idOutdoor, _ := store.CreateNode(&Node{
+		Type:              NodePreference,
+		Title:             "Loves outdoor activities",
+		Summary:           "The user enjoys hiking, camping, and outdoor adventures.",
+		RetrievalTriggers: outdoorTriggers,
+		EnrichmentStatus:  EnrichmentComplete,
+	})
+	path, _ = cm.Write(idOutdoor, "The user prefers outdoor and nature activities.")
+	outdoorNode, _ := store.GetNode(idOutdoor)
+	outdoorNode.ContentPath = path
+	store.UpdateNode(outdoorNode)
+	store.UpdateContentLength(idOutdoor, 47)
+
+	// NZ travel query vector.
+	queryVec := []float32{0.5, 0.3, 0.4, 0.2, 0.1}
+	// Tolkien embedding: moderate similarity to NZ query.
+	tolkienVec := []float32{0.4, 0.2, 0.5, 0.3, 0.1}
+	// Outdoor embedding: moderate similarity.
+	outdoorVec := []float32{0.5, 0.4, 0.3, 0.2, 0.2}
+
+	store.SaveEmbedding(idTolkien, tolkienVec, "test-model")
+	store.SaveEmbedding(idOutdoor, outdoorVec, "test-model")
+
+	mock.EmbedResponse = [][]float32{queryVec}
+
+	r := NewRetriever(RetrieverConfig{
+		Store:         store,
+		Content:       cm,
+		Logger:        slog.Default(),
+		TokenBudget:   2000,
+		MinSimilarity: 0.2,
+		TypeBoost:     1.1,
+		TopK:          20,
+	})
+	r.SetEmbedder(mock, "test-model")
+
+	got, err := r.Retrieve(context.Background(), "", "travel recommendations in New Zealand", nil)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+
+	foundTolkien := false
+	foundOutdoor := false
+	for _, n := range got.Nodes {
+		if n.Node.ID == idTolkien {
+			foundTolkien = true
+		}
+		if n.Node.ID == idOutdoor {
+			foundOutdoor = true
+		}
+	}
+	if !foundTolkien {
+		t.Error("Tolkien preference should appear in NZ travel results")
+	}
+	if !foundOutdoor {
+		t.Error("outdoor activities preference should appear in NZ travel results")
+	}
+}

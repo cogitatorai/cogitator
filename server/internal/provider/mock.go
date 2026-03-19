@@ -8,6 +8,7 @@ import (
 type MockProvider struct {
 	Responses    []Response
 	StreamCancel bool
+	EmbedResponse [][]float32
 
 	mu      sync.Mutex
 	Calls   [][]Message
@@ -75,6 +76,9 @@ func (m *MockProvider) Name() string {
 }
 
 func (m *MockProvider) Embed(_ context.Context, texts []string, _ string) ([][]float32, error) {
+	if m.EmbedResponse != nil {
+		return m.EmbedResponse, nil
+	}
 	result := make([][]float32, len(texts))
 	for i := range texts {
 		result[i] = []float32{0.1, 0.2, 0.3}

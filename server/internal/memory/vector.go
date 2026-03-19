@@ -21,9 +21,3 @@ func CosineSimilarity(a, b []float32) float64 {
 	return dot / denom
 }
 
-// recencyBoost applies exponential decay boosting to a similarity score.
-// The formula is: score * (1 + alpha * exp(-lambda * daysSinceUpdate)).
-// Recent nodes (low daysSinceUpdate) receive a larger boost.
-func recencyBoost(similarity float64, daysSinceUpdate float64, alpha, lambda float64) float64 {
-	return similarity * (1 + alpha*math.Exp(-lambda*daysSinceUpdate))
-}

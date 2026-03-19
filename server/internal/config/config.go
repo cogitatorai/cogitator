@@ -95,12 +95,9 @@ type ResourcesConfig struct {
 }
 
 type MemoryConfig struct {
-	RetrievalTopK       int     `yaml:"retrieval_top_k"`
-	MaxRetrievalHops    int     `yaml:"max_retrieval_hops"`
-	ConfidenceDecayDays int     `yaml:"confidence_decay_days"`
-	EmbeddingModel      string  `yaml:"embedding_model"`
-	RecencyAlpha        float64 `yaml:"recency_alpha"`
-	RecencyLambda       float64 `yaml:"recency_lambda"`
+	RetrievalTopK    int    `yaml:"retrieval_top_k"`
+	MaxRetrievalHops int    `yaml:"max_retrieval_hops"`
+	EmbeddingModel   string `yaml:"embedding_model"`
 	ContextWindow       int     `yaml:"context_window"`
 	ProfileRegenThresh  int     `yaml:"profile_regen_threshold"`
 	ConsolidationMin      int     `yaml:"consolidation_min"`
@@ -161,12 +158,9 @@ func Default() *Config {
 			MaxConcurrentTasks: 2,
 		},
 		Memory: MemoryConfig{
-			RetrievalTopK:       20,
-			MaxRetrievalHops:    1,
-			ConfidenceDecayDays: 30,
-			EmbeddingModel:      "text-embedding-3-small",
-			RecencyAlpha:        0.5,
-			RecencyLambda:       0.01,
+			RetrievalTopK:    20,
+			MaxRetrievalHops: 1,
+			EmbeddingModel:   "text-embedding-3-small",
 			ContextWindow:       5,
 			ProfileRegenThresh:  5,
 			ConsolidationMin:       5,

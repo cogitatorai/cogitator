@@ -28,10 +28,8 @@ type Retriever struct {
 	// Vector retrieval fields.
 	embedder       provider.Embedder
 	embeddingModel string
-	cacheDirty     bool
-	recencyAlpha   float64
-	recencyLambda  float64
-	contextWindow  int
+	cacheDirty    bool
+	contextWindow int
 	tokenBudget    int
 	minSimilarity  float64
 	typeBoost      float64
@@ -57,9 +55,7 @@ type RetrieverConfig struct {
 	// Vector retrieval configuration.
 	Embedder       provider.Embedder
 	EmbeddingModel string
-	RecencyAlpha   float64    // defaults to 0.5
-	RecencyLambda  float64    // defaults to 0.01
-	ContextWindow  int        // defaults to 5
+	ContextWindow int // defaults to 5
 	TokenBudget    int        // max estimated tokens of retrieved context, defaults to 2000
 	MinSimilarity  float64    // cosine similarity floor, defaults to 0.3
 	TypeBoost      float64    // score multiplier for preference/fact, defaults to 1.1
@@ -77,12 +73,6 @@ func NewRetriever(cfg RetrieverConfig) *Retriever {
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
-	}
-	if cfg.RecencyAlpha <= 0 {
-		cfg.RecencyAlpha = 0.5
-	}
-	if cfg.RecencyLambda <= 0 {
-		cfg.RecencyLambda = 0.01
 	}
 	if cfg.ContextWindow <= 0 {
 		cfg.ContextWindow = 5
@@ -111,10 +101,8 @@ func NewRetriever(cfg RetrieverConfig) *Retriever {
 		logger:           cfg.Logger,
 		embedder:         cfg.Embedder,
 		embeddingModel:   cfg.EmbeddingModel,
-		cacheDirty:       true,
-		recencyAlpha:     cfg.RecencyAlpha,
-		recencyLambda:    cfg.RecencyLambda,
-		contextWindow:    cfg.ContextWindow,
+		cacheDirty:    true,
+		contextWindow: cfg.ContextWindow,
 		tokenBudget:      cfg.TokenBudget,
 		minSimilarity:    cfg.MinSimilarity,
 		typeBoost:        cfg.TypeBoost,

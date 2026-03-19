@@ -393,8 +393,6 @@ func New(opts Options) (*Server, error) {
 		Store:         memoryStore,
 		Content:       contentManager,
 		Logger:        slog.Default(),
-		RecencyAlpha:  cfg.Memory.RecencyAlpha,
-		RecencyLambda: cfg.Memory.RecencyLambda,
 		ContextWindow: cfg.Memory.ContextWindow,
 		TopK:          cfg.Memory.RetrievalTopK,
 		TokenBudget:   cfg.Memory.RetrievalTokenBudget,

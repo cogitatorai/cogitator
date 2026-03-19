@@ -3,6 +3,8 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -766,5 +768,155 @@ func TestBuildRetrievalText(t *testing.T) {
 	}
 	if !strings.Contains(text, "User: current") {
 		t.Errorf("current message missing, got: %s", text)
+	}
+}
+
+func TestRetrieverTypeFiltering(t *testing.T) {
+	dir := t.TempDir()
+	db := testDB(t)
+	store := NewStore(db)
+	cm := NewContentManager(dir)
+	mock := provider.NewMock()
+
+	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "likes coffee"})
+	idEpisode, _ := store.CreateNode(&Node{Type: NodeEpisode, Title: "went to store"})
+
+	for _, id := range []string{idPref, idEpisode} {
+		node, _ := store.GetNode(id)
+		cm.Write(id, "content for "+node.Title)
+		store.SaveEmbedding(id, []float32{0.5, 0.5, 0.5}, "test-model")
+		store.UpdateContentLength(id, 100)
+	}
+
+	r := NewRetriever(RetrieverConfig{
+		Store:   store,
+		Content: cm,
+		Logger:  slog.Default(),
+		Types:   []NodeType{NodePreference, NodeFact, NodePattern, NodeSkill},
+	})
+	r.SetEmbedder(mock, "test-model")
+
+	got, err := r.Retrieve(context.Background(), "", "coffee order", nil)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+	for _, n := range got.Nodes {
+		if n.Node.Type == NodeEpisode {
+			t.Errorf("episode node should not appear in results")
+		}
+	}
+	if len(got.Nodes) == 0 {
+		t.Error("expected at least one result")
+	}
+}
+
+func TestRetrieverTokenBudget(t *testing.T) {
+	dir := t.TempDir()
+	db := testDB(t)
+	store := NewStore(db)
+	cm := NewContentManager(dir)
+	mock := provider.NewMock()
+
+	content := strings.Repeat("x", 500)
+	for i := 0; i < 5; i++ {
+		id, _ := store.CreateNode(&Node{Type: NodeFact, Title: fmt.Sprintf("fact %d", i)})
+		path, _ := cm.Write(id, content)
+		node, _ := store.GetNode(id)
+		node.ContentPath = path
+		store.UpdateNode(node)
+		store.UpdateContentLength(id, len(content))
+		store.SaveEmbedding(id, []float32{0.5, 0.5, 0.5}, "test-model")
+	}
+
+	r := NewRetriever(RetrieverConfig{
+		Store:       store,
+		Content:     cm,
+		Logger:      slog.Default(),
+		TokenBudget: 400,
+		TopK:        20,
+	})
+	r.SetEmbedder(mock, "test-model")
+
+	got, err := r.Retrieve(context.Background(), "", "anything", nil)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+	if len(got.Nodes) > 3 {
+		t.Errorf("expected at most 3 nodes within budget, got %d", len(got.Nodes))
+	}
+	if len(got.Nodes) == 0 {
+		t.Error("expected at least one result")
+	}
+}
+
+func TestRetrieverSimilarityThreshold(t *testing.T) {
+	dir := t.TempDir()
+	db := testDB(t)
+	store := NewStore(db)
+	cm := NewContentManager(dir)
+	mock := provider.NewMock()
+
+	idHigh, _ := store.CreateNode(&Node{Type: NodeFact, Title: "relevant"})
+	store.SaveEmbedding(idHigh, []float32{0.9, 0.1, 0.0}, "test-model")
+	store.UpdateContentLength(idHigh, 100)
+
+	idLow, _ := store.CreateNode(&Node{Type: NodeFact, Title: "irrelevant"})
+	store.SaveEmbedding(idLow, []float32{0.0, 0.0, 1.0}, "test-model")
+	store.UpdateContentLength(idLow, 100)
+
+	r := NewRetriever(RetrieverConfig{
+		Store:         store,
+		Content:       cm,
+		Logger:        slog.Default(),
+		MinSimilarity: 0.3,
+	})
+	mock.EmbedResponse = [][]float32{{0.9, 0.1, 0.0}}
+	r.SetEmbedder(mock, "test-model")
+
+	got, err := r.Retrieve(context.Background(), "", "relevant query", nil)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+	for _, n := range got.Nodes {
+		if n.Node.ID == idLow {
+			t.Error("low-similarity node should have been filtered by threshold")
+		}
+	}
+}
+
+func TestRetrieverTypeBoost(t *testing.T) {
+	dir := t.TempDir()
+	db := testDB(t)
+	store := NewStore(db)
+	cm := NewContentManager(dir)
+	mock := provider.NewMock()
+
+	idPattern, _ := store.CreateNode(&Node{Type: NodePattern, Title: "pattern"})
+	store.SaveEmbedding(idPattern, []float32{0.70, 0.30, 0.0}, "test-model")
+	store.UpdateContentLength(idPattern, 100)
+
+	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "preference"})
+	store.SaveEmbedding(idPref, []float32{0.68, 0.32, 0.0}, "test-model")
+	store.UpdateContentLength(idPref, 100)
+
+	r := NewRetriever(RetrieverConfig{
+		Store:     store,
+		Content:   cm,
+		Logger:    slog.Default(),
+		TypeBoost: 1.2,
+		TopK:      2,
+	})
+	mock.EmbedResponse = [][]float32{{0.70, 0.30, 0.0}}
+	r.SetEmbedder(mock, "test-model")
+
+	got, err := r.Retrieve(context.Background(), "", "test", nil)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+	if len(got.Nodes) < 2 {
+		t.Fatalf("expected 2 nodes, got %d", len(got.Nodes))
+	}
+	if got.Nodes[0].Node.Type != NodePreference {
+		t.Errorf("expected preference first (boosted), got %s", got.Nodes[0].Node.Type)
 	}
 }

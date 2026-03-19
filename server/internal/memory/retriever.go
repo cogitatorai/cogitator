@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/provider"
 )
@@ -41,9 +40,6 @@ type Retriever struct {
 	// Enriched cache: userID -> nodeID -> EmbeddingMeta
 	metaCache   map[string]map[string]EmbeddingMeta
 	cachedTypes []NodeType // types used to populate the cache
-
-	// Raw embedding cache: userID -> nodeID -> embedding vector.
-	embeddingCache map[string]map[string][]float32
 }
 
 // RetrieverConfig holds configuration for constructing a Retriever.
@@ -254,9 +250,9 @@ func (rc RetrievedContext) Format(resolve NameResolver, currentUserID string) st
 }
 
 // Retrieve finds relevant memory nodes for the given message. When an embedder
-// is configured it uses vector similarity with recency boost; otherwise it
-// falls back to LLM classification. The history slice (last N conversation
-// messages) enriches the query context for the vector path.
+// is configured it uses vector similarity; otherwise it falls back to LLM
+// classification. The history slice (last N conversation messages) enriches
+// the query context for the vector path.
 func (r *Retriever) Retrieve(ctx context.Context, userID, message string, history []provider.Message) (*RetrievedContext, error) {
 	r.mu.RLock()
 	emb := r.embedder
@@ -268,16 +264,35 @@ func (r *Retriever) Retrieve(ctx context.Context, userID, message string, histor
 	return r.retrieveLLM(ctx, userID, message)
 }
 
-// retrieveVector performs embedding-based retrieval with recency boost, pinned
-// node inclusion, and 1-hop edge following.
+// typesMatch returns true when a and b contain the same types (order-independent).
+func typesMatch(a, b []NodeType) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[NodeType]struct{}, len(a))
+	for _, t := range a {
+		set[t] = struct{}{}
+	}
+	for _, t := range b {
+		if _, ok := set[t]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// retrieveVector performs embedding-based retrieval with type filtering,
+// similarity threshold, type boost scoring, and token-budget-based fill.
 func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, history []provider.Message) (*RetrievedContext, error) {
 	r.mu.RLock()
 	emb := r.embedder
 	embModel := r.embeddingModel
-	alpha := r.recencyAlpha
-	lambda := r.recencyLambda
 	ctxWindow := r.contextWindow
 	topK := r.topK
+	budget := r.tokenBudget
+	minSim := r.minSimilarity
+	tBoost := r.typeBoost
+	types := r.types
 	r.mu.RUnlock()
 
 	// Build retrieval text from recent history + current message.
@@ -290,32 +305,33 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 	}
 	queryVec := vecs[0]
 
-	// Refresh embedding cache for this user if dirty or missing.
+	// Refresh metadata cache for this user if dirty, missing, or types changed.
 	cacheKey := userID
 	if cacheKey == "" {
-		cacheKey = "_all" // unscoped cache for background workers
+		cacheKey = "_all"
 	}
 	r.mu.Lock()
-	if r.embeddingCache == nil {
-		r.embeddingCache = make(map[string]map[string][]float32)
+	if r.metaCache == nil {
+		r.metaCache = make(map[string]map[string]EmbeddingMeta)
 	}
-	if r.cacheDirty || r.embeddingCache[cacheKey] == nil {
-		userCache, cErr := r.store.GetAllEmbeddings(userID)
+	if r.cacheDirty || r.metaCache[cacheKey] == nil || !typesMatch(r.cachedTypes, types) {
+		userCache, cErr := r.store.GetEmbeddingsWithMeta(userID, types)
 		if cErr != nil {
 			r.mu.Unlock()
 			return nil, cErr
 		}
-		r.embeddingCache[cacheKey] = userCache
+		r.metaCache[cacheKey] = userCache
+		r.cachedTypes = types
 		r.cacheDirty = false
 	}
 	// Snapshot the cache under lock so we can release quickly.
-	cache := make(map[string][]float32, len(r.embeddingCache[cacheKey]))
-	for k, v := range r.embeddingCache[cacheKey] {
+	cache := make(map[string]EmbeddingMeta, len(r.metaCache[cacheKey]))
+	for k, v := range r.metaCache[cacheKey] {
 		cache[k] = v
 	}
 	r.mu.Unlock()
 
-	// Load pinned nodes first (always included, don't count against topK).
+	// Load pinned nodes first (always included, don't count against budget).
 	pinnedNodes, err := r.store.GetPinnedNodes(userID)
 	if err != nil {
 		return nil, err
@@ -331,45 +347,61 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 		result.Pinned = append(result.Pinned, RetrievedNode{Node: pn, Content: content})
 	}
 
-	// Score all cached embeddings.
+	// Score all cached embeddings with similarity threshold and type boost.
 	type scored struct {
-		id    string
-		score float64
+		id            string
+		score         float64
+		contentLength int
 	}
 	var candidates []scored
 
-	now := time.Now()
-	for id, vec := range cache {
+	for id, meta := range cache {
 		if seen[id] {
 			continue
 		}
-		sim := CosineSimilarity(queryVec, vec)
-		candidates = append(candidates, scored{id: id, score: sim})
-	}
+		sim := CosineSimilarity(queryVec, meta.Embedding)
 
-	// Apply recency boost: load UpdatedAt for each candidate from the store.
-	// To avoid N+1 queries being a hard blocker, we do them inline but only
-	// when we have candidates. A future optimisation can batch this.
-	for i := range candidates {
-		node, err := r.store.GetNode(candidates[i].id)
-		if err != nil {
+		// Drop candidates below similarity threshold.
+		if sim < minSim {
 			continue
 		}
-		days := now.Sub(node.UpdatedAt).Hours() / 24
-		candidates[i].score = recencyBoost(candidates[i].score, days, alpha, lambda)
+
+		score := sim
+
+		// Apply type boost for preference and fact nodes.
+		if meta.Type == NodePreference || meta.Type == NodeFact {
+			score *= tBoost
+		}
+
+		candidates = append(candidates, scored{
+			id:            id,
+			score:         score,
+			contentLength: meta.ContentLength,
+		})
 	}
 
-	// Sort descending by boosted score.
+	// Sort descending by score.
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].score > candidates[j].score
 	})
 
-	// Take topK.
-	if len(candidates) > topK {
-		candidates = candidates[:topK]
+	// Fill results using token budget, capped by topK.
+	tokensUsed := 0
+	var selected []scored
+	for _, c := range candidates {
+		if len(selected) >= topK {
+			break
+		}
+		est := estimateTokensFromLength(c.contentLength)
+		if tokensUsed+est > budget && len(selected) > 0 {
+			break
+		}
+		tokensUsed += est
+		selected = append(selected, c)
 	}
 
-	for _, c := range candidates {
+	// Load full node + content for selected candidates only.
+	for _, c := range selected {
 		node, err := r.store.GetNode(c.id)
 		if err != nil {
 			continue
@@ -421,6 +453,7 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 		"pinned", len(result.Pinned),
 		"nodes", len(result.Nodes),
 		"connected", len(result.Connected),
+		"tokens_used", tokensUsed,
 	)
 
 	return result, nil

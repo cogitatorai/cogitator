@@ -37,8 +37,9 @@ type Enricher struct {
 	cancel       context.CancelFunc
 	nodeEmbedder *memory.NodeEmbedder
 	retriever    *memory.Retriever
-	active       atomic.Int32
-	userNames    []string
+	active         atomic.Int32
+	userNames      []string
+	dedupThreshold float64
 }
 
 // IsActive reports whether the enricher is currently processing nodes.
@@ -65,9 +66,10 @@ func NewEnricher(
 		provider:     prov,
 		eventBus:     eventBus,
 		model:        model,
-		logger:       logger,
-		nodeEmbedder: nodeEmbedder,
-		retriever:    retriever,
+		logger:         logger,
+		nodeEmbedder:   nodeEmbedder,
+		retriever:      retriever,
+		dedupThreshold: 0.90,
 	}
 }
 
@@ -76,6 +78,11 @@ func (e *Enricher) SetUserNames(names []string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.userNames = names
+}
+
+// SetDedupThreshold overrides the default cosine similarity threshold for dedup.
+func (e *Enricher) SetDedupThreshold(t float64) {
+	e.dedupThreshold = t
 }
 
 // SetRetriever sets the retriever used to invalidate cache after embedding.
@@ -303,8 +310,7 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 		// gives the most accurate similarity signal.
 		emb, _ := e.memory.GetEmbedding(node.ID)
 		if emb != nil {
-			const dedupThreshold = 0.90
-			dupID := memory.FindDuplicate(e.memory, node.ID, node.Title, node.Type, node.UserID, emb, dedupThreshold)
+			dupID := memory.FindDuplicate(e.memory, node.ID, node.Title, node.Type, node.UserID, emb, e.dedupThreshold)
 			if dupID != "" {
 				e.logger.Info("dedup: merging node into existing",
 					"new_id", node.ID, "existing_id", dupID)

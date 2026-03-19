@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -728,6 +729,15 @@ func (s *Store) AdjustConfidence(nodeID string, delta float64, bound float64) er
 	}
 	_, err := s.db.Exec("UPDATE nodes SET confidence = MAX(confidence + ?, ?) WHERE id = ?",
 		delta, bound, nodeID)
+	return err
+}
+
+// DecayIfStale reduces confidence by decay if the node has not been accessed
+// in the last staleDays. The floor prevents confidence from going below a minimum.
+func (s *Store) DecayIfStale(nodeID string, staleDays int, decay, floor float64) error {
+	_, err := s.db.Exec(
+		`UPDATE nodes SET confidence = MAX(confidence - ?, ?) WHERE id = ? AND last_accessed < datetime('now', ? || ' days')`,
+		decay, floor, nodeID, fmt.Sprintf("-%d", staleDays))
 	return err
 }
 

@@ -343,6 +343,7 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 
 	for _, pn := range pinnedNodes {
 		seen[pn.ID] = true
+		_ = r.store.DecayIfStale(pn.ID, 90, 0.05, 0.1)
 		_ = r.store.TouchAccess(pn.ID)
 		_ = r.store.AdjustConfidence(pn.ID, 0.02, 0.95)
 		content := r.loadContent(pn.ContentPath)
@@ -406,6 +407,7 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 			continue
 		}
 		seen[c.id] = true
+		_ = r.store.DecayIfStale(c.id, 90, 0.05, 0.1)
 		_ = r.store.TouchAccess(c.id)
 		_ = r.store.AdjustConfidence(c.id, 0.02, 0.95)
 		content := r.loadContent(node.ContentPath)
@@ -521,6 +523,7 @@ func (r *Retriever) retrieveLLM(ctx context.Context, userID, message string) (*R
 		}
 		seen[id] = true
 		// Best-effort: access tracking failure must not abort retrieval.
+		_ = r.store.DecayIfStale(id, 90, 0.05, 0.1)
 		_ = r.store.TouchAccess(id)
 		_ = r.store.AdjustConfidence(id, 0.02, 0.95)
 

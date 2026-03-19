@@ -255,6 +255,9 @@ func New(opts Options) (*Server, error) {
 		}
 		enricher.SetUserNames(names)
 	}
+	if cfg.Memory.DedupSimilarityThreshold > 0 {
+		enricher.SetDedupThreshold(cfg.Memory.DedupSimilarityThreshold)
+	}
 	enricher.Start(context.Background())
 
 	// Profiler: revises the behavioral profile on ProfileRevisionDue events and

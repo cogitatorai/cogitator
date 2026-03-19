@@ -406,27 +406,17 @@ func registerBuiltinTools(r *Registry) {
 		},
 		{
 			Name:        "save_memory",
-			Description: "Save a fact, preference, or pattern to long-term memory so you can recall it in future conversations. Use this whenever the user shares something worth remembering: timezone, preferences, names, locations, habits, corrections. IMPORTANT: Always write the title, content, and retrieval_triggers in English regardless of the conversation language. This keeps the data layer consistent and searchable. When saving information about someone other than the current user, always include that person's name in the title and content, and set subject_id to their user ID (from list_users) so the memory is correctly attributed. IMPORTANT: Each memory must be atomic. If the user lists multiple items in one sentence (e.g. 'I like mountain biking, hiking, and snorkeling'), call save_memory once per item so each one is stored and retrievable independently. Never combine unrelated facts into a single memory.",
+			Description: "Save information to long-term memory so you can recall it in future conversations. Use this whenever the user shares something worth remembering: timezone, preferences, names, locations, habits, corrections. Always write content in English regardless of the conversation language. When saving information about someone other than the current user, include that person's name in the content and set subject_id to their user ID (from list_users). Each memory must be atomic: if the user lists multiple items, call save_memory once per item so each is stored and retrievable independently.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"title": map[string]any{
 						"type":        "string",
-						"description": "Short, descriptive title in English (e.g. 'User timezone is Europe/Paris')",
+						"description": "Short, descriptive title in English (e.g. 'User timezone is Europe/Paris'). Optional; auto-generated from content if omitted.",
 					},
 					"content": map[string]any{
 						"type":        "string",
-						"description": "The full content to remember, written in English",
-					},
-					"node_type": map[string]any{
-						"type":        "string",
-						"description": "Type of memory: 'fact' for factual info, 'preference' for user preferences, 'pattern' for recurring patterns",
-						"enum":        []string{"fact", "preference", "pattern"},
-					},
-					"retrieval_triggers": map[string]any{
-						"type":        "array",
-						"items":       map[string]any{"type": "string"},
-						"description": "Keywords that should cause this memory to be retrieved (e.g. ['timezone', 'schedule', 'cron'])",
+						"description": "The full content to remember, written in English. Be specific and self-contained so the memory is useful without additional context.",
 					},
 					"pinned": map[string]any{
 						"type":        "boolean",
@@ -437,7 +427,7 @@ func registerBuiltinTools(r *Registry) {
 						"description": "The user ID of the person this memory is about, if it is about someone other than the current user. Get this from list_users. This ensures the memory stays correctly linked even if the person changes their name.",
 					},
 				},
-				"required": []string{"title", "content", "node_type"},
+				"required": []string{"content"},
 			},
 			Builtin: true,
 		},

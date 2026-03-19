@@ -31,7 +31,7 @@ func (a *MemoryWriterAdapter) ToggleMemoryPrivacy(nodeID string, private bool, c
 		return fmt.Errorf("access denied: you can only toggle your own memories")
 	}
 
-	if err := a.Store.SetNodeVisibility(nodeID, !node.Private); err != nil {
+	if err := a.Store.SetNodeVisibility(nodeID, private); err != nil {
 		return err
 	}
 

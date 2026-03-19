@@ -77,8 +77,6 @@ func (e *Enricher) SetRetriever(r *memory.Retriever) {
 	e.retriever = r
 }
 
-
-
 // SetProvider hot-swaps the LLM provider and model used for enrichment.
 // If there are pending nodes, it publishes an EnrichmentQueued event to
 // trigger processing.

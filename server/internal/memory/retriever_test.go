@@ -705,6 +705,9 @@ func TestRetrievedContextFormat(t *testing.T) {
 
 	result := rc.Format(resolve, "user_alice")
 
+	if !strings.Contains(result, "When these memories inform your response") {
+		t.Error("expected preamble instructing agent to explain memory relevance")
+	}
 	if !strings.Contains(result, "shared by Bob") {
 		t.Errorf("expected 'shared by Bob' in output, got:\n%s", result)
 	}

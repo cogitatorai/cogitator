@@ -344,13 +344,14 @@ func buildEnrichmentPrompt(node memory.Node, content, summaryBlock, ownerName, s
 	b.WriteString("Node ID: " + node.ID + "\n")
 	b.WriteString("Type: " + string(node.Type) + "\n")
 	b.WriteString("Title: " + node.Title + "\n")
-	if ownerName != "" {
-		aboutName := ownerName
-		if subjectName != "" {
-			aboutName = subjectName
-		}
-		b.WriteString("About: " + aboutName + "\n")
-		b.WriteString("IMPORTANT: This memory belongs to " + aboutName + ". When 'user' or 'the user' appears in the title or content, it refers to " + aboutName + ". Use their name in the summary.\n")
+	if subjectName != "" {
+		b.WriteString("About: " + subjectName + "\n")
+		b.WriteString("IMPORTANT: This memory is about " + subjectName + ". When 'user' or 'the user' appears in the title or content, it refers to " + subjectName + ". Use their name in the summary.\n")
+	} else if ownerName != "" {
+		b.WriteString("About: " + ownerName + "\n")
+		b.WriteString("IMPORTANT: This memory belongs to " + ownerName + ". When 'user' or 'the user' appears in the title or content, it refers to " + ownerName + ". Use their name in the summary.\n")
+	} else {
+		b.WriteString("IMPORTANT: This is a shared memory with no specific owner. Do NOT attribute it to any named person. Use 'the user' in the summary. Do NOT guess a name from other nodes in the graph.\n")
 	}
 	if content != "" {
 		b.WriteString("Content:\n" + content + "\n\n")

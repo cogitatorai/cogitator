@@ -54,6 +54,7 @@ func (db *DB) migrate() error {
 	// Idempotent column additions for existing databases.
 	db.Exec(`ALTER TABLE notifications ADD COLUMN sender_id TEXT`)
 	db.Exec(`ALTER TABLE tasks ADD COLUMN notify_users TEXT`)
+	db.Exec("ALTER TABLE nodes ADD COLUMN content_length INTEGER")
 	// Remove orphaned edges whose source or target no longer exists.
 	db.Exec(`DELETE FROM edges WHERE source_id NOT IN (SELECT id FROM nodes) OR target_id NOT IN (SELECT id FROM nodes)`)
 	return nil

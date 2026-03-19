@@ -213,6 +213,12 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_oauth_links_user ON user_oauth_links(user_id);
 
+CREATE TABLE IF NOT EXISTS system_settings (
+	key        TEXT PRIMARY KEY,
+	value      TEXT NOT NULL,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
 	version INTEGER PRIMARY KEY
 );

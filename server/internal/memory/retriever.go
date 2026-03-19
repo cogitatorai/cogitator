@@ -288,7 +288,6 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 	emb := r.embedder
 	embModel := r.embeddingModel
 	ctxWindow := r.contextWindow
-	topK := r.topK
 	budget := r.tokenBudget
 	minSim := r.minSimilarity
 	tBoost := r.typeBoost
@@ -337,7 +336,7 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 		return nil, err
 	}
 
-	seen := make(map[string]bool, len(pinnedNodes)+topK)
+	seen := make(map[string]bool, len(pinnedNodes))
 	result := &RetrievedContext{}
 
 	for _, pn := range pinnedNodes {
@@ -385,13 +384,10 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 		return candidates[i].score > candidates[j].score
 	})
 
-	// Fill results using token budget, capped by topK.
+	// Fill results using token budget.
 	tokensUsed := 0
 	var selected []scored
 	for _, c := range candidates {
-		if len(selected) >= topK {
-			break
-		}
 		est := estimateTokensFromLength(c.contentLength)
 		if tokensUsed+est > budget && len(selected) > 0 {
 			break

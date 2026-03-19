@@ -647,6 +647,90 @@ func (s *Store) GetNodesWithoutEmbeddings(limit int) ([]Node, error) {
 	return scanNodes(rows)
 }
 
+// GetEmbeddingsByTypeAndOwner returns embeddings for nodes of a given type,
+// scoped by ownership. When userID is non-nil, returns embeddings for both
+// private (owned by that user) and shared (no owner) nodes. When userID is nil,
+// returns only shared nodes.
+func (s *Store) GetEmbeddingsByTypeAndOwner(nodeType NodeType, userID *string) (map[string][]float32, error) {
+	query := `SELECT ne.node_id, ne.embedding FROM node_embeddings ne
+		JOIN nodes n ON ne.node_id = n.id
+		WHERE n.type = ?`
+	args := []any{nodeType}
+
+	if userID != nil {
+		query += " AND (n.user_id IS NULL OR n.user_id = ?)"
+		args = append(args, *userID)
+	} else {
+		query += " AND n.user_id IS NULL"
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string][]float32)
+	for rows.Next() {
+		var id string
+		var blob []byte
+		if err := rows.Scan(&id, &blob); err != nil {
+			return nil, err
+		}
+		result[id] = blobToVec(blob)
+	}
+	return result, rows.Err()
+}
+
+// ListNodesByTags returns nodes of the given type whose tags contain any of
+// the specified tags. When userID is non-empty the results are further scoped
+// to nodes that are shared (no owner) or owned by that user.
+func (s *Store) ListNodesByTags(userID string, nodeType NodeType, tags []string) ([]Node, error) {
+	if len(tags) == 0 {
+		return nil, nil
+	}
+
+	placeholders := make([]string, len(tags))
+	args := []any{nodeType}
+	for i, tag := range tags {
+		placeholders[i] = "?"
+		args = append(args, strings.ToLower(tag))
+	}
+
+	query := `SELECT DISTINCT n.id, n.type, n.title, n.summary, n.tags, n.retrieval_triggers,
+		n.confidence, n.content_path, n.enrichment_status, n.origin, n.source_url, n.version,
+		n.skill_path, n.created_at, n.updated_at, n.last_accessed, n.pinned, n.consolidated_into,
+		n.user_id, n.subject_id
+		FROM nodes n, json_each(n.tags) AS jt
+		WHERE n.type = ? AND LOWER(jt.value) IN (` + strings.Join(placeholders, ",") + `)`
+
+	if userID != "" {
+		query += " AND (n.user_id IS NULL OR n.user_id = ?)"
+		args = append(args, userID)
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanNodes(rows)
+}
+
+// AdjustConfidence atomically adjusts a node's confidence by delta, clamped
+// to bound. When delta is positive, bound acts as a ceiling. When negative,
+// bound acts as a floor.
+func (s *Store) AdjustConfidence(nodeID string, delta float64, bound float64) error {
+	if delta >= 0 {
+		_, err := s.db.Exec("UPDATE nodes SET confidence = MIN(confidence + ?, ?) WHERE id = ?",
+			delta, bound, nodeID)
+		return err
+	}
+	_, err := s.db.Exec("UPDATE nodes SET confidence = MAX(confidence + ?, ?) WHERE id = ?",
+		delta, bound, nodeID)
+	return err
+}
+
 // scanNodes reads the full node row set from a query that selects:
 // id, type, title, summary, tags, retrieval_triggers, confidence,
 // content_path, enrichment_status, origin, source_url, version, skill_path,

@@ -610,3 +610,82 @@ func TestGetEdgesFrom_VisibilityRule(t *testing.T) {
 		t.Errorf("worker: expected 3 edges, got %d", len(all))
 	}
 }
+
+func TestGetEmbeddingsByTypeAndOwner(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	insertTestUser(t, db, "user1")
+	userID := "user1"
+	idPrivate, _ := store.CreateNode(&Node{Type: NodeFact, Title: "private fact", UserID: &userID})
+	idShared, _ := store.CreateNode(&Node{Type: NodeFact, Title: "shared fact"})
+	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "pref"})
+
+	vec := []float32{0.1, 0.2, 0.3}
+	store.SaveEmbedding(idPrivate, vec, "test")
+	store.SaveEmbedding(idShared, vec, "test")
+	store.SaveEmbedding(idPref, vec, "test")
+
+	results, err := store.GetEmbeddingsByTypeAndOwner(NodeFact, &userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 fact embeddings, got %d", len(results))
+	}
+	if _, ok := results[idPref]; ok {
+		t.Error("preference should not be in fact results")
+	}
+
+	shared, err := store.GetEmbeddingsByTypeAndOwner(NodeFact, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shared) != 1 {
+		t.Errorf("expected 1 shared fact, got %d", len(shared))
+	}
+}
+
+func TestListNodesByTags(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	id1, _ := store.CreateNode(&Node{Type: NodeFact, Title: "birthday", Tags: []string{"birthday", "identity"}})
+	store.CreateNode(&Node{Type: NodeFact, Title: "coffee preference", Tags: []string{"coffee", "food"}})
+
+	nodes, err := store.ListNodesByTags("", NodeFact, []string{"birthday", "identity"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nodes) != 1 {
+		t.Errorf("expected 1 node, got %d", len(nodes))
+	}
+	if len(nodes) > 0 && nodes[0].ID != id1 {
+		t.Errorf("expected node %s, got %s", id1, nodes[0].ID)
+	}
+}
+
+func TestAdjustConfidence(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	id, _ := store.CreateNode(&Node{Type: NodeFact, Title: "test", Confidence: 0.7})
+
+	store.AdjustConfidence(id, 0.02, 0.95)
+	node, _ := store.GetNode(id)
+	if node.Confidence != 0.72 {
+		t.Errorf("confidence after boost = %f, want 0.72", node.Confidence)
+	}
+
+	store.AdjustConfidence(id, 1.0, 0.95)
+	node, _ = store.GetNode(id)
+	if node.Confidence != 0.95 {
+		t.Errorf("confidence after cap = %f, want 0.95", node.Confidence)
+	}
+
+	store.AdjustConfidence(id, -2.0, 0.1)
+	node, _ = store.GetNode(id)
+	if node.Confidence != 0.1 {
+		t.Errorf("confidence after floor = %f, want 0.1", node.Confidence)
+	}
+}

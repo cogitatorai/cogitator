@@ -119,43 +119,35 @@ func (p *Profiler) SetProvider(prov provider.Provider, model string) {
 	}
 }
 
-// revise loads the current profile, gathers recent evidence, calls the LLM,
-// and writes the revised profile to disk (backing up the previous version first).
-func (p *Profiler) revise(ctx context.Context, _ bus.Event) error {
-	p.mu.RLock()
-	prov := p.provider
-	model := p.model
-	p.mu.RUnlock()
-
-	if prov == nil {
-		p.logger.Warn("profile revision skipped: no provider configured")
-		return nil
-	}
-
-	// Load the current profile. If the file does not exist yet, start with an empty profile.
+// revise queries the memory graph for all node types, builds a structured
+// profile from the results, and writes it to disk (backing up the previous
+// version first). No LLM call is made.
+func (p *Profiler) revise(_ context.Context, _ bus.Event) error {
+	// Load the current profile for backup purposes. Missing file is fine.
 	currentProfile, err := os.ReadFile(p.profilePath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("read profile: %w", err)
 	}
 
-	// Collect evidence nodes updated since the last revision.
-	evidence, err := p.recentEvidence()
+	// Query the graph for all four node types.
+	facts, err := p.memory.ListNodes("", memory.NodeFact, 100, 0)
 	if err != nil {
-		return fmt.Errorf("collect evidence: %w", err)
+		return fmt.Errorf("list facts: %w", err)
 	}
-
-	prompt := buildProfileRevisionPrompt(string(currentProfile), evidence)
-
-	msgs := []provider.Message{
-		{Role: "user", Content: prompt},
-	}
-
-	resp, err := prov.Chat(ctx, msgs, nil, model, nil)
+	prefs, err := p.memory.ListNodes("", memory.NodePreference, 100, 0)
 	if err != nil {
-		return fmt.Errorf("llm call: %w", err)
+		return fmt.Errorf("list preferences: %w", err)
+	}
+	patterns, err := p.memory.ListNodes("", memory.NodePattern, 50, 0)
+	if err != nil {
+		return fmt.Errorf("list patterns: %w", err)
+	}
+	episodes, err := p.memory.ListNodes("", memory.NodeEpisode, 20, 0)
+	if err != nil {
+		return fmt.Errorf("list episodes: %w", err)
 	}
 
-	newProfile := strings.TrimSpace(resp.Content)
+	newProfile := buildStructuredProfile(facts, prefs, patterns, episodes)
 
 	// Write the backup before touching the live profile.
 	if len(currentProfile) > 0 {
@@ -171,77 +163,107 @@ func (p *Profiler) revise(ctx context.Context, _ bus.Event) error {
 
 	p.lastRevision = time.Now()
 	p.logger.Info("profile revised",
-		"evidence_nodes", len(evidence),
-		"response_len", len(newProfile),
+		"facts", len(facts),
+		"preferences", len(prefs),
+		"patterns", len(patterns),
+		"episodes", len(episodes),
+		"profile_len", len(newProfile),
 	)
 
 	return nil
 }
 
-// recentEvidence returns nodes of type Episode, Preference, and Pattern that
-// were updated after the last revision timestamp.
-func (p *Profiler) recentEvidence() ([]memory.Node, error) {
-	types := []memory.NodeType{
-		memory.NodeEpisode,
-		memory.NodePreference,
-		memory.NodePattern,
+// buildStructuredProfile assembles a Markdown profile from graph query results.
+// It organises nodes into four sections: Identity, Preferences, Behavioral
+// Patterns, and Communication Notes. Output is capped at ~8000 characters
+// (~2000 tokens at 4 chars/token).
+func buildStructuredProfile(facts, prefs, patterns, episodes []memory.Node) string {
+	var b strings.Builder
+
+	identityTags := map[string]bool{
+		"name": true, "birthday": true, "age": true, "location": true,
+		"occupation": true, "family": true, "nationality": true, "language": true, "identity": true,
 	}
 
-	const maxPerType = 100
-
-	var evidence []memory.Node
-	for _, nt := range types {
-		nodes, err := p.memory.ListNodes("", nt, maxPerType, 0)
-		if err != nil {
-			return nil, fmt.Errorf("list %s nodes: %w", nt, err)
-		}
-		for _, n := range nodes {
-			if p.lastRevision.IsZero() || n.UpdatedAt.After(p.lastRevision) {
-				evidence = append(evidence, n)
+	b.WriteString("## Identity\n")
+	for _, n := range facts {
+		if hasAnyTag(n.Tags, identityTags) {
+			b.WriteString("- " + n.Title)
+			if n.Summary != "" {
+				b.WriteString(": " + n.Summary)
 			}
+			b.WriteString("\n")
+		}
+	}
+	b.WriteString("\n")
+
+	b.WriteString("## Preferences\n")
+	groups := groupByTopTag(prefs)
+	for tag, nodes := range groups {
+		b.WriteString("### " + tag + "\n")
+		for _, n := range nodes {
+			b.WriteString("- " + n.Title)
+			if n.Summary != "" {
+				b.WriteString(": " + n.Summary)
+			}
+			b.WriteString("\n")
+		}
+	}
+	b.WriteString("\n")
+
+	if len(patterns) > 0 {
+		b.WriteString("## Behavioral Patterns\n")
+		for _, n := range patterns {
+			b.WriteString("- " + n.Title)
+			if n.Summary != "" {
+				b.WriteString(": " + n.Summary)
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(episodes) > 0 {
+		b.WriteString("## Communication Notes\n")
+		for _, n := range episodes {
+			b.WriteString("- " + n.Title)
+			if n.Summary != "" {
+				b.WriteString(": " + n.Summary)
+			}
+			b.WriteString("\n")
 		}
 	}
 
-	return evidence, nil
+	// Token budget enforcement (~2000 tokens at 4 chars/token = 8000 chars).
+	result := b.String()
+	for len(result) > 8000 {
+		lastNewline := strings.LastIndex(result, "\n")
+		if lastNewline <= 0 {
+			break
+		}
+		result = result[:lastNewline]
+	}
+
+	return result
 }
 
-// buildProfileRevisionPrompt constructs the prompt sent to the LLM.
-func buildProfileRevisionPrompt(currentProfile string, evidence []memory.Node) string {
-	var sb strings.Builder
-
-	sb.WriteString("You are a behavioral profile revision agent. ")
-	sb.WriteString("Below is the current behavioral profile and recent evidence from the knowledge graph.\n\n")
-
-	sb.WriteString("Current Profile:\n")
-	if strings.TrimSpace(currentProfile) == "" {
-		sb.WriteString("(empty)\n")
-	} else {
-		sb.WriteString(currentProfile)
-		sb.WriteString("\n")
-	}
-	sb.WriteString("\n")
-
-	sb.WriteString("Recent Evidence:\n")
-	if len(evidence) == 0 {
-		sb.WriteString("(no recent evidence)\n")
-	} else {
-		for _, n := range evidence {
-			sb.WriteString(fmt.Sprintf("- [%s] %s (id: %s)", n.Type, n.Title, n.ID))
-			if n.Summary != "" {
-				sb.WriteString(": ")
-				sb.WriteString(n.Summary)
-			}
-			sb.WriteString("\n")
+func hasAnyTag(tags []string, allowed map[string]bool) bool {
+	for _, t := range tags {
+		if allowed[strings.ToLower(t)] {
+			return true
 		}
 	}
-	sb.WriteString("\n")
+	return false
+}
 
-	sb.WriteString("Instructions:\n")
-	sb.WriteString("1. Evaluate whether any profile rules need to be added, modified, or removed based on the evidence.\n")
-	sb.WriteString("2. If changes are warranted, rewrite the affected sections. Keep evidence links (node IDs) for each rule.\n")
-	sb.WriteString("3. If no changes are needed, return the profile unchanged.\n")
-	sb.WriteString("4. The profile must stay under 500 tokens. Be concise.\n")
-	sb.WriteString("5. Return ONLY the complete profile as Markdown (no explanation, no code fences).\n")
-
-	return sb.String()
+func groupByTopTag(nodes []memory.Node) map[string][]memory.Node {
+	groups := make(map[string][]memory.Node)
+	for _, n := range nodes {
+		tag := "other"
+		if len(n.Tags) > 0 {
+			tag = strings.ToLower(n.Tags[0])
+		}
+		groups[tag] = append(groups[tag], n)
+	}
+	return groups
 }

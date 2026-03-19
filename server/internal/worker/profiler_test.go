@@ -19,14 +19,6 @@ const initialProfile = `## Communication
 - Always verify API responses before processing. [evidence: node_def]
 `
 
-const revisedProfile = `## Communication
-- Default to concise, structured output. [evidence: node_abc]
-- Use bullet points for lists. [evidence: node_xyz]
-
-## Task Execution
-- Always verify API responses before processing. [evidence: node_def]
-`
-
 func setupProfiler(t *testing.T, mockResp string) (*Profiler, *bus.Bus, string) {
 	t.Helper()
 	db := testDB(t)
@@ -59,15 +51,16 @@ func addTestNodes(t *testing.T, memStore *memory.Store) {
 	t.Helper()
 	nodes := []memory.Node{
 		{
-			Type:      memory.NodeEpisode,
-			Title:     "User corrected verbosity",
-			Summary:   "User asked for shorter responses after a long explanation",
+			Type:       memory.NodeEpisode,
+			Title:      "User corrected verbosity",
+			Summary:    "User asked for shorter responses after a long explanation",
 			Confidence: 0.9,
 		},
 		{
-			Type:      memory.NodePreference,
-			Title:     "Prefers bullet points",
-			Summary:   "User explicitly prefers bullet-point lists over prose",
+			Type:       memory.NodePreference,
+			Title:      "Prefers bullet points",
+			Summary:    "User explicitly prefers bullet-point lists over prose",
+			Tags:       []string{"communication"},
 			Confidence: 0.85,
 		},
 	}
@@ -92,7 +85,7 @@ func TestProfilerRevisesProfile(t *testing.T) {
 
 	addTestNodes(t, memStore)
 
-	mock := provider.NewMock(provider.Response{Content: revisedProfile})
+	mock := provider.NewMock(provider.Response{Content: ""})
 
 	p := NewProfiler(ProfilerConfig{
 		Memory:      memStore,
@@ -108,58 +101,7 @@ func TestProfilerRevisesProfile(t *testing.T) {
 
 	eventBus.Publish(bus.Event{Type: bus.ProfileRevisionDue})
 
-	// Wait for the profile file to be updated.
-	waitFor(t, 3*time.Second, func() bool {
-		content, err := os.ReadFile(profilePath)
-		return err == nil && string(content) != initialProfile
-	})
-
-	content, err := os.ReadFile(profilePath)
-	if err != nil {
-		t.Fatalf("read profile: %v", err)
-	}
-	if string(content) == initialProfile {
-		t.Error("expected profile to be updated, but it was unchanged")
-	}
-
-	// Verify the backup exists.
-	backupPath := profilePath + ".bak"
-	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
-		t.Error("expected backup file to exist, but it does not")
-	}
-
-	// Verify the LLM was called once.
-	if n := mock.CallCount(); n != 1 {
-		t.Errorf("expected 1 LLM call, got %d", n)
-	}
-
-	// Verify the prompt included evidence node titles.
-	calls := mock.GetCalls()
-	if len(calls[0]) == 0 {
-		t.Fatal("LLM call had no messages")
-	}
-	promptContent := calls[0][0].ContentText()
-	if !containsString(promptContent, "User corrected verbosity") {
-		t.Error("prompt did not include episode node title")
-	}
-	if !containsString(promptContent, "Prefers bullet points") {
-		t.Error("prompt did not include preference node title")
-	}
-}
-
-func TestProfilerNoChanges(t *testing.T) {
-	// The LLM returns the same profile content unchanged.
-	p, eventBus, profilePath := setupProfiler(t, initialProfile)
-
-	ctx := t.Context()
-	p.Start(ctx)
-	defer p.Stop()
-
-	eventBus.Publish(bus.Event{Type: bus.ProfileRevisionDue})
-
-	// Wait for the LLM call to complete (the file write still happens even if
-	// content is the same, so we check for the backup which only appears after
-	// the write cycle).
+	// Wait for the backup to appear, which signals the write cycle completed.
 	backupPath := profilePath + ".bak"
 	waitFor(t, 3*time.Second, func() bool {
 		_, err := os.Stat(backupPath)
@@ -170,16 +112,65 @@ func TestProfilerNoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read profile: %v", err)
 	}
-	// The profile content should match TrimSpace(response) + "\n", which is how
-	// the profiler normalises the LLM output before writing.
-	wantContent := strings.TrimSpace(initialProfile) + "\n"
-	if string(content) != wantContent {
-		t.Errorf("expected profile content to be the initial profile (trimmed + newline), got:\n%q", string(content))
+
+	// The new profile is generated from graph queries, not the LLM response.
+	// It should contain the preference node ("Prefers bullet points") and
+	// the episode node ("User corrected verbosity").
+	if !strings.Contains(string(content), "Prefers bullet points") {
+		t.Error("revised profile should contain the preference node")
+	}
+	if !strings.Contains(string(content), "User corrected verbosity") {
+		t.Error("revised profile should contain the episode node")
+	}
+
+	// Verify the backup holds the original content.
+	backupContent, err := os.ReadFile(backupPath)
+	if err != nil {
+		t.Fatalf("read backup: %v", err)
+	}
+	if string(backupContent) != initialProfile {
+		t.Errorf("backup content mismatch.\ngot:  %q\nwant: %q", string(backupContent), initialProfile)
+	}
+
+	// The LLM must not be called.
+	if n := mock.CallCount(); n != 0 {
+		t.Errorf("expected 0 LLM calls, got %d", n)
+	}
+}
+
+func TestProfilerNoChanges(t *testing.T) {
+	// With an empty store the generated profile is the template skeleton.
+	p, eventBus, profilePath := setupProfiler(t, "")
+
+	ctx := t.Context()
+	p.Start(ctx)
+	defer p.Stop()
+
+	eventBus.Publish(bus.Event{Type: bus.ProfileRevisionDue})
+
+	// Wait for the backup to appear.
+	backupPath := profilePath + ".bak"
+	waitFor(t, 3*time.Second, func() bool {
+		_, err := os.Stat(backupPath)
+		return err == nil
+	})
+
+	content, err := os.ReadFile(profilePath)
+	if err != nil {
+		t.Fatalf("read profile: %v", err)
+	}
+
+	// The profile must be a valid structured document.
+	if !strings.Contains(string(content), "## Identity") {
+		t.Error("generated profile should contain Identity section")
+	}
+	if !strings.Contains(string(content), "## Preferences") {
+		t.Error("generated profile should contain Preferences section")
 	}
 }
 
 func TestProfilerCreatesBackup(t *testing.T) {
-	p, eventBus, profilePath := setupProfiler(t, revisedProfile)
+	p, eventBus, profilePath := setupProfiler(t, "")
 
 	ctx := t.Context()
 	p.Start(ctx)
@@ -208,14 +199,13 @@ func TestProfilerCreatesBackup(t *testing.T) {
 		t.Errorf("backup content mismatch.\ngot:  %q\nwant: %q", string(backupContent), initialProfile)
 	}
 
-	// Verify the live profile now holds the revised content (normalised).
+	// Verify the live profile is structured output (not the initial profile).
 	liveContent, err := os.ReadFile(profilePath)
 	if err != nil {
 		t.Fatalf("read live profile: %v", err)
 	}
-	wantLive := strings.TrimSpace(revisedProfile) + "\n"
-	if string(liveContent) != wantLive {
-		t.Errorf("live profile content mismatch.\ngot:  %q\nwant: %q", string(liveContent), wantLive)
+	if !strings.Contains(string(liveContent), "## Identity") {
+		t.Error("live profile should contain structured sections")
 	}
 }
 
@@ -232,7 +222,7 @@ func TestProfilerRegenOnMemoryCount(t *testing.T) {
 		t.Fatalf("write initial profile: %v", err)
 	}
 
-	mock := provider.NewMock(provider.Response{Content: revisedProfile})
+	mock := provider.NewMock(provider.Response{Content: ""})
 
 	p := NewProfiler(ProfilerConfig{
 		Memory:         memStore,
@@ -251,23 +241,68 @@ func TestProfilerRegenOnMemoryCount(t *testing.T) {
 	eventBus.Publish(bus.Event{Type: bus.EnrichmentQueued})
 	eventBus.Publish(bus.Event{Type: bus.EnrichmentQueued})
 
-	// Wait for the profile to be rewritten.
+	// Wait for the backup to appear.
+	backupPath := profilePath + ".bak"
 	waitFor(t, 3*time.Second, func() bool {
-		content, err := os.ReadFile(profilePath)
-		return err == nil && string(content) != initialProfile
+		_, err := os.Stat(backupPath)
+		return err == nil
 	})
 
 	content, err := os.ReadFile(profilePath)
 	if err != nil {
 		t.Fatalf("read profile: %v", err)
 	}
-	if string(content) == initialProfile {
-		t.Error("expected profile to be updated after N EnrichmentQueued events, but it was unchanged")
+	if !strings.Contains(string(content), "## Identity") {
+		t.Error("expected structured profile after N EnrichmentQueued events")
 	}
 
-	// Verify the LLM was called exactly once.
-	if n := mock.CallCount(); n != 1 {
-		t.Errorf("expected 1 LLM call after threshold, got %d", n)
+	// The LLM must not be called.
+	if n := mock.CallCount(); n != 0 {
+		t.Errorf("expected 0 LLM calls after threshold, got %d", n)
+	}
+}
+
+func TestBuildStructuredProfile(t *testing.T) {
+	facts := []memory.Node{
+		{Title: "Name is Andrei", Summary: "the user's name is Andrei", Tags: []string{"name", "identity"}},
+		{Title: "Lives in Meudon", Summary: "the user lives in Meudon", Tags: []string{"location", "identity"}},
+	}
+	prefs := []memory.Node{
+		{Title: "Likes hiking", Summary: "the user enjoys hiking", Tags: []string{"outdoor"}},
+		{Title: "Dark roast coffee", Summary: "the user prefers dark roast", Tags: []string{"food"}},
+	}
+	patterns := []memory.Node{
+		{Title: "Pattern: outdoor, activity", Summary: "Recurring theme across 3 memories"},
+	}
+	episodes := []memory.Node{
+		{Title: "Correction: not Guillaume", Summary: "the user corrected person attribution"},
+	}
+
+	profile := buildStructuredProfile(facts, prefs, patterns, episodes)
+
+	if !strings.Contains(profile, "## Identity") {
+		t.Error("profile should have Identity section")
+	}
+	if !strings.Contains(profile, "Andrei") {
+		t.Error("profile should mention Andrei")
+	}
+	if !strings.Contains(profile, "## Preferences") {
+		t.Error("profile should have Preferences section")
+	}
+	if !strings.Contains(profile, "hiking") {
+		t.Error("profile should mention hiking")
+	}
+	if !strings.Contains(profile, "## Behavioral Patterns") {
+		t.Error("profile should have Behavioral Patterns section")
+	}
+	if !strings.Contains(profile, "outdoor") {
+		t.Error("profile should mention outdoor pattern")
+	}
+	if !strings.Contains(profile, "## Communication Notes") {
+		t.Error("profile should have Communication Notes section")
+	}
+	if !strings.Contains(profile, "Guillaume") {
+		t.Error("profile should mention the correction episode")
 	}
 }
 

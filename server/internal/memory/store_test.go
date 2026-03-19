@@ -515,6 +515,61 @@ func TestGetPinnedNodes_VisibilityRule(t *testing.T) {
 	}
 }
 
+func TestGetEmbeddingsWithMeta(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	// Create nodes of different types.
+	idFact, _ := store.CreateNode(&Node{Type: NodeFact, Title: "fact node"})
+	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "pref node"})
+	idEpisode, _ := store.CreateNode(&Node{Type: NodeEpisode, Title: "episode node"})
+
+	// Store embeddings for all three.
+	vec := []float32{0.1, 0.2, 0.3}
+	store.SaveEmbedding(idFact, vec, "test-model")
+	store.SaveEmbedding(idPref, vec, "test-model")
+	store.SaveEmbedding(idEpisode, vec, "test-model")
+
+	// Set content_length on fact node.
+	store.UpdateContentLength(idFact, 400)
+
+	// Retrieve only fact and preference types.
+	results, err := store.GetEmbeddingsWithMeta("", []NodeType{NodeFact, NodePreference})
+	if err != nil {
+		t.Fatalf("GetEmbeddingsWithMeta: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	// Check that fact node has content_length set.
+	factMeta, ok := results[idFact]
+	if !ok {
+		t.Fatal("fact node not in results")
+	}
+	if factMeta.Type != NodeFact {
+		t.Errorf("fact type = %s, want %s", factMeta.Type, NodeFact)
+	}
+	if factMeta.ContentLength != 400 {
+		t.Errorf("fact content_length = %d, want 400", factMeta.ContentLength)
+	}
+
+	// Check that preference node has zero content_length (NULL).
+	prefMeta, ok := results[idPref]
+	if !ok {
+		t.Fatal("pref node not in results")
+	}
+	if prefMeta.ContentLength != 0 {
+		t.Errorf("pref content_length = %d, want 0", prefMeta.ContentLength)
+	}
+
+	// Episode should be absent.
+	if _, ok := results[idEpisode]; ok {
+		t.Error("episode should not be in results")
+	}
+}
+
 func TestGetEdgesFrom_VisibilityRule(t *testing.T) {
 	db := testDB(t)
 	store := NewStore(db)

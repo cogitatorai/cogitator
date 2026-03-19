@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/database"
@@ -20,6 +21,16 @@ type Store struct {
 
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
+}
+
+// DB returns the underlying database handle.
+func (s *Store) DB() *database.DB { return s.db }
+
+// EmbeddingMeta holds cached metadata alongside an embedding vector.
+type EmbeddingMeta struct {
+	Type          NodeType
+	ContentLength int // 0 when content_length is NULL
+	Embedding     []float32
 }
 
 func newID() string {
@@ -506,6 +517,66 @@ func (s *Store) DeleteAllEmbeddings() (int64, error) {
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// GetEmbeddingsWithMeta returns embeddings with node metadata in a single query.
+// When userID is non-empty, only visible nodes are returned. Only nodes matching
+// the given types are included.
+func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[string]EmbeddingMeta, error) {
+	query := `SELECT ne.node_id, n.type, n.content_length, ne.embedding
+		FROM node_embeddings ne
+		JOIN nodes n ON ne.node_id = n.id`
+	var args []any
+	var conditions []string
+
+	if userID != "" {
+		conditions = append(conditions, "(n.user_id IS NULL OR n.user_id = ?)")
+		args = append(args, userID)
+	}
+	if len(types) > 0 {
+		placeholders := make([]string, len(types))
+		for i, t := range types {
+			placeholders[i] = "?"
+			args = append(args, t)
+		}
+		conditions = append(conditions, "n.type IN ("+strings.Join(placeholders, ",")+")")
+	}
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]EmbeddingMeta)
+	for rows.Next() {
+		var id string
+		var nodeType NodeType
+		var contentLength sql.NullInt64
+		var blob []byte
+		if err := rows.Scan(&id, &nodeType, &contentLength, &blob); err != nil {
+			return nil, err
+		}
+		cl := 0
+		if contentLength.Valid {
+			cl = int(contentLength.Int64)
+		}
+		result[id] = EmbeddingMeta{
+			Type:          nodeType,
+			ContentLength: cl,
+			Embedding:     blobToVec(blob),
+		}
+	}
+	return result, rows.Err()
+}
+
+// UpdateContentLength sets the content_length column for a node.
+func (s *Store) UpdateContentLength(nodeID string, length int) error {
+	_, err := s.db.Exec("UPDATE nodes SET content_length = ? WHERE id = ?", length, nodeID)
+	return err
 }
 
 func blobToVec(blob []byte) []float32 {

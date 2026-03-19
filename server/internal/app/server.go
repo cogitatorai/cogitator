@@ -397,7 +397,6 @@ func New(opts Options) (*Server, error) {
 
 	// Wire retriever back into enricher and memoryWriter now that it exists.
 	enricher.SetRetriever(retriever)
-	enricher.SetNameResolver(buildNameResolver(userStore))
 	memoryWriter.Retriever = retriever
 
 	// Only create a budget guard when at least one limit is configured.

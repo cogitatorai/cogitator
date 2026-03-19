@@ -37,7 +37,6 @@ type Enricher struct {
 	cancel       context.CancelFunc
 	nodeEmbedder *memory.NodeEmbedder
 	retriever    *memory.Retriever
-	nameResolver memory.NameResolver
 	active       atomic.Int32
 }
 
@@ -78,13 +77,6 @@ func (e *Enricher) SetRetriever(r *memory.Retriever) {
 	e.retriever = r
 }
 
-// SetNameResolver sets the function used to resolve user IDs to display names
-// during enrichment, so the LLM knows who each memory belongs to.
-func (e *Enricher) SetNameResolver(nr memory.NameResolver) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.nameResolver = nr
-}
 
 
 // SetProvider hot-swaps the LLM provider and model used for enrichment.
@@ -236,19 +228,7 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	summaries, _ := e.memory.GetNodeSummaries(scopeUID)
 	summaryBlock := buildSummaryBlock(summaries, node.ID)
 
-	// Resolve owner and subject names so the LLM knows who this memory is about.
-	ownerName := ""
-	subjectName := ""
-	if e.nameResolver != nil {
-		if node.UserID != nil {
-			ownerName = e.nameResolver(*node.UserID)
-		}
-		if node.SubjectID != nil {
-			subjectName = e.nameResolver(*node.SubjectID)
-		}
-	}
-
-	prompt := buildEnrichmentPrompt(node, content, summaryBlock, ownerName, subjectName)
+	prompt := buildEnrichmentPrompt(node, content, summaryBlock)
 
 	messages := []provider.Message{
 		{
@@ -338,21 +318,12 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	return nil
 }
 
-func buildEnrichmentPrompt(node memory.Node, content, summaryBlock, ownerName, subjectName string) string {
+func buildEnrichmentPrompt(node memory.Node, content, summaryBlock string) string {
 	var b strings.Builder
 	b.WriteString("Enrich this memory node.\n\n")
 	b.WriteString("Node ID: " + node.ID + "\n")
 	b.WriteString("Type: " + string(node.Type) + "\n")
 	b.WriteString("Title: " + node.Title + "\n")
-	if subjectName != "" {
-		b.WriteString("About: " + subjectName + "\n")
-		b.WriteString("IMPORTANT: This memory is about " + subjectName + ". When 'user' or 'the user' appears in the title or content, it refers to " + subjectName + ". Use their name in the summary.\n")
-	} else if ownerName != "" {
-		b.WriteString("About: " + ownerName + "\n")
-		b.WriteString("IMPORTANT: This memory belongs to " + ownerName + ". When 'user' or 'the user' appears in the title or content, it refers to " + ownerName + ". Use their name in the summary.\n")
-	} else {
-		b.WriteString("IMPORTANT: This is a shared memory with no specific owner. Do NOT attribute it to any named person. Use 'the user' in the summary. Do NOT guess a name from other nodes in the graph.\n")
-	}
 	if content != "" {
 		b.WriteString("Content:\n" + content + "\n\n")
 	}
@@ -360,7 +331,7 @@ func buildEnrichmentPrompt(node memory.Node, content, summaryBlock, ownerName, s
 		b.WriteString("Existing nodes in the knowledge graph:\n" + summaryBlock + "\n\n")
 	}
 	b.WriteString(`Respond with a JSON object containing:
-- "summary": A concise 1-2 sentence summary of this node's content
+- "summary": A concise 1-2 sentence summary of this node's content. Do NOT include person names. The system tracks ownership separately. Use "the user" if a person reference is needed
 - "tags": Array of 3-7 lowercase tags for categorization
 - "retrieval_triggers": Array of up to 100 short phrases or questions that should trigger retrieval of this node. Generate triggers across three categories:
   * Direct: what the node is explicitly about (e.g., topics, names, concepts)

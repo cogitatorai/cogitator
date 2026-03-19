@@ -229,7 +229,7 @@ func TestBuildEnrichmentPromptBroaderTriggers(t *testing.T) {
 		Type:  memory.NodePreference,
 		Title: "Enjoys Tolkien books",
 	}
-	prompt := buildEnrichmentPrompt(node, "The user loves reading Tolkien novels.", "", "Andrei", "")
+	prompt := buildEnrichmentPrompt(node, "The user loves reading Tolkien novels.", "")
 
 	if !strings.Contains(prompt, "100") {
 		t.Error("prompt should mention up to 100 triggers")
@@ -237,7 +237,7 @@ func TestBuildEnrichmentPromptBroaderTriggers(t *testing.T) {
 	if !strings.Contains(prompt, "Direct") || !strings.Contains(prompt, "Contextual") || !strings.Contains(prompt, "Lateral") {
 		t.Error("prompt should mention Direct, Contextual, and Lateral trigger categories")
 	}
-	if !strings.Contains(prompt, "Andrei") {
-		t.Error("prompt should mention the owner's name")
+	if !strings.Contains(prompt, "Do NOT include person names") {
+		t.Error("prompt should instruct LLM to not include person names")
 	}
 }

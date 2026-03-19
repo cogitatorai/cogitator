@@ -119,10 +119,20 @@ func TestValidateEnrichmentResult(t *testing.T) {
 		}
 	})
 
-	t.Run("summary strips person names", func(t *testing.T) {
+	t.Run("summary strips person name at start", func(t *testing.T) {
 		result := ValidateEnrichmentResult("fact", "Guillaume likes coffee", nil, nil, []string{"Guillaume", "Andrei"}, "")
-		if strings.Contains(result.Summary, "Guillaume") {
-			t.Errorf("Summary should not contain person name: %s", result.Summary)
+		if strings.HasPrefix(result.Summary, "Guillaume") {
+			t.Errorf("Summary should not start with person name: %s", result.Summary)
+		}
+		if !strings.Contains(result.Summary, "the user") {
+			t.Errorf("Summary should start with 'the user': %s", result.Summary)
+		}
+	})
+
+	t.Run("summary preserves person name as value", func(t *testing.T) {
+		result := ValidateEnrichmentResult("fact", "A friend named Andrei", nil, nil, []string{"Andrei"}, "")
+		if !strings.Contains(result.Summary, "Andrei") {
+			t.Errorf("Summary should preserve name as value: %s", result.Summary)
 		}
 	})
 

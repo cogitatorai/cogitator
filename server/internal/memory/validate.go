@@ -126,9 +126,12 @@ func ValidateEnrichmentResult(nodeType string, summary string, tags, triggers []
 		}
 	}
 
-	// Strip person names from summary.
+	// Strip person names only when used as the subject (start of summary).
+	// Avoid replacing names that appear as values, e.g. "a friend named Andrei".
 	for _, name := range userNames {
-		summary = strings.ReplaceAll(summary, name, "the user")
+		if strings.HasPrefix(summary, name) {
+			summary = "the user" + summary[len(name):]
+		}
 	}
 	if len(summary) > 200 {
 		summary = summary[:200]

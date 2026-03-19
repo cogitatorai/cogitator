@@ -53,12 +53,12 @@ func (s *Store) CreateNode(n *Node) (string, error) {
 	_, err := s.db.Exec(`INSERT INTO nodes
 		(id, type, title, summary, tags, retrieval_triggers, confidence,
 		 content_path, enrichment_status, origin, source_url, version, skill_path,
-		 created_at, updated_at, pinned, consolidated_into, user_id, subject_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 created_at, updated_at, pinned, private, consolidated_into, user_id, subject_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		n.ID, n.Type, n.Title, n.Summary, string(tags), string(triggers),
 		n.Confidence, n.ContentPath, n.EnrichmentStatus, n.Origin,
 		n.SourceURL, n.Version, n.SkillPath, n.CreatedAt, n.UpdatedAt,
-		n.Pinned, n.ConsolidatedInto, n.UserID, n.SubjectID)
+		n.Pinned, n.Private, n.ConsolidatedInto, n.UserID, n.SubjectID)
 	if err != nil {
 		return "", err
 	}
@@ -74,12 +74,12 @@ func (s *Store) GetNode(id string) (*Node, error) {
 	err := s.db.QueryRow(`SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
-		created_at, updated_at, last_accessed, pinned, consolidated_into, user_id, subject_id
+		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
 		FROM nodes WHERE id = ?`, id).Scan(
 		&n.ID, &n.Type, &n.Title, &summary, &tags, &triggers,
 		&n.Confidence, &contentPath, &n.EnrichmentStatus, &origin,
 		&sourceURL, &version, &skillPath,
-		&n.CreatedAt, &n.UpdatedAt, &lastAccessed, &n.Pinned, &consolidatedInto, &userID, &subjectID)
+		&n.CreatedAt, &n.UpdatedAt, &lastAccessed, &n.Pinned, &n.Private, &consolidatedInto, &userID, &subjectID)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
 	}
@@ -113,11 +113,18 @@ func (s *Store) GetNode(id string) (*Node, error) {
 	return &n, nil
 }
 
-// SetNodePrivacy updates the user_id of a node to control its visibility.
-// Pass nil to make the node shared; pass a user ID to make it private.
-func (s *Store) SetNodePrivacy(id string, userID *string) error {
-	res, err := s.db.Exec("UPDATE nodes SET user_id = ?, updated_at = ? WHERE id = ?",
-		userID, time.Now(), id)
+// SetNodeVisibility sets the private flag on a node and cascades to all
+// connected edges. This is a pure database operation with no LLM involvement.
+func (s *Store) SetNodeVisibility(nodeID string, private bool) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(
+		"UPDATE nodes SET private = ?, updated_at = ? WHERE id = ?",
+		private, time.Now(), nodeID)
 	if err != nil {
 		return err
 	}
@@ -128,7 +135,17 @@ func (s *Store) SetNodePrivacy(id string, userID *string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	return nil
+
+	_, err = tx.Exec(`
+		UPDATE edges SET private = COALESCE((
+			SELECT MAX(n.private) FROM nodes n
+			WHERE n.id = edges.source_id OR n.id = edges.target_id
+		), 0) WHERE source_id = ? OR target_id = ?`, nodeID, nodeID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // FindNodeBySkillPath returns the node with the given skill_path, or nil if none exists.
@@ -152,11 +169,11 @@ func (s *Store) UpdateNode(n *Node) error {
 	_, err := s.db.Exec(`UPDATE nodes SET
 		title=?, summary=?, tags=?, retrieval_triggers=?, confidence=?,
 		content_path=?, enrichment_status=?, origin=?, source_url=?,
-		version=?, skill_path=?, updated_at=?, pinned=?, consolidated_into=?
+		version=?, skill_path=?, updated_at=?, pinned=?, private=?, consolidated_into=?
 		WHERE id=?`,
 		n.Title, n.Summary, string(tags), string(triggers), n.Confidence,
 		n.ContentPath, n.EnrichmentStatus, n.Origin, n.SourceURL,
-		n.Version, n.SkillPath, n.UpdatedAt, n.Pinned, n.ConsolidatedInto, n.ID)
+		n.Version, n.SkillPath, n.UpdatedAt, n.Pinned, n.Private, n.ConsolidatedInto, n.ID)
 	return err
 }
 
@@ -169,12 +186,12 @@ func (s *Store) ListNodes(userID string, nodeType NodeType, limit, offset int) (
 	query := `SELECT
 		id, type, title, summary, confidence, enrichment_status,
 		origin, source_url, version, skill_path, created_at, updated_at,
-		pinned, consolidated_into, user_id, subject_id
+		pinned, private, consolidated_into, user_id, subject_id
 		FROM nodes WHERE 1=1`
 	var args []any
 
 	if userID != "" {
-		query += " AND (user_id IS NULL OR user_id = ?)"
+		query += " AND (private = 0 OR user_id = ?)"
 		args = append(args, userID)
 		// Hide memories about other people from the current user's list.
 		query += " AND (subject_id IS NULL OR subject_id = ?)"
@@ -201,7 +218,7 @@ func (s *Store) ListNodes(userID string, nodeType NodeType, limit, offset int) (
 		if err := rows.Scan(&n.ID, &n.Type, &n.Title, &summary,
 			&n.Confidence, &n.EnrichmentStatus,
 			&origin, &sourceURL, &version, &skillPath,
-			&n.CreatedAt, &n.UpdatedAt, &n.Pinned, &consolidatedInto, &uid, &sid); err != nil {
+			&n.CreatedAt, &n.UpdatedAt, &n.Pinned, &n.Private, &consolidatedInto, &uid, &sid); err != nil {
 			return nil, err
 		}
 		n.Summary = summary.String
@@ -225,7 +242,7 @@ func (s *Store) GetPendingEnrichment(limit int) ([]Node, error) {
 	rows, err := s.db.Query(`SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
-		created_at, updated_at, last_accessed, pinned, consolidated_into, user_id, subject_id
+		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
 		FROM nodes WHERE enrichment_status = 'pending'
 		ORDER BY created_at ASC LIMIT ?`, limit)
 	if err != nil {
@@ -241,7 +258,7 @@ func (s *Store) GetNodeSummaries(userID string, types ...NodeType) ([]NodeSummar
 	var args []any
 
 	if userID != "" {
-		query += " AND (user_id IS NULL OR user_id = ?)"
+		query += " AND (private = 0 OR user_id = ?)"
 		args = append(args, userID)
 	}
 	if len(types) > 0 {
@@ -283,19 +300,27 @@ func (s *Store) CreateEdge(e *Edge) error {
 	if e.CreatedAt.IsZero() {
 		e.CreatedAt = time.Now()
 	}
-	_, err := s.db.Exec(`INSERT INTO edges (source_id, target_id, relation, weight, created_at, user_id)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		e.SourceID, e.TargetID, e.Relation, e.Weight, e.CreatedAt, e.UserID)
+	// Derive edge privacy: if either endpoint is private, the edge is private.
+	var priv bool
+	s.db.QueryRow(
+		"SELECT COALESCE(MAX(private), 0) FROM nodes WHERE id IN (?, ?)",
+		e.SourceID, e.TargetID,
+	).Scan(&priv)
+	e.Private = priv
+
+	_, err := s.db.Exec(`INSERT INTO edges (source_id, target_id, relation, weight, created_at, user_id, private)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		e.SourceID, e.TargetID, e.Relation, e.Weight, e.CreatedAt, e.UserID, e.Private)
 	return err
 }
 
 func (s *Store) GetEdgesFrom(nodeID, userID string) ([]Edge, error) {
-	query := `SELECT e.source_id, e.target_id, e.relation, e.weight, e.created_at, e.user_id
+	query := `SELECT e.source_id, e.target_id, e.relation, e.weight, e.created_at, e.user_id, e.private
 		FROM edges e`
 	args := []any{nodeID}
 	if userID != "" {
 		query += ` JOIN nodes target ON e.target_id = target.id
-			WHERE e.source_id = ? AND (target.user_id IS NULL OR target.user_id = ?)`
+			WHERE e.source_id = ? AND (target.private = 0 OR target.user_id = ?)`
 		args = append(args, userID)
 	} else {
 		query += ` WHERE e.source_id = ?`
@@ -304,12 +329,12 @@ func (s *Store) GetEdgesFrom(nodeID, userID string) ([]Edge, error) {
 }
 
 func (s *Store) GetEdgesTo(nodeID, userID string) ([]Edge, error) {
-	query := `SELECT e.source_id, e.target_id, e.relation, e.weight, e.created_at, e.user_id
+	query := `SELECT e.source_id, e.target_id, e.relation, e.weight, e.created_at, e.user_id, e.private
 		FROM edges e`
 	args := []any{nodeID}
 	if userID != "" {
 		query += ` JOIN nodes source ON e.source_id = source.id
-			WHERE e.target_id = ? AND (source.user_id IS NULL OR source.user_id = ?)`
+			WHERE e.target_id = ? AND (source.private = 0 OR source.user_id = ?)`
 		args = append(args, userID)
 	} else {
 		query += ` WHERE e.target_id = ?`
@@ -317,12 +342,20 @@ func (s *Store) GetEdgesTo(nodeID, userID string) ([]Edge, error) {
 	return s.queryEdges(query, args...)
 }
 
-func (s *Store) GetConnectedNodes(nodeID string) ([]NodeSummary, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetConnectedNodes(nodeID, userID string) ([]NodeSummary, error) {
+	query := `
 		SELECT DISTINCT n.id, n.type, n.title, n.summary, n.retrieval_triggers
 		FROM nodes n
-		JOIN edges e ON (e.target_id = n.id AND e.source_id = ?) OR (e.source_id = n.id AND e.target_id = ?)
-		ORDER BY e.weight DESC`, nodeID, nodeID)
+		JOIN edges e ON (e.target_id = n.id AND e.source_id = ?) OR (e.source_id = n.id AND e.target_id = ?)`
+	args := []any{nodeID, nodeID}
+
+	if userID != "" {
+		query += " AND (n.private = 0 OR n.user_id = ?)"
+		args = append(args, userID)
+	}
+	query += " ORDER BY e.weight DESC"
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +386,7 @@ func (s *Store) GetConnectedNodesByUser(nodeID, userID string) ([]NodeSummary, e
 		JOIN edges e ON (e.target_id = n.id AND e.source_id = ?) OR (e.source_id = n.id AND e.target_id = ?)`
 	args := []any{nodeID, nodeID}
 	if userID != "" {
-		query += ` WHERE (n.user_id IS NULL OR n.user_id = ?)`
+		query += ` WHERE (n.private = 0 OR n.user_id = ?)`
 		args = append(args, userID)
 	}
 	query += ` ORDER BY e.weight DESC`
@@ -386,9 +419,9 @@ func (s *Store) GetVisibleEdges(userID string) ([]Edge, error) {
 	if userID == "" {
 		return s.ListAllEdges()
 	}
-	return s.queryEdges(`SELECT e.source_id, e.target_id, e.relation, e.weight, e.created_at, e.user_id
+	return s.queryEdges(`SELECT e.source_id, e.target_id, e.relation, e.weight, e.created_at, e.user_id, e.private
 		FROM edges e
-		WHERE e.user_id IS NULL OR e.user_id = ?`, userID)
+		WHERE e.private = 0 OR e.user_id = ?`, userID)
 }
 
 func (s *Store) DeleteEdge(sourceID, targetID string, relation RelationType) error {
@@ -429,7 +462,7 @@ func (s *Store) queryEdges(query string, args ...any) ([]Edge, error) {
 	for rows.Next() {
 		var e Edge
 		var uid sql.NullString
-		if err := rows.Scan(&e.SourceID, &e.TargetID, &e.Relation, &e.Weight, &e.CreatedAt, &uid); err != nil {
+		if err := rows.Scan(&e.SourceID, &e.TargetID, &e.Relation, &e.Weight, &e.CreatedAt, &uid, &e.Private); err != nil {
 			return nil, err
 		}
 		if uid.Valid {
@@ -442,7 +475,7 @@ func (s *Store) queryEdges(query string, args ...any) ([]Edge, error) {
 
 // ListAllEdges returns every edge in the graph.
 func (s *Store) ListAllEdges() ([]Edge, error) {
-	return s.queryEdges("SELECT source_id, target_id, relation, weight, created_at, user_id FROM edges")
+	return s.queryEdges("SELECT source_id, target_id, relation, weight, created_at, user_id, private FROM edges")
 }
 
 // ListAllNodeSummaries returns summaries for all nodes regardless of type.
@@ -482,7 +515,7 @@ func (s *Store) GetAllEmbeddings(userID string) (map[string][]float32, error) {
 	var args []any
 	if userID != "" {
 		query += ` JOIN nodes n ON ne.node_id = n.id
-			WHERE n.user_id IS NULL OR n.user_id = ?`
+			WHERE n.private = 0 OR n.user_id = ?`
 		args = append(args, userID)
 	}
 
@@ -531,7 +564,7 @@ func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[stri
 	var conditions []string
 
 	if userID != "" {
-		conditions = append(conditions, "(n.user_id IS NULL OR n.user_id = ?)")
+		conditions = append(conditions, "(n.private = 0 OR n.user_id = ?)")
 		args = append(args, userID)
 	}
 	if len(types) > 0 {
@@ -597,11 +630,11 @@ func (s *Store) GetPinnedNodes(userID string) ([]Node, error) {
 	query := `SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
-		created_at, updated_at, last_accessed, pinned, consolidated_into, user_id, subject_id
+		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
 		FROM nodes WHERE pinned = 1`
 	var args []any
 	if userID != "" {
-		query += " AND (user_id IS NULL OR user_id = ?)"
+		query += " AND (private = 0 OR user_id = ?)"
 		args = append(args, userID)
 	}
 	rows, err := s.db.Query(query, args...)
@@ -617,7 +650,7 @@ func (s *Store) GetUnconsolidatedNodes(limit int) ([]Node, error) {
 	rows, err := s.db.Query(`SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
-		created_at, updated_at, last_accessed, pinned, consolidated_into, user_id, subject_id
+		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
 		FROM nodes
 		WHERE enrichment_status = 'complete' AND (consolidated_into IS NULL OR consolidated_into = '')
 		ORDER BY created_at ASC LIMIT ?`, limit)
@@ -640,7 +673,7 @@ func (s *Store) GetUnconsolidatedCount() (int, error) {
 func (s *Store) GetNodesWithoutEmbeddings(limit int) ([]Node, error) {
 	rows, err := s.db.Query(`SELECT n.id, n.type, n.title, n.summary, n.tags, n.retrieval_triggers,
 		n.confidence, n.content_path, n.enrichment_status, n.origin, n.source_url, n.version, n.skill_path,
-		n.created_at, n.updated_at, n.last_accessed, n.pinned, n.consolidated_into, n.user_id, n.subject_id
+		n.created_at, n.updated_at, n.last_accessed, n.pinned, n.private, n.consolidated_into, n.user_id, n.subject_id
 		FROM nodes n LEFT JOIN node_embeddings ne ON n.id = ne.node_id
 		WHERE ne.node_id IS NULL LIMIT ?`, limit)
 	if err != nil {
@@ -661,10 +694,10 @@ func (s *Store) GetEmbeddingsByTypeAndOwner(nodeType NodeType, userID *string) (
 	args := []any{nodeType}
 
 	if userID != nil {
-		query += " AND (n.user_id IS NULL OR n.user_id = ?)"
+		query += " AND (n.private = 0 OR n.user_id = ?)"
 		args = append(args, *userID)
 	} else {
-		query += " AND n.user_id IS NULL"
+		query += " AND n.private = 0"
 	}
 
 	rows, err := s.db.Query(query, args...)
@@ -702,13 +735,13 @@ func (s *Store) ListNodesByTags(userID string, nodeType NodeType, tags []string)
 
 	query := `SELECT DISTINCT n.id, n.type, n.title, n.summary, n.tags, n.retrieval_triggers,
 		n.confidence, n.content_path, n.enrichment_status, n.origin, n.source_url, n.version,
-		n.skill_path, n.created_at, n.updated_at, n.last_accessed, n.pinned, n.consolidated_into,
+		n.skill_path, n.created_at, n.updated_at, n.last_accessed, n.pinned, n.private, n.consolidated_into,
 		n.user_id, n.subject_id
 		FROM nodes n, json_each(n.tags) AS jt
 		WHERE n.type = ? AND LOWER(jt.value) IN (` + strings.Join(placeholders, ",") + `)`
 
 	if userID != "" {
-		query += " AND (n.user_id IS NULL OR n.user_id = ?)"
+		query += " AND (n.private = 0 OR n.user_id = ?)"
 		args = append(args, userID)
 	}
 
@@ -737,7 +770,7 @@ func (s *Store) AdjustConfidence(nodeID string, delta float64, bound float64) er
 // scanNodes reads the full node row set from a query that selects:
 // id, type, title, summary, tags, retrieval_triggers, confidence,
 // content_path, enrichment_status, origin, source_url, version, skill_path,
-// created_at, updated_at, last_accessed, pinned, consolidated_into, user_id, subject_id
+// created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
 func scanNodes(rows *sql.Rows) ([]Node, error) {
 	var nodes []Node
 	for rows.Next() {
@@ -748,7 +781,7 @@ func scanNodes(rows *sql.Rows) ([]Node, error) {
 		if err := rows.Scan(&n.ID, &n.Type, &n.Title, &summary, &tags, &triggers,
 			&n.Confidence, &contentPath, &n.EnrichmentStatus, &origin,
 			&sourceURL, &version, &skillPath,
-			&n.CreatedAt, &n.UpdatedAt, &lastAccessed, &n.Pinned, &consolidatedInto, &userID, &subjectID); err != nil {
+			&n.CreatedAt, &n.UpdatedAt, &lastAccessed, &n.Pinned, &n.Private, &consolidatedInto, &userID, &subjectID); err != nil {
 			return nil, err
 		}
 		n.Summary = summary.String

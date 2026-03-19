@@ -239,7 +239,7 @@ func TestGetConnectedNodes(t *testing.T) {
 
 	store.CreateEdge(&Edge{SourceID: id1, TargetID: id2, Relation: RelSupports, Weight: 0.8})
 
-	connected, err := store.GetConnectedNodes(id1)
+	connected, err := store.GetConnectedNodes(id1, "")
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -381,8 +381,8 @@ func TestListNodes_VisibilityRule(t *testing.T) {
 
 	// Create: 1 shared, 1 private for Alice, 1 private for Bob.
 	store.CreateNode(&Node{Type: NodeFact, Title: "Shared", Confidence: 0.5})
-	store.CreateNode(&Node{Type: NodeFact, Title: "Alice private", Confidence: 0.5, UserID: ptr("alice")})
-	store.CreateNode(&Node{Type: NodeFact, Title: "Bob private", Confidence: 0.5, UserID: ptr("bob")})
+	store.CreateNode(&Node{Type: NodeFact, Title: "Alice private", Confidence: 0.5, UserID: ptr("alice"), Private: true})
+	store.CreateNode(&Node{Type: NodeFact, Title: "Bob private", Confidence: 0.5, UserID: ptr("bob"), Private: true})
 
 	// Alice sees shared + own = 2.
 	alice, err := store.ListNodes("alice", "", 100, 0)
@@ -429,8 +429,8 @@ func TestGetNodeSummaries_VisibilityRule(t *testing.T) {
 	insertTestUser(t, db, "bob")
 
 	store.CreateNode(&Node{Type: NodeFact, Title: "Shared", Confidence: 0.9})
-	store.CreateNode(&Node{Type: NodeFact, Title: "Alice private", Confidence: 0.5, UserID: ptr("alice")})
-	store.CreateNode(&Node{Type: NodeFact, Title: "Bob private", Confidence: 0.5, UserID: ptr("bob")})
+	store.CreateNode(&Node{Type: NodeFact, Title: "Alice private", Confidence: 0.5, UserID: ptr("alice"), Private: true})
+	store.CreateNode(&Node{Type: NodeFact, Title: "Bob private", Confidence: 0.5, UserID: ptr("bob"), Private: true})
 
 	alice, err := store.GetNodeSummaries("alice")
 	if err != nil {
@@ -456,8 +456,8 @@ func TestGetAllEmbeddings_VisibilityRule(t *testing.T) {
 	insertTestUser(t, db, "bob")
 
 	sharedID, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Shared"})
-	aliceID, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Alice", UserID: ptr("alice")})
-	bobID, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Bob", UserID: ptr("bob")})
+	aliceID, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Alice", UserID: ptr("alice"), Private: true})
+	bobID, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Bob", UserID: ptr("bob"), Private: true})
 
 	store.SaveEmbedding(sharedID, []float32{1, 0, 0}, "m")
 	store.SaveEmbedding(aliceID, []float32{0, 1, 0}, "m")
@@ -490,8 +490,8 @@ func TestGetPinnedNodes_VisibilityRule(t *testing.T) {
 	insertTestUser(t, db, "bob")
 
 	store.CreateNode(&Node{Type: NodeFact, Title: "Shared pinned", Pinned: true})
-	store.CreateNode(&Node{Type: NodeFact, Title: "Alice pinned", Pinned: true, UserID: ptr("alice")})
-	store.CreateNode(&Node{Type: NodeFact, Title: "Bob pinned", Pinned: true, UserID: ptr("bob")})
+	store.CreateNode(&Node{Type: NodeFact, Title: "Alice pinned", Pinned: true, UserID: ptr("alice"), Private: true})
+	store.CreateNode(&Node{Type: NodeFact, Title: "Bob pinned", Pinned: true, UserID: ptr("bob"), Private: true})
 
 	alice, err := store.GetPinnedNodes("alice")
 	if err != nil {
@@ -578,10 +578,10 @@ func TestGetEdgesFrom_VisibilityRule(t *testing.T) {
 
 	// Source node is shared.
 	srcID, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Source"})
-	// Targets: shared, alice-owned, bob-owned.
+	// Targets: shared, alice-private, bob-private.
 	sharedTarget, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Shared target"})
-	aliceTarget, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Alice target", UserID: ptr("alice")})
-	bobTarget, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Bob target", UserID: ptr("bob")})
+	aliceTarget, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Alice target", UserID: ptr("alice"), Private: true})
+	bobTarget, _ := store.CreateNode(&Node{Type: NodeFact, Title: "Bob target", UserID: ptr("bob"), Private: true})
 
 	store.CreateEdge(&Edge{SourceID: srcID, TargetID: sharedTarget, Relation: RelSupports, Weight: 0.8})
 	store.CreateEdge(&Edge{SourceID: srcID, TargetID: aliceTarget, Relation: RelSupports, Weight: 0.8})
@@ -617,7 +617,7 @@ func TestGetEmbeddingsByTypeAndOwner(t *testing.T) {
 
 	insertTestUser(t, db, "user1")
 	userID := "user1"
-	idPrivate, _ := store.CreateNode(&Node{Type: NodeFact, Title: "private fact", UserID: &userID})
+	idPrivate, _ := store.CreateNode(&Node{Type: NodeFact, Title: "private fact", UserID: &userID, Private: true})
 	idShared, _ := store.CreateNode(&Node{Type: NodeFact, Title: "shared fact"})
 	idPref, _ := store.CreateNode(&Node{Type: NodePreference, Title: "pref"})
 
@@ -687,5 +687,110 @@ func TestAdjustConfidence(t *testing.T) {
 	node, _ = store.GetNode(id)
 	if node.Confidence != 0.1 {
 		t.Errorf("confidence after floor = %f, want 0.1", node.Confidence)
+	}
+}
+
+func TestNodePrivacyField(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+	insertTestUser(t, db, "user1")
+
+	uid := "user1"
+	id, err := store.CreateNode(&Node{
+		Type: NodeFact, Title: "private fact", UserID: &uid, Private: true, Confidence: 0.9,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	node, err := store.GetNode(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !node.Private {
+		t.Error("expected Private=true after create")
+	}
+
+	node.Private = false
+	store.UpdateNode(node)
+
+	updated, _ := store.GetNode(id)
+	if updated.Private {
+		t.Error("expected Private=false after update")
+	}
+}
+
+func TestEdgePrivacyDerivedFromNodes(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+	insertTestUser(t, db, "user1")
+
+	uid := "user1"
+	idPublic, _ := store.CreateNode(&Node{Type: NodeFact, Title: "public", UserID: &uid, Confidence: 0.9})
+	idPrivate, _ := store.CreateNode(&Node{Type: NodeFact, Title: "private", UserID: &uid, Private: true, Confidence: 0.9})
+	idPublic2, _ := store.CreateNode(&Node{Type: NodeFact, Title: "public2", UserID: &uid, Confidence: 0.9})
+
+	store.CreateEdge(&Edge{SourceID: idPublic, TargetID: idPublic2, Relation: RelRelatedTo, Weight: 0.5})
+	edges, _ := store.GetEdgesFrom(idPublic, uid)
+	if len(edges) > 0 && edges[0].Private {
+		t.Error("edge between public nodes should be public")
+	}
+
+	store.CreateEdge(&Edge{SourceID: idPublic, TargetID: idPrivate, Relation: RelSupports, Weight: 0.5})
+	edges2, _ := store.GetEdgesFrom(idPublic, uid)
+	for _, e := range edges2 {
+		if e.TargetID == idPrivate && !e.Private {
+			t.Error("edge touching private node should be private")
+		}
+	}
+}
+
+func TestSetNodeVisibilityCascadesToEdges(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+	insertTestUser(t, db, "user1")
+
+	uid := "user1"
+	idA, _ := store.CreateNode(&Node{Type: NodeFact, Title: "A", UserID: &uid, Confidence: 0.9})
+	idB, _ := store.CreateNode(&Node{Type: NodeFact, Title: "B", UserID: &uid, Confidence: 0.9})
+	store.CreateEdge(&Edge{SourceID: idA, TargetID: idB, Relation: RelRelatedTo, Weight: 0.5})
+
+	store.SetNodeVisibility(idA, true)
+	node, _ := store.GetNode(idA)
+	if !node.Private {
+		t.Error("node should be private")
+	}
+	edges, _ := store.GetEdgesFrom(idA, uid)
+	if len(edges) > 0 && !edges[0].Private {
+		t.Error("edge should cascade to private")
+	}
+
+	store.SetNodeVisibility(idA, false)
+	edges, _ = store.GetEdgesFrom(idA, uid)
+	if len(edges) > 0 && edges[0].Private {
+		t.Error("edge should cascade back to public")
+	}
+}
+
+func TestPrivateNodeVisibility(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+	insertTestUser(t, db, "user1")
+	insertTestUser(t, db, "user2")
+
+	uid1 := "user1"
+	uid2 := "user2"
+
+	store.CreateNode(&Node{Type: NodeFact, Title: "user1 secret", UserID: &uid1, Private: true, Confidence: 0.9})
+	store.CreateNode(&Node{Type: NodeFact, Title: "shared fact", UserID: &uid1, Confidence: 0.9})
+
+	nodes1, _ := store.ListNodes(uid1, NodeFact, 100, 0)
+	if len(nodes1) != 2 {
+		t.Errorf("user1 should see 2 nodes, got %d", len(nodes1))
+	}
+
+	nodes2, _ := store.ListNodes(uid2, NodeFact, 100, 0)
+	if len(nodes2) != 1 {
+		t.Errorf("user2 should see 1 node, got %d", len(nodes2))
 	}
 }

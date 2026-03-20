@@ -199,8 +199,6 @@ CREATE INDEX IF NOT EXISTS idx_nodes_user ON nodes(user_id);
 CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
 CREATE INDEX IF NOT EXISTS idx_edges_user ON edges(user_id);
-CREATE INDEX IF NOT EXISTS idx_nodes_private_user ON nodes(private, user_id);
-CREATE INDEX IF NOT EXISTS idx_edges_private_user ON edges(private, user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_key);
 CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);

@@ -48,8 +48,8 @@ Thumbs.db
 *.njsproj
 *.sln
 
-# Eval cache
-server/eval/testdata/cache/
+# Eval harness (private, not shipped with public repo)
+server/eval/
 
 # Logs
 *.log

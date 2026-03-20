@@ -206,16 +206,44 @@ func (e *Enricher) processPending(ctx context.Context) {
 
 // EnrichResult is the structured response expected from the LLM.
 type EnrichResult struct {
-	NodeType          string   `json:"node_type"`
-	Summary           string   `json:"summary"`
-	Tags              []string `json:"tags"`
-	RetrievalTriggers []string `json:"retrieval_triggers"`
+	NodeType          string         `json:"node_type"`
+	Summary           string         `json:"summary"`
+	Tags              []string       `json:"tags"`
+	RetrievalTriggers FlexibleTriggers `json:"retrieval_triggers"`
 	RelatedNodes      []struct {
 		ID       string  `json:"id"`
 		Relation string  `json:"relation"`
 		Weight   float64 `json:"weight"`
 	} `json:"related_nodes"`
 	Contradictions []string `json:"contradictions"`
+}
+
+// FlexibleTriggers handles both flat arrays (["a", "b"]) and categorized objects
+// ({"direct": ["a"], "contextual": ["b"]}) that different LLMs may return.
+type FlexibleTriggers []string
+
+func (ft *FlexibleTriggers) UnmarshalJSON(data []byte) error {
+	// Try flat array first.
+	var flat []string
+	if err := json.Unmarshal(data, &flat); err == nil {
+		*ft = flat
+		return nil
+	}
+
+	// Try categorized object.
+	var categorized map[string][]string
+	if err := json.Unmarshal(data, &categorized); err == nil {
+		var all []string
+		for _, triggers := range categorized {
+			all = append(all, triggers...)
+		}
+		*ft = all
+		return nil
+	}
+
+	// Fallback: empty.
+	*ft = nil
+	return nil
 }
 
 func (e *Enricher) getProvider() (provider.Provider, string) {

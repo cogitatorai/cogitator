@@ -134,12 +134,38 @@ func applyMigration(db *sql.DB, fsys fs.FS, mf migrationFile) error {
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(string(data)); err != nil {
-		return fmt.Errorf("exec sql: %w", err)
+	// Execute each statement individually so that idempotent failures
+	// (e.g., ALTER TABLE ADD COLUMN on a column that already exists)
+	// are silently skipped rather than aborting the entire migration.
+	for _, stmt := range splitStatements(string(data)) {
+		if stmt == "" {
+			continue
+		}
+		if _, err := tx.Exec(stmt); err != nil {
+			// Tolerate "duplicate column name" from ALTER TABLE ADD COLUMN
+			// when the idempotent schema already created the column.
+			if strings.Contains(err.Error(), "duplicate column") {
+				continue
+			}
+			return fmt.Errorf("exec sql: %w", err)
+		}
 	}
 	if _, err := tx.Exec("INSERT INTO schema_migrations (version) VALUES (?)", mf.version); err != nil {
 		return fmt.Errorf("record version: %w", err)
 	}
 
 	return tx.Commit()
+}
+
+// splitStatements splits a SQL script into individual statements on semicolons.
+// Blank lines and comments between statements are preserved within each statement.
+func splitStatements(sql string) []string {
+	var stmts []string
+	for _, s := range strings.Split(sql, ";") {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			stmts = append(stmts, s)
+		}
+	}
+	return stmts
 }

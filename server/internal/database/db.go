@@ -2,12 +2,16 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"io/fs"
 	"os"
 	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
+
+//go:embed migrations/*.sql
+var EmbeddedMigrations embed.FS
 
 type DB struct {
 	*sql.DB

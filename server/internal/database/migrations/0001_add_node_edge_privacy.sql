@@ -19,5 +19,3 @@ UPDATE nodes SET user_id = COALESCE(
 UPDATE edges SET user_id = (
     SELECT user_id FROM nodes WHERE nodes.id = edges.source_id
 ) WHERE edges.user_id IS NULL;
-
--- Existing nodes and edges were all shared, so private stays 0 (the default).

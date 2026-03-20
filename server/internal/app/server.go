@@ -135,7 +135,8 @@ func New(opts Options) (*Server, error) {
 		}
 	}
 
-	db, err := database.Open(ws.DBPath())
+	migrationsFS, _ := fs.Sub(database.EmbeddedMigrations, "migrations")
+	db, err := database.Open(ws.DBPath(), migrationsFS)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}

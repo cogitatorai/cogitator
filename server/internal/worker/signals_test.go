@@ -52,7 +52,7 @@ func TestDetectSignals(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			signals := detectSignals(tt.messages)
+			signals := DetectSignals(tt.messages)
 			if tt.wantType == "" {
 				if len(signals) != 0 {
 					t.Errorf("expected no signals, got %d", len(signals))

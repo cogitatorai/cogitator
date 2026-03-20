@@ -227,7 +227,7 @@ func TestEnricherHandlesLLMError(t *testing.T) {
 
 func TestBuildEnrichmentPromptIncludesNodeType(t *testing.T) {
 	node := memory.Node{ID: "test", Type: memory.NodeFact, Title: "test"}
-	prompt := buildEnrichmentPrompt(node, "", "")
+	prompt := BuildEnrichmentPrompt(node, "", "")
 	if !strings.Contains(prompt, "node_type") {
 		t.Error("prompt should request node_type classification")
 	}
@@ -239,7 +239,7 @@ func TestBuildEnrichmentPromptBroaderTriggers(t *testing.T) {
 		Type:  memory.NodePreference,
 		Title: "Enjoys Tolkien books",
 	}
-	prompt := buildEnrichmentPrompt(node, "The user loves reading Tolkien novels.", "")
+	prompt := BuildEnrichmentPrompt(node, "The user loves reading Tolkien novels.", "")
 
 	if !strings.Contains(prompt, "100") {
 		t.Error("prompt should mention up to 100 triggers")

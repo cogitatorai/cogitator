@@ -110,8 +110,8 @@ func (r *Reflector) SetProvider(p provider.Provider, model string) {
 	r.model = model
 }
 
-// reflectionSignal is one classified behavioral signal from the LLM.
-type reflectionSignal struct {
+// ReflectionSignal is one classified behavioral signal from the LLM.
+type ReflectionSignal struct {
 	Type         string  `json:"type"`          // correction | refinement | acknowledgment
 	Summary      string  `json:"summary"`
 	SuggestedRule string `json:"suggested_rule"`
@@ -121,7 +121,7 @@ type reflectionSignal struct {
 
 // reflectionResponse is the full JSON structure the LLM returns.
 type reflectionResponse struct {
-	Signals []reflectionSignal `json:"signals"`
+	Signals []ReflectionSignal `json:"signals"`
 }
 
 func (r *Reflector) handleEvent(ctx context.Context, evt bus.Event) {
@@ -193,7 +193,7 @@ func (r *Reflector) handleEvent(ctx context.Context, evt bus.Event) {
 }
 
 // shouldStore returns true when a signal warrants creating an episode node.
-func (r *Reflector) shouldStore(sig reflectionSignal) bool {
+func (r *Reflector) shouldStore(sig ReflectionSignal) bool {
 	switch sig.Type {
 	case "correction", "refinement":
 		return true
@@ -205,7 +205,7 @@ func (r *Reflector) shouldStore(sig reflectionSignal) bool {
 
 // classify dispatches to pattern-based detection for English messages and falls
 // back to LLM classification for non-English content.
-func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]reflectionSignal, error) {
+func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]ReflectionSignal, error) {
 	var combinedText strings.Builder
 	for _, m := range msgs {
 		if m.Role == "user" {
@@ -214,14 +214,14 @@ func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]ref
 		}
 	}
 
-	if !isLikelyNonEnglish(combinedText.String()) {
-		detected := detectSignals(msgs)
+	if !IsLikelyNonEnglish(combinedText.String()) {
+		detected := DetectSignals(msgs)
 		if len(detected) == 0 {
 			return nil, nil
 		}
-		signals := make([]reflectionSignal, 0, len(detected))
+		signals := make([]ReflectionSignal, 0, len(detected))
 		for _, d := range detected {
-			signals = append(signals, reflectionSignal{
+			signals = append(signals, ReflectionSignal{
 				Type:         d.Type,
 				Summary:      msgs[d.MessageIndex].Content,
 				Confidence:   d.Confidence,
@@ -236,7 +236,7 @@ func (r *Reflector) classify(ctx context.Context, msgs []session.Message) ([]ref
 
 // classifyViaLLM sends the conversation messages to the LLM and parses the response.
 // Used as a fallback for non-English content where pattern matching is unreliable.
-func (r *Reflector) classifyViaLLM(ctx context.Context, msgs []session.Message) ([]reflectionSignal, error) {
+func (r *Reflector) classifyViaLLM(ctx context.Context, msgs []session.Message) ([]ReflectionSignal, error) {
 	r.mu.Lock()
 	prov, model := r.provider, r.model
 	r.mu.Unlock()
@@ -244,7 +244,7 @@ func (r *Reflector) classifyViaLLM(ctx context.Context, msgs []session.Message) 
 		return nil, fmt.Errorf("no provider configured")
 	}
 
-	prompt := buildReflectionPrompt(msgs)
+	prompt := BuildReflectionPrompt(msgs)
 
 	provMsgs := []provider.Message{
 		{
@@ -280,7 +280,7 @@ func (r *Reflector) classifyViaLLM(ctx context.Context, msgs []session.Message) 
 // directly relevant existing preference or pattern nodes. The ownerID
 // determines whether the node and its edges are private (non-nil) or shared
 // (nil).
-func (r *Reflector) storeSignal(sig reflectionSignal, sessionKey string, ownerID *string, existing []memory.NodeSummary) (string, error) {
+func (r *Reflector) storeSignal(sig ReflectionSignal, sessionKey string, ownerID *string, existing []memory.NodeSummary) (string, error) {
 	title := titleForSignal(sig)
 
 	node := &memory.Node{
@@ -364,7 +364,7 @@ func edgeRelation(sigType string) memory.RelationType {
 // nodesSeem is a lightweight heuristic: check if any word from the signal
 // summary or suggested rule appears in the existing node title or summary.
 // The Enricher will do rigorous semantic matching; this is opportunistic.
-func nodesSeem(sig reflectionSignal, ns memory.NodeSummary) bool {
+func nodesSeem(sig ReflectionSignal, ns memory.NodeSummary) bool {
 	haystack := strings.ToLower(ns.Title + " " + ns.Summary)
 	for _, trigger := range ns.RetrievalTriggers {
 		haystack += " " + strings.ToLower(trigger)
@@ -381,7 +381,7 @@ func nodesSeem(sig reflectionSignal, ns memory.NodeSummary) bool {
 	return matches >= 2
 }
 
-func titleForSignal(sig reflectionSignal) string {
+func titleForSignal(sig ReflectionSignal) string {
 	prefix := ""
 	switch sig.Type {
 	case "correction":
@@ -400,7 +400,7 @@ func titleForSignal(sig reflectionSignal) string {
 	return prefix + title
 }
 
-func buildReflectionPrompt(msgs []session.Message) string {
+func BuildReflectionPrompt(msgs []session.Message) string {
 	var b strings.Builder
 	b.WriteString("Review the following conversation and classify each agent (assistant) response.\n")
 	b.WriteString("For each response where the user expressed dissatisfaction, corrected the output,\n")
@@ -437,7 +437,7 @@ and acknowledgments (user praised or confirmed something was exactly right).`)
 	return b.String()
 }
 
-func buildEpisodeContent(sig reflectionSignal, sessionKey string) string {
+func buildEpisodeContent(sig ReflectionSignal, sessionKey string) string {
 	var b strings.Builder
 	b.WriteString("# Behavioral Signal\n\n")
 	b.WriteString(fmt.Sprintf("**Type:** %s\n\n", sig.Type))

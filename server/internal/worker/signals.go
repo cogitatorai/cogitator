@@ -22,17 +22,17 @@ var acknowledgmentPatterns = []string{
 	"this is great", "spot on", "nailed it", "that's what i wanted",
 }
 
-type detectedSignal struct {
+type DetectedSignal struct {
 	Type         string
 	Summary      string
 	Confidence   float64
 	MessageIndex int
 }
 
-// detectSignals scans conversation messages for behavioral signals using
+// DetectSignals scans conversation messages for behavioral signals using
 // pattern matching. Returns signals for user messages that follow assistant messages.
-func detectSignals(messages []session.Message) []detectedSignal {
-	var signals []detectedSignal
+func DetectSignals(messages []session.Message) []DetectedSignal {
+	var signals []DetectedSignal
 
 	for i := 1; i < len(messages); i++ {
 		if messages[i].Role != "user" || messages[i-1].Role != "assistant" {
@@ -53,7 +53,7 @@ func detectSignals(messages []session.Message) []detectedSignal {
 	return signals
 }
 
-func matchPatterns(text, signalType string, patterns []string, msgIndex int) (detectedSignal, bool) {
+func matchPatterns(text, signalType string, patterns []string, msgIndex int) (DetectedSignal, bool) {
 	matches := 0
 	for _, p := range patterns {
 		if strings.Contains(text, p) {
@@ -61,7 +61,7 @@ func matchPatterns(text, signalType string, patterns []string, msgIndex int) (de
 		}
 	}
 	if matches == 0 {
-		return detectedSignal{}, false
+		return DetectedSignal{}, false
 	}
 
 	conf := 0.7
@@ -72,16 +72,16 @@ func matchPatterns(text, signalType string, patterns []string, msgIndex int) (de
 		conf = 0.95
 	}
 
-	return detectedSignal{
+	return DetectedSignal{
 		Type:         signalType,
 		Confidence:   conf,
 		MessageIndex: msgIndex,
 	}, true
 }
 
-// isLikelyNonEnglish returns true if the text appears to be non-English based
+// IsLikelyNonEnglish returns true if the text appears to be non-English based
 // on the ratio of non-ASCII runes.
-func isLikelyNonEnglish(text string) bool {
+func IsLikelyNonEnglish(text string) bool {
 	if len(text) == 0 {
 		return false
 	}

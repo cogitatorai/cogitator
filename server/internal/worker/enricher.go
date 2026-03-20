@@ -204,8 +204,8 @@ func (e *Enricher) processPending(ctx context.Context) {
 	}
 }
 
-// enrichResult is the structured response expected from the LLM.
-type enrichResult struct {
+// EnrichResult is the structured response expected from the LLM.
+type EnrichResult struct {
 	NodeType          string   `json:"node_type"`
 	Summary           string   `json:"summary"`
 	Tags              []string `json:"tags"`
@@ -240,9 +240,9 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 		scopeUID = *node.UserID
 	}
 	summaries, _ := e.memory.GetNodeSummaries(scopeUID)
-	summaryBlock := buildSummaryBlock(summaries, node.ID)
+	summaryBlock := BuildSummaryBlock(summaries, node.ID)
 
-	prompt := buildEnrichmentPrompt(node, content, summaryBlock)
+	prompt := BuildEnrichmentPrompt(node, content, summaryBlock)
 
 	messages := []provider.Message{
 		{
@@ -261,7 +261,7 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 		return err
 	}
 
-	var result enrichResult
+	var result EnrichResult
 	raw := resp.Content
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		// Strip markdown code fences if the model wrapped the JSON.
@@ -411,7 +411,7 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 	return nil
 }
 
-func buildEnrichmentPrompt(node memory.Node, content, summaryBlock string) string {
+func BuildEnrichmentPrompt(node memory.Node, content, summaryBlock string) string {
 	var b strings.Builder
 	b.WriteString("Enrich this memory node.\n\n")
 	b.WriteString("Node ID: " + node.ID + "\n")
@@ -437,7 +437,7 @@ func buildEnrichmentPrompt(node memory.Node, content, summaryBlock string) strin
 	return b.String()
 }
 
-func buildSummaryBlock(summaries []memory.NodeSummary, excludeID string) string {
+func BuildSummaryBlock(summaries []memory.NodeSummary, excludeID string) string {
 	var b strings.Builder
 	for _, s := range summaries {
 		if s.ID == excludeID {

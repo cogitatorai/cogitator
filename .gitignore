@@ -49,7 +49,7 @@ Thumbs.db
 *.sln
 
 # Eval cache
-server/testdata/eval/cache/
+server/eval/testdata/cache/
 
 # Logs
 *.log

@@ -48,6 +48,9 @@ Thumbs.db
 *.njsproj
 *.sln
 
+# Eval cache
+server/testdata/eval/cache/
+
 # Logs
 *.log
 npm-debug.log*

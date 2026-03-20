@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.40.0 (2026-03-20)
+
+### Features
+
+- Memory system hardening: server-side validation for enrichment output, cosine-weighted graph edges, and node deduplication via embedding similarity + title Jaccard (35fd121..e4d67ae)
+- Programmatic consolidation replaces LLM synthesis with tag-frequency pattern construction (88d34c5)
+- Programmatic profiler replaces LLM revision with structured template from graph queries (b0a588e)
+- Pattern-based behavioral signal detection for English conversations, LLM fallback for non-English (ee20433, d6bb917)
+- Confidence-based retrieval scoring: formula is now `similarity * confidence * type_boost` with evidence-based adjustments from contradictions, corrections, and acknowledgments (01675e1, b490683)
+- Simplified save_memory tool: removed node_type and retrieval_triggers params, auto-title from content (382999e, 7d992ea)
+- Node ownership and visibility redesign: `private` boolean flag replaces NULL-based user_id visibility, edge privacy cascades from connected nodes (aecbdb6..49c8e04)
+- Token-budget retrieval with configurable similarity threshold, type boost, and type filtering (b6412db, e85f22d)
+- Enrichment version tracking with automatic re-enrichment when version is bumped (ac77aac, c404b7c)
+- Embedded migrations: numbered SQL migrations are now embedded in the binary and run automatically on startup (19d49c3)
+
+### Fixes
+
+- Person name sanitization uses prefix-only replacement to preserve names as values in titles and summaries (fe142bf, 4dd4ab5)
+- Enricher no longer attributes memories to the wrong user for shared nodes (2afd7b9, d8623f8)
+- Migration runner handles duplicate column errors gracefully for idempotent upgrades (19d49c3)
+- Memory preamble instructs agent to actively use retrieved memories and avoid redundant questions (4fbd490)
+
+### Improvements
+
+- Removed recencyBoost and ConfidenceDecayDays: retrieval ranks by semantic relevance and confidence, not time (b90bab1, 4954e7c)
+- Enrichment prompt requests up to 100 cross-domain retrieval triggers across direct, contextual, and lateral categories (a2a29a6)
+- Node content included in embedding text for richer vector representations (ea18687)
+- Exported worker types (BuildEnrichmentPrompt, BuildReflectionPrompt, DetectSignals) for external tooling (ebd88b3)
+
 ## 0.39.3 (2026-03-17)
 
 ### Improvements

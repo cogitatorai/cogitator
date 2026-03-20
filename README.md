@@ -200,6 +200,13 @@ COGITATOR_MODEL_PROVIDER=openai        # openai, anthropic, ollama, groq, togeth
 COGITATOR_MODEL=gpt-4o                 # model identifier for the primary (standard) slot
 COGITATOR_MEMORY_EMBEDDING_MODEL=text-embedding-3-small  # embedding model (auto-selects nomic-embed-text for Ollama)
 
+# Memory retrieval tuning (optional)
+COGITATOR_RETRIEVAL_TOKEN_BUDGET=2000       # max tokens of retrieved context in system prompt
+COGITATOR_RETRIEVAL_MIN_SIMILARITY=0.3      # cosine similarity floor for candidates
+COGITATOR_RETRIEVAL_TYPE_BOOST=1.1          # score multiplier for fact/preference nodes
+COGITATOR_DEDUP_SIMILARITY_THRESHOLD=0.90   # cosine threshold for deduplicating memories
+COGITATOR_ENRICHMENT_VERSION=1              # bump to trigger re-enrichment of all nodes
+
 # Connectors and login (optional OAuth credentials)
 GOOGLE_CLIENT_ID=<your-google-client-id>
 GOOGLE_CLIENT_SECRET=<your-google-client-secret>

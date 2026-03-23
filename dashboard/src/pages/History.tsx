@@ -450,7 +450,7 @@ function RunRow({ run, checked, onCheck, expanded, detail, onToggle, onCancel, o
                 {detail.trigger && (
                   <div>
                     <span className="text-[12px] uppercase tracking-widest font-medium text-zinc-500">Trigger</span>
-                    <p className="text-sm text-zinc-400 mt-1">{detail.trigger}</p>
+                    <p className="text-sm text-zinc-400 mt-1">{detail.trigger === 'cron' ? 'automated' : detail.trigger}</p>
                   </div>
                 )}
                 {detail.session_key && (

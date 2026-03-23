@@ -164,7 +164,11 @@ func (wc *WebChannel) Start(ctx context.Context) error {
 								header = "**" + taskName + "** FAILED"
 							}
 							if trigger != "" {
-								header += " (" + trigger + ")"
+								label := trigger
+								if label == "cron" {
+									label = "automated"
+								}
+								header += " (" + label + ")"
 							}
 							outputContent := header + "\n\n" + result
 							writeTargets := recipients

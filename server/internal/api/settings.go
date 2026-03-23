@@ -281,6 +281,7 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 	}
 
 	cfg.ResolveDefaults()
+	r.publicURL = cfg.Server.PublicURL
 
 	if err := r.configStore.Save(cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save config")

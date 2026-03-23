@@ -101,6 +101,7 @@ type Router struct {
 	googleClientSecret string
 	appleServicesID    string
 	serverPort         int
+	publicURL          string
 	notifications   *notification.Store
 	pushTokens      *push.Store
 	store           secretstore.SecretStore
@@ -142,6 +143,7 @@ type RouterConfig struct {
 	BrowserConnector *browser.Connector
 	JWTService       *auth.JWTService
 	ServerPort      int
+	PublicURL       string
 	Users           *user.Store
 	SocialVerifier  SocialVerifier
 	GoogleClientID     string
@@ -194,6 +196,7 @@ func NewRouter(cfg RouterConfig) *Router {
 		googleClientSecret: cfg.GoogleClientSecret,
 		appleServicesID:    cfg.AppleServicesID,
 		serverPort:         cfg.ServerPort,
+		publicURL:          cfg.PublicURL,
 		notifications:   cfg.Notifications,
 		pushTokens:      cfg.PushTokens,
 		store:           cfg.Store,

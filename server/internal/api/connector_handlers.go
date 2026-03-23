@@ -110,10 +110,13 @@ func (r *Router) handleConnectorAuthStart(w http.ResponseWriter, req *http.Reque
 	}
 	source := req.URL.Query().Get("source")
 	origin := requestOrigin(req)
-	// Only derive callback URL from request for mobile (redirect_scheme set).
-	// Desktop uses the default localhost URL which is already registered with Google.
+	// Derive the callback URL from the request for mobile (redirect_scheme set)
+	// and web dashboard (source=web), so the OAuth redirect lands on the correct
+	// host when the server is accessed remotely (e.g. Docker on a NAS).
+	// Desktop app (neither set) uses the default localhost URL, unless public_url
+	// is configured.
 	var callbackURL string
-	if redirectScheme != "" {
+	if redirectScheme != "" || source == "web" || r.publicURL != "" {
 		callbackURL = r.connectorCallbackURL(req)
 	}
 	url, err := r.connectors.StartAuth(name, userID, clientID, clientSecret, redirectScheme, source, origin, callbackURL)
@@ -294,9 +297,12 @@ func (r *Router) handleBrowserDisable(w http.ResponseWriter, req *http.Request) 
 	writeJSON(w, http.StatusOK, r.browserConnector.Status())
 }
 
-// connectorCallbackURL derives the connector OAuth callback URL from the request,
-// using Origin or Host headers so it works from both localhost and remote/mobile clients.
+// connectorCallbackURL derives the connector OAuth callback URL.
+// Priority: public_url from config > Origin header > Host header > localhost fallback.
 func (r *Router) connectorCallbackURL(req *http.Request) string {
+	if r.publicURL != "" {
+		return r.publicURL + "/api/connectors/callback"
+	}
 	if origin := req.Header.Get("Origin"); origin != "" {
 		return origin + "/api/connectors/callback"
 	}

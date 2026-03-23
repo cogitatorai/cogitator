@@ -356,6 +356,9 @@ func (r *Router) handleAuthProviders(w http.ResponseWriter, _ *http.Request) {
 // origin. After processing the callback, the server redirects the user back to
 // the dashboard using the stored origin from the pending state.
 func (r *Router) googleCallbackURI(req *http.Request) string {
+	if r.publicURL != "" {
+		return r.publicURL + "/api/auth/google/callback"
+	}
 	if host := req.Host; host != "" {
 		scheme := "http"
 		if req.TLS != nil {

@@ -796,6 +796,7 @@ func New(opts Options) (*Server, error) {
 		Notifications:   notificationStore,
 		PushTokens:      pushStore,
 		ServerPort:      cfg.Server.Port,
+		PublicURL:       cfg.Server.PublicURL,
 		MCP:              mcpManager,
 		Connectors:       connectorMgr,
 		BrowserConnector: browserConn,

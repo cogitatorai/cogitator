@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.41.1 (2026-03-23)
+
+### Fixes
+
+- Cron schedule description and picker misclassified complex expressions (ranges, lists) as "yearly" or "monthly" instead of "custom schedule" (acc5130)
+- Replace "cron" with "automated" in user-facing trigger labels in task output headers and history (5605298)
+- Upgrade jsonparser to 1.1.2 to fix GHSA-6g7g-w4f8-9c9x out-of-bounds read vulnerability (c7b2700)
+
 ## 0.41.0 (2026-03-23)
 
 ### Features

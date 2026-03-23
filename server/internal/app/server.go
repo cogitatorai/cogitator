@@ -953,13 +953,15 @@ type connectorStatusAdapter struct {
 
 func (a *connectorStatusAdapter) ConnectorStatuses(userID string) []agent.ConnectorStatus {
 	infos := a.mgr.List()
-	statuses := a.mgr.ConnectorStatuses(userID)
+	statuses := a.mgr.ConnectorDetailedStatuses(userID)
 	out := make([]agent.ConnectorStatus, len(infos))
 	for i, info := range infos {
+		s := statuses[info.Name]
 		out[i] = agent.ConnectorStatus{
 			Name:        info.Name,
 			DisplayName: info.DisplayName,
-			Connected:   statuses[info.Name],
+			Connected:   s.Connected,
+			AuthError:   s.AuthError,
 		}
 	}
 	return out

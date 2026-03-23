@@ -293,16 +293,21 @@ export default function Connectors() {
           <BrowserConnectorCard canManage={canManageBrowser} isClientMode={isClientMode} />
           {connectors?.map((c) => {
               const p = pending[c.name];
+              const hasAuthError = c.connected && !!c.auth_error;
               const statusLabel = p
                 ? (p === 'connecting' ? 'Connecting...' : 'Disconnecting...')
+                : hasAuthError ? 'Credentials expired'
                 : c.connected ? 'Connected' : 'Not connected';
               const statusClass = p
                 ? 'bg-orange-900/50 text-orange-500'
-                : c.connected
-                  ? 'bg-green-900/50 text-green-600'
-                  : 'bg-zinc-700/50 text-zinc-500';
+                : hasAuthError
+                  ? 'bg-red-900/50 text-red-500'
+                  : c.connected
+                    ? 'bg-green-900/50 text-green-600'
+                    : 'bg-zinc-700/50 text-zinc-500';
               const dotClass = p
                 ? 'bg-orange-500 animate-pulse'
+                : hasAuthError ? 'bg-red-500'
                 : c.connected ? 'bg-green-500' : 'bg-zinc-500';
 
               return (
@@ -324,9 +329,19 @@ export default function Connectors() {
                   statusLabel={statusLabel}
                   statusClass={statusClass}
                   dotClass={dotClass}
+                  error={hasAuthError ? 'Credentials have expired. Please reconnect to continue using this connector.' : undefined}
                   footer={
                     <div className="flex items-center justify-between w-full">
-                      {c.connected ? (
+                      {hasAuthError ? (
+                        <button
+                          onClick={() => handleConnect(c.name)}
+                          disabled={busy === c.name}
+                          className="flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-50 transition-colors"
+                        >
+                          <Link2 size={12} />
+                          {busy === c.name ? 'Connecting...' : 'Reconnect'}
+                        </button>
+                      ) : c.connected ? (
                         <button
                           onClick={() => handleDisconnect(c.name)}
                           disabled={busy === c.name}
@@ -347,7 +362,7 @@ export default function Connectors() {
                       ) : (
                         <span className="text-xs text-zinc-500">No auth required</span>
                       )}
-                      {c.connected && (
+                      {c.connected && !hasAuthError && (
                         <button
                           onClick={() => openSettings(c.name)}
                           className="p-1 rounded hover:bg-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-colors"

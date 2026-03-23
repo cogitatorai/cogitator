@@ -593,6 +593,7 @@ export type ConnectorInfo = {
   has_auth: boolean;
   connected: boolean;
   trusted: boolean;
+  auth_error?: string;
 };
 
 export function fetchConnectors(): Promise<ConnectorInfo[]> {

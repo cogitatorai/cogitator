@@ -25,10 +25,12 @@ var builtinCredentials = map[string][2]string{
 type ConnectorManager interface {
 	List() []connector.ConnectorInfo
 	Status(connectorName, userID string) bool
+	StatusDetail(connectorName, userID string) (bool, string)
 	StartAuth(connectorName, userID, clientID, clientSecret, redirectScheme, source, origin, callbackURL string) (string, error)
 	HandleCallback(code, state string) (string, string, string, string, string, error)
 	Revoke(connectorName, userID string) error
 	ConnectorStatuses(userID string) map[string]bool
+	ConnectorDetailedStatuses(userID string) map[string]connector.ConnectorDetailedStatus
 	Settings() *connector.SettingsStore
 	FetchCalendarList(connectorName, userID string) ([]connector.CalendarEntry, error)
 }
@@ -40,7 +42,7 @@ func (r *Router) handleConnectorsList(w http.ResponseWriter, req *http.Request) 
 	}
 	userID := userIDFromRequest(req)
 	connectors := r.connectors.List()
-	statuses := r.connectors.ConnectorStatuses(userID)
+	statuses := r.connectors.ConnectorDetailedStatuses(userID)
 
 	type connectorResponse struct {
 		Name        string `json:"name"`
@@ -50,18 +52,21 @@ func (r *Router) handleConnectorsList(w http.ResponseWriter, req *http.Request) 
 		HasAuth     bool   `json:"has_auth"`
 		Connected   bool   `json:"connected"`
 		Trusted     bool   `json:"trusted"`
+		AuthError   string `json:"auth_error,omitempty"`
 	}
 
 	result := make([]connectorResponse, 0, len(connectors))
 	for _, c := range connectors {
+		s := statuses[c.Name]
 		result = append(result, connectorResponse{
 			Name:        c.Name,
 			DisplayName: c.DisplayName,
 			Description: c.Description,
 			Version:     c.Version,
 			HasAuth:     c.HasAuth,
-			Connected:   statuses[c.Name],
+			Connected:   s.Connected,
 			Trusted:     c.Trusted,
+			AuthError:   s.AuthError,
 		})
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -70,12 +75,16 @@ func (r *Router) handleConnectorsList(w http.ResponseWriter, req *http.Request) 
 func (r *Router) handleConnectorStatus(w http.ResponseWriter, req *http.Request) {
 	name := req.PathValue("name")
 	if r.connectors == nil {
-		writeJSON(w, http.StatusOK, map[string]bool{"connected": false})
+		writeJSON(w, http.StatusOK, map[string]any{"connected": false})
 		return
 	}
 	userID := userIDFromRequest(req)
-	connected := r.connectors.Status(name, userID)
-	writeJSON(w, http.StatusOK, map[string]bool{"connected": connected})
+	connected, authErr := r.connectors.StatusDetail(name, userID)
+	resp := map[string]any{"connected": connected}
+	if authErr != "" {
+		resp["auth_error"] = authErr
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (r *Router) handleConnectorAuthStart(w http.ResponseWriter, req *http.Request) {
@@ -152,7 +161,9 @@ func (r *Router) handleConnectorCallback(w http.ResponseWriter, req *http.Reques
 	}
 
 	// Desktop: show a branded page the user can close.
-	oauthBrandedPage(w, connectorName+" connected successfully.", "You can close this window.")
+	displayName := r.connectorDisplayName(connectorName)
+	icon := connectorIconSVG(connectorName)
+	oauthBrandedPage(w, displayName+" connected successfully.", "You can close this window.", icon)
 }
 
 func (r *Router) handleConnectorDisconnect(w http.ResponseWriter, req *http.Request) {
@@ -313,4 +324,28 @@ func connectorCredentials(name string) (string, string) {
 	clientID := os.Getenv(envPrefix + "CLIENT_ID")
 	clientSecret := os.Getenv(envPrefix + "CLIENT_SECRET")
 	return clientID, clientSecret
+}
+
+// connectorIconSVG returns an inline SVG icon for known connectors.
+func connectorIconSVG(name string) string {
+	switch name {
+	case "google":
+		return `<svg width="28" height="28" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`
+	default:
+		return ""
+	}
+}
+
+// connectorDisplayName returns the display_name for a connector, falling back to
+// the internal name if not found.
+func (r *Router) connectorDisplayName(name string) string {
+	if r.connectors == nil {
+		return name
+	}
+	for _, c := range r.connectors.List() {
+		if c.Name == name {
+			return c.DisplayName
+		}
+	}
+	return name
 }

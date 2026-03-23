@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -39,20 +40,22 @@ type pendingAuth struct {
 // OAuthRuntime manages OAuth2 flows and token storage for all connectors.
 // Tokens are keyed by "{connectorName}:{userID}".
 type OAuthRuntime struct {
-	mu     sync.RWMutex
-	tokens map[string]*TokenInfo   // "connector:userID" -> token
-	states map[string]*pendingAuth // state -> pending auth
-	store  secretstore.SecretStore
-	port   int
+	mu         sync.RWMutex
+	tokens     map[string]*TokenInfo   // "connector:userID" -> token
+	authErrors map[string]string       // "connector:userID" -> last auth error
+	states     map[string]*pendingAuth // state -> pending auth
+	store      secretstore.SecretStore
+	port       int
 }
 
 // NewOAuthRuntime creates a runtime that persists tokens via the given SecretStore.
 func NewOAuthRuntime(store secretstore.SecretStore, port int) *OAuthRuntime {
 	o := &OAuthRuntime{
-		tokens: make(map[string]*TokenInfo),
-		states: make(map[string]*pendingAuth),
-		store:  store,
-		port:   port,
+		tokens:     make(map[string]*TokenInfo),
+		authErrors: make(map[string]string),
+		states:     make(map[string]*pendingAuth),
+		store:      store,
+		port:       port,
 	}
 	_ = o.loadTokens()
 	return o
@@ -134,6 +137,7 @@ func (o *OAuthRuntime) HandleCallback(code, state string) (string, string, strin
 	key := tokenKey(pending.connectorName, pending.userID)
 	o.mu.Lock()
 	o.tokens[key] = info
+	delete(o.authErrors, key)
 	o.mu.Unlock()
 
 	if err := o.saveToken(key, info); err != nil {
@@ -148,6 +152,19 @@ func (o *OAuthRuntime) Status(connectorName, userID string) bool {
 	defer o.mu.RUnlock()
 	info := o.tokens[tokenKey(connectorName, userID)]
 	return info != nil && info.RefreshToken != ""
+}
+
+// StatusDetail returns connection status and any auth error for a connector.
+// An auth error is set when a token refresh fails (e.g. revoked credentials)
+// and cleared on successful refresh or reconnect.
+func (o *OAuthRuntime) StatusDetail(connectorName, userID string) (connected bool, authError string) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	key := tokenKey(connectorName, userID)
+	info := o.tokens[key]
+	connected = info != nil && info.RefreshToken != ""
+	authError = o.authErrors[key]
+	return
 }
 
 // Client returns an authenticated HTTP client for a connector+user.
@@ -194,6 +211,7 @@ func (o *OAuthRuntime) Revoke(connectorName, userID string) error {
 	key := tokenKey(connectorName, userID)
 	o.mu.Lock()
 	delete(o.tokens, key)
+	delete(o.authErrors, key)
 	o.mu.Unlock()
 	return o.deleteToken(key)
 }
@@ -226,10 +244,19 @@ func (s *savingTokenSource) Token() (*oauth2.Token, error) {
 
 	token, err := s.base.Token()
 	if err != nil {
+		// Record a generic auth error so status checks can surface it.
+		// Log the full error for debugging; do not expose raw oauth2 errors
+		// in the API response as they may contain token endpoint details.
+		slog.Warn("oauth token refresh failed", "key", s.key, "error", err)
+		s.runtime.mu.Lock()
+		s.runtime.authErrors[s.key] = "token refresh failed"
+		s.runtime.mu.Unlock()
 		return nil, err
 	}
 
 	s.runtime.mu.Lock()
+	// Clear any previous auth error on successful refresh.
+	delete(s.runtime.authErrors, s.key)
 	info := s.runtime.tokens[s.key]
 	if info != nil && info.AccessToken != token.AccessToken {
 		info.AccessToken = token.AccessToken

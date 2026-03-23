@@ -25,6 +25,7 @@ type ConnectorStatus struct {
 	Name        string
 	DisplayName string
 	Connected   bool
+	AuthError   string
 }
 
 // UserContext carries information about the current user for prompt building.
@@ -258,7 +259,9 @@ func (cb *ContextBuilder) buildConnectorSection(connectors []ConnectorStatus) st
 	sb.WriteString("External service connectors and their status for this user:\n")
 	for _, c := range connectors {
 		status := "disconnected"
-		if c.Connected {
+		if c.Connected && c.AuthError != "" {
+			status = "credentials expired (needs reconnection)"
+		} else if c.Connected {
 			status = "connected"
 		}
 		fmt.Fprintf(&sb, "- %s: %s\n", c.DisplayName, status)
@@ -266,6 +269,7 @@ func (cb *ContextBuilder) buildConnectorSection(connectors []ConnectorStatus) st
 	sb.WriteString("\nConnected connectors have tools available (prefixed with the connector name, e.g. google_calendar_list).\n")
 	sb.WriteString("If a connector tool returns empty results and the connector is connected, the data may genuinely be empty.\n")
 	sb.WriteString("If a connector is disconnected, tell the user to connect it in the Connectors page of the dashboard.\n")
+	sb.WriteString("If a connector shows credentials expired, inform the user and suggest reconnecting in the Connectors page.\n")
 	sb.WriteString("Never suggest connecting a connector that is already connected.\n")
 	sb.WriteString("When presenting connector results (calendar events, emails), be concise: summarize key details in a few sentences rather than listing every field or raw data.")
 

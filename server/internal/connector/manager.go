@@ -188,6 +188,12 @@ func (m *Manager) Revoke(connectorName, userID string) error {
 	return m.oauth.Revoke(connectorName, userID)
 }
 
+// ConnectorDetailedStatus holds connection status and any auth error.
+type ConnectorDetailedStatus struct {
+	Connected bool   `json:"connected"`
+	AuthError string `json:"auth_error,omitempty"`
+}
+
 // ConnectorStatuses returns the connection status of all connectors for a user.
 func (m *Manager) ConnectorStatuses(userID string) map[string]bool {
 	m.mu.RLock()
@@ -197,6 +203,26 @@ func (m *Manager) ConnectorStatuses(userID string) map[string]bool {
 		statuses[name] = m.oauth.Status(name, userID)
 	}
 	return statuses
+}
+
+// ConnectorDetailedStatuses returns connection status with auth errors for all connectors.
+func (m *Manager) ConnectorDetailedStatuses(userID string) map[string]ConnectorDetailedStatus {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	statuses := make(map[string]ConnectorDetailedStatus, len(m.connectors))
+	for name := range m.connectors {
+		connected, authErr := m.oauth.StatusDetail(name, userID)
+		statuses[name] = ConnectorDetailedStatus{
+			Connected: connected,
+			AuthError: authErr,
+		}
+	}
+	return statuses
+}
+
+// StatusDetail returns connection status and any auth error for a specific connector.
+func (m *Manager) StatusDetail(connectorName, userID string) (bool, string) {
+	return m.oauth.StatusDetail(connectorName, userID)
 }
 
 // CallTool dispatches a tool call to the appropriate connector.

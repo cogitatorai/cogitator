@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -623,13 +624,25 @@ func socialErrorPage(w http.ResponseWriter, msg, returnTo string) {
 
 // oauthBrandedPage renders a Cogitator-branded page for OAuth callbacks that
 // cannot redirect (e.g. desktop app flows where the browser is external).
-func oauthBrandedPage(w http.ResponseWriter, heading, detail string) {
+// An optional iconSVG (inline SVG markup) is displayed next to the heading.
+func oauthBrandedPage(w http.ResponseWriter, heading, detail string, iconSVG ...string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+
+	safeHeading := html.EscapeString(heading)
+	safeDetail := html.EscapeString(detail)
+
+	var headingHTML string
+	if len(iconSVG) > 0 && iconSVG[0] != "" {
+		headingHTML = fmt.Sprintf(`<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem">%s<span style="font-size:1.1rem;color:#f5f4f1">%s</span></div>`, iconSVG[0], safeHeading)
+	} else {
+		headingHTML = fmt.Sprintf(`<p style="font-size:1.1rem;color:#f5f4f1">%s</p>`, safeHeading)
+	}
+
 	fmt.Fprintf(w, oauthPageTemplate,
 		"Cogitator",
-		fmt.Sprintf(`<p style="font-size:1.1rem;color:#f5f4f1">%s</p>
-<p style="color:#9b9894;margin-top:0.25rem">%s</p>`, heading, detail))
+		fmt.Sprintf(`%s
+<p style="color:#9b9894;margin-top:0.25rem">%s</p>`, headingHTML, safeDetail))
 }
 
 // requestOrigin extracts the scheme+host the request originated from.

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.42.0 (2026-03-23)
+
+### Features
+
+- Store task output metadata (task name, status, trigger, IDs) as structured JSON in a new `metadata` column instead of baking it into markdown content (1b3f04d)
+- Task system prompt now instructs the LLM to output only the result, keeping metadata separate for richer client-side rendering
+
 ## 0.41.2 (2026-03-23)
 
 ### Fixes

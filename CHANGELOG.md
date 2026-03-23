@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.41.2 (2026-03-23)
+
+### Fixes
+
+- Use public_url config for OAuth callback URLs in connector and social login flows, fixing Google OAuth in Docker and remote deployments (be39c77)
+- Hot-reload public_url when settings are updated (no restart needed) (be39c77)
+
 ## 0.41.1 (2026-03-23)
 
 ### Fixes

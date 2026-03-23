@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.41.0 (2026-03-23)
+
+### Features
+
+- Surface expired OAuth credentials in connector status: red badge, error message, and reconnect button across dashboard and agent system prompt (871334e)
+- Show connector display name and provider icon on OAuth callback success page (62d7805)
+
+### Fixes
+
+- Handle categorized retrieval_triggers from LLMs that return objects instead of arrays (cc5c8d0)
+- Sanitize OAuth token errors in API responses to avoid leaking token endpoint details (871334e)
+- HTML-escape heading and detail in OAuth branded callback page (62d7805)
+
 ## 0.40.0 (2026-03-20)
 
 ### Features

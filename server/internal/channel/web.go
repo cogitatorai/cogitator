@@ -159,18 +159,17 @@ func (wc *WebChannel) Start(ctx context.Context) error {
 						}
 						// Write task output to each recipient's per-user Tasks session.
 						if wc.sessions != nil {
-							header := "**" + taskName + "** completed"
-							if status == "failed" {
-								header = "**" + taskName + "** FAILED"
+							triggerLabel := trigger
+							if triggerLabel == "cron" {
+								triggerLabel = "automated"
 							}
-							if trigger != "" {
-								label := trigger
-								if label == "cron" {
-									label = "automated"
-								}
-								header += " (" + label + ")"
-							}
-							outputContent := header + "\n\n" + result
+							meta, _ := json.Marshal(map[string]any{
+								"task_name": taskName,
+								"task_id":   taskID,
+								"run_id":    runID,
+								"trigger":   triggerLabel,
+								"status":    status,
+							})
 							writeTargets := recipients
 							if len(writeTargets) == 0 {
 								writeTargets = []string{userID}
@@ -183,7 +182,8 @@ func (wc *WebChannel) Start(ctx context.Context) error {
 									SessionKey: sk,
 									UserID:     uid,
 									Role:       "assistant",
-									Content:    outputContent,
+									Content:    result,
+									Metadata:   string(meta),
 								}); err != nil {
 									wc.logger.Error("failed to write task output message", "user", uid, "error", err)
 								}

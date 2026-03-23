@@ -16,6 +16,7 @@ type Message struct {
 	ToolCalls  string    `json:"tool_calls,omitempty"`
 	ToolCallID string    `json:"tool_call_id,omitempty"`
 	ToolsUsed  string    `json:"tools_used,omitempty"`
+	Metadata   string    `json:"metadata,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
@@ -161,9 +162,13 @@ func (s *Store) AddMessage(sessionKey string, msg Message) (int64, error) {
 	if msg.UserID != "" {
 		uid = msg.UserID
 	}
-	result, err := s.db.Exec(`INSERT INTO messages (session_key, user_id, role, content, tool_calls, tool_call_id, tools_used, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		sessionKey, uid, msg.Role, msg.Content, msg.ToolCalls, msg.ToolCallID, msg.ToolsUsed, now)
+	var meta any
+	if msg.Metadata != "" {
+		meta = msg.Metadata
+	}
+	result, err := s.db.Exec(`INSERT INTO messages (session_key, user_id, role, content, tool_calls, tool_call_id, tools_used, metadata, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sessionKey, uid, msg.Role, msg.Content, msg.ToolCalls, msg.ToolCallID, msg.ToolsUsed, meta, now)
 	if err != nil {
 		return 0, err
 	}
@@ -174,14 +179,14 @@ func (s *Store) AddMessage(sessionKey string, msg Message) (int64, error) {
 }
 
 func (s *Store) GetMessages(sessionKey string, limit int) ([]Message, error) {
-	query := `SELECT id, session_key, role, content, tool_calls, tool_call_id, tools_used, created_at
+	query := `SELECT id, session_key, role, content, tool_calls, tool_call_id, tools_used, metadata, created_at
 		FROM messages WHERE session_key = ? ORDER BY id ASC`
 	var args []any
 	args = append(args, sessionKey)
 
 	if limit > 0 {
 		query = `SELECT * FROM (
-			SELECT id, session_key, role, content, tool_calls, tool_call_id, tools_used, created_at
+			SELECT id, session_key, role, content, tool_calls, tool_call_id, tools_used, metadata, created_at
 			FROM messages WHERE session_key = ? ORDER BY id DESC LIMIT ?
 		) sub ORDER BY id ASC`
 		args = append(args, limit)
@@ -196,14 +201,15 @@ func (s *Store) GetMessages(sessionKey string, limit int) ([]Message, error) {
 	var messages []Message
 	for rows.Next() {
 		var m Message
-		var toolCalls, toolCallID, toolsUsed sql.NullString
+		var toolCalls, toolCallID, toolsUsed, metadata sql.NullString
 		if err := rows.Scan(&m.ID, &m.SessionKey, &m.Role, &m.Content,
-			&toolCalls, &toolCallID, &toolsUsed, &m.CreatedAt); err != nil {
+			&toolCalls, &toolCallID, &toolsUsed, &metadata, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		m.ToolCalls = toolCalls.String
 		m.ToolCallID = toolCallID.String
 		m.ToolsUsed = toolsUsed.String
+		m.Metadata = metadata.String
 		messages = append(messages, m)
 	}
 	return messages, rows.Err()

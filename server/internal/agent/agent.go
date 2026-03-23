@@ -217,7 +217,9 @@ func (a *Agent) RunTask(ctx context.Context, sessionKey, prompt, model, userID s
 		"Your text response IS the notification delivered to the user " +
 		"(via push notification and in-app alert). You do not need any " +
 		"special notification tool. Just write the message you want the " +
-		"user to see.\n\n" +
+		"user to see. Do NOT include the task name, status, or trigger " +
+		"type in your response; the system adds that metadata automatically. " +
+		"Only output the actual result content.\n\n" +
 		prompt
 	resp, err := a.Chat(ctx, ChatRequest{
 		SessionKey:    sessionKey,

@@ -78,6 +78,29 @@ func TestAddAndGetMessages(t *testing.T) {
 	}
 }
 
+func TestMessageMetadataRoundTrip(t *testing.T) {
+	store := NewStore(testDB(t))
+	store.GetOrCreate("test:1", "test", "1", "", false)
+
+	meta := `{"task_name":"my-task","status":"completed","trigger":"manual"}`
+	store.AddMessage("test:1", Message{Role: "assistant", Content: "result", Metadata: meta})
+	store.AddMessage("test:1", Message{Role: "assistant", Content: "no meta"})
+
+	messages, err := store.GetMessages("test:1", 0)
+	if err != nil {
+		t.Fatalf("GetMessages() error: %v", err)
+	}
+	if len(messages) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(messages))
+	}
+	if messages[0].Metadata != meta {
+		t.Errorf("expected metadata %q, got %q", meta, messages[0].Metadata)
+	}
+	if messages[1].Metadata != "" {
+		t.Errorf("expected empty metadata, got %q", messages[1].Metadata)
+	}
+}
+
 func TestGetMessagesWithLimit(t *testing.T) {
 	store := NewStore(testDB(t))
 	store.GetOrCreate("test:1", "test", "1", "", false)

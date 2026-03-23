@@ -24,6 +24,9 @@ func TestDescribeCron(t *testing.T) {
 		{"0 0 1 * *", "monthly on day 1 at 00:00"},
 		{"0 9 25 12 *", "yearly on Dec 25 at 09:00"},
 		{"0 0 1 1 *", "yearly on Jan 1 at 00:00"},
+		{"0 8,20 23-28 3 *", "custom schedule"},  // multi-hour + day range + specific month
+		{"0 8 1-15 * *", "custom schedule"},       // day range
+		{"0 8,20 * * *", "custom schedule"},       // multi-hour daily
 		{"*/5 9-17 * * 1-5", "custom schedule"},
 		{"manual", "manual"},
 		{"", ""},

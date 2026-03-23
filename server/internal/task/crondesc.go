@@ -6,8 +6,19 @@ import (
 	"time"
 )
 
+// isSimpleCronField returns true when a cron field is a single numeric value
+// (no ranges, lists, or steps).
+func isSimpleCronField(f string) bool {
+	for _, c := range f {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return len(f) > 0
+}
+
 // DescribeCron returns a human-readable description of a 5-field cron expression.
-// It handles common patterns; for complex expressions it falls back to the raw expression.
+// It handles common patterns; for complex expressions it falls back to "custom schedule".
 func DescribeCron(expr string) string {
 	fields := strings.Fields(expr)
 	if len(fields) != 5 {
@@ -15,6 +26,7 @@ func DescribeCron(expr string) string {
 	}
 
 	minute, hour, dom, month, dow := fields[0], fields[1], fields[2], fields[3], fields[4]
+	simpleTime := isSimpleCronField(minute) && isSimpleCronField(hour)
 
 	// Every N minutes: */N * * * *
 	if strings.HasPrefix(minute, "*/") && hour == "*" && dom == "*" && month == "*" && dow == "*" {
@@ -35,7 +47,7 @@ func DescribeCron(expr string) string {
 	}
 
 	// Hourly within a range: MM H1-H2 * * *
-	if strings.Contains(hour, "-") && !strings.Contains(hour, "/") && dom == "*" && month == "*" && dow == "*" {
+	if strings.Contains(hour, "-") && !strings.Contains(hour, "/") && dom == "*" && month == "*" && dow == "*" && isSimpleCronField(minute) {
 		parts := strings.SplitN(hour, "-", 2)
 		return fmt.Sprintf("hourly %s:%s to %s:%s",
 			padHour(parts[0]), padMinute(minute),
@@ -43,22 +55,22 @@ func DescribeCron(expr string) string {
 	}
 
 	// Daily: MM HH * * *
-	if dom == "*" && month == "*" && dow == "*" && !strings.Contains(hour, "/") && !strings.Contains(minute, "/") {
+	if dom == "*" && month == "*" && dow == "*" && simpleTime {
 		return fmt.Sprintf("daily at %s", formatTime(hour, minute))
 	}
 
-	// Weekly: MM HH * * DOW
-	if dom == "*" && month == "*" && dow != "*" && !strings.Contains(hour, "/") && !strings.Contains(minute, "/") {
+	// Weekly: MM HH * * DOW (DOW may be a comma list like 1,3,5; describeDOW handles it)
+	if dom == "*" && month == "*" && dow != "*" && simpleTime {
 		return fmt.Sprintf("%s at %s", describeDOW(dow), formatTime(hour, minute))
 	}
 
 	// Monthly: MM HH DOM * *
-	if month == "*" && dow == "*" && dom != "*" && !strings.Contains(hour, "/") && !strings.Contains(minute, "/") {
+	if month == "*" && dow == "*" && isSimpleCronField(dom) && simpleTime {
 		return fmt.Sprintf("monthly on day %s at %s", dom, formatTime(hour, minute))
 	}
 
 	// Yearly: MM HH DOM MON *
-	if month != "*" && dow == "*" && dom != "*" && !strings.Contains(hour, "/") && !strings.Contains(minute, "/") {
+	if dow == "*" && isSimpleCronField(month) && isSimpleCronField(dom) && simpleTime {
 		return fmt.Sprintf("yearly on %s %s at %s", describeMonth(month), dom, formatTime(hour, minute))
 	}
 

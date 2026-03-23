@@ -45,6 +45,11 @@ const MONTHS = [
   { value: '11', label: 'Nov' }, { value: '12', label: 'Dec' },
 ];
 
+/** True when a cron field is a single plain value (no ranges, lists, or steps). */
+function isSimple(field: string): boolean {
+  return /^\d+$/.test(field);
+}
+
 /** Parse an existing cron expression into picker state. */
 function parseCron(expr: string): { freq: Frequency; time: string; dow: string; dom: string; month: string } {
   const defaults = { freq: 'daily' as Frequency, time: '09:00', dow: '1', dom: '1', month: '1' };
@@ -54,6 +59,7 @@ function parseCron(expr: string): { freq: Frequency; time: string; dow: string; 
   if (fields.length !== 5) return defaults;
 
   const [minute, hour, dom, month, dow] = fields;
+  const simpleTime = isSimple(minute) && isSimple(hour);
 
   // Fixed-cron presets
   for (const p of PRESETS) {
@@ -63,22 +69,22 @@ function parseCron(expr: string): { freq: Frequency; time: string; dow: string; 
   }
 
   // Daily: MM HH * * *
-  if (dom === '*' && month === '*' && dow === '*' && !hour.includes('/') && !minute.includes('/')) {
+  if (dom === '*' && month === '*' && dow === '*' && simpleTime) {
     return { ...defaults, freq: 'daily', time: `${pad(hour)}:${pad(minute)}` };
   }
 
-  // Weekly: MM HH * * DOW
-  if (dom === '*' && month === '*' && dow !== '*' && !hour.includes('/') && !minute.includes('/')) {
+  // Weekly: MM HH * * DOW (DOW may be a single day or comma-separated list like 1,3,5)
+  if (dom === '*' && month === '*' && dow !== '*' && simpleTime) {
     return { ...defaults, freq: 'weekly', time: `${pad(hour)}:${pad(minute)}`, dow };
   }
 
   // Monthly: MM HH DOM * *
-  if (month === '*' && dow === '*' && dom !== '*' && !hour.includes('/') && !minute.includes('/')) {
+  if (month === '*' && dow === '*' && isSimple(dom) && simpleTime) {
     return { ...defaults, freq: 'monthly', time: `${pad(hour)}:${pad(minute)}`, dom };
   }
 
   // Yearly: MM HH DOM MON *
-  if (month !== '*' && dow === '*' && dom !== '*' && !hour.includes('/') && !minute.includes('/')) {
+  if (dow === '*' && isSimple(month) && isSimple(dom) && simpleTime) {
     return { ...defaults, freq: 'yearly', time: `${pad(hour)}:${pad(minute)}`, dom, month };
   }
 

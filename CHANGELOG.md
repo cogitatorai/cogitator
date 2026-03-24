@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.42.2 (2026-03-24)
+
+### Fixes
+
+- WebSocket connections no longer drop through reverse proxies; server now pings clients every 30 seconds to keep connections alive and detect dead peers
+
 ## 0.42.1 (2026-03-24)
 
 ### Fixes

@@ -1,6 +1,6 @@
 # Cogitator
 
-**[cogitator.cloud](https://cogitator.cloud)**
+**[cogitator.me](https://cogitator.me)**
 
 A personal AI agent that remembers what you tell it, works while you sleep, and gets smarter the longer you use it.
 
@@ -90,6 +90,8 @@ docker compose up
 
 The container exposes port 8484 by default and persists state to a `/data` volume (the host path is configurable via `COGITATOR_WORKSPACE_PATH` in `.env`). Copy `.env.example` to `.env` before starting.
 
+Set the `TZ` environment variable to your local timezone (e.g. `TZ=Europe/Berlin`) so that scheduled tasks run at the expected local time. Without it, the container defaults to UTC.
+
 
 ## Architecture
 
@@ -127,7 +129,7 @@ dashboard/
 
 ### Tools
 
-24 built-in tools plus custom tool support via YAML definitions.
+29 built-in tools plus custom tool support via YAML definitions.
 
 | Tool | Description |
 |---|---|
@@ -156,8 +158,12 @@ dashboard/
 | `web_search` | Search the web via DuckDuckGo, Brave, or Mojeek |
 | `notify_user` | Send a notification to another user |
 | `start_mcp_server` | Start a configured MCP server by name |
+| `calendar_list` | List Google Calendar events for a date range |
+| `calendar_search` | Search Google Calendar events by text query |
+| `email_search` | Search Gmail using Gmail query syntax |
+| `email_read` | Read a specific Gmail message by ID |
 
-Custom tools are defined as YAML files in the `tools/` directory (within the defined workspace) with a name, description, parameters schema, and shell command template.
+The last four tools are provided by the built-in Google connector and require OAuth setup. Custom tools are defined as YAML files in the `tools/` directory (within the defined workspace) with a name, description, parameters schema, and shell command template.
 
 ### MCP servers
 

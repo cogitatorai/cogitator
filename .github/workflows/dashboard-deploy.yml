@@ -28,9 +28,7 @@ jobs:
 
       - name: Package tarball
         run: |
-          cd dashboard/dist
-          tar czf ../dashboard-${{ steps.version.outputs.version }}.tar.gz .
-          cd ..
+          tar czf dashboard-${{ steps.version.outputs.version }}.tar.gz -C dashboard/dist .
           sha256sum dashboard-${{ steps.version.outputs.version }}.tar.gz | awk '{print $1}' > sha256.txt
 
       - name: Upload to R2

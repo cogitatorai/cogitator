@@ -24,6 +24,7 @@ export default function Skills() {
   const [editContent, setEditContent] = useState('');
   const [loadingContent, setLoadingContent] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(null);
 
   // Import mode state
@@ -170,24 +171,28 @@ export default function Skills() {
     setEditTitle(node.title || '');
     setEditSummary(node.summary || '');
     setEditContent('');
+    setEditError('');
     setEditing(true);
     setLoadingContent(true);
     try {
       const { content } = await fetchSkillContent(node.id);
       setEditContent(content);
-    } catch (e) {
-      console.error('failed to load skill content', e);
+    } catch (e: any) {
+      const msg = e?.message || 'Failed to load skill content';
+      setEditError(msg);
     }
     setLoadingContent(false);
   }, []);
 
   const cancelEdit = useCallback(() => {
     setEditing(false);
+    setEditError('');
   }, []);
 
   const saveEdit = useCallback(async () => {
     if (!selectedId) return;
     setSaving(true);
+    setEditError('');
     try {
       const body: { title?: string; summary?: string; content?: string } = {};
       if (editTitle !== (selected?.title || '')) body.title = editTitle;
@@ -195,8 +200,9 @@ export default function Skills() {
       if (editContent) body.content = editContent;
       await updateSkill(selectedId, body);
       setEditing(false);
-    } catch (e) {
-      console.error('save failed', e);
+    } catch (e: any) {
+      const msg = e?.message || 'Save failed';
+      setEditError(msg);
     }
     setSaving(false);
   }, [selectedId, selected, editTitle, editSummary, editContent]);
@@ -519,6 +525,9 @@ export default function Skills() {
                       />
                     )}
                   </div>
+                  {editError && (
+                    <p className="text-sm text-red-400 mt-2">{editError}</p>
+                  )}
                   <div className="flex items-center gap-3 pt-2 border-t border-zinc-700">
                     <StripedButton onClick={saveEdit} disabled={saving}>
                       {saving ? 'Saving...' : 'Save'}

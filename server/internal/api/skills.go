@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -84,6 +85,10 @@ func (r *Router) handleReadSkillContent(w http.ResponseWriter, req *http.Request
 	}
 	content, err := r.skills.ReadSkillRaw(nodeID)
 	if err != nil {
+		if errors.Is(err, skills.ErrSkillFileNotFound) {
+			writeError(w, http.StatusNotFound, "Skill file is missing from disk. The database references this skill but the SKILL.md file was not found. Try re-importing or re-installing the skill.")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("read skill content: %v", err))
 		return
 	}

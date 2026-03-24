@@ -3,6 +3,7 @@ package skills
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -418,5 +419,145 @@ func TestUpdateSkillBumpsVersion(t *testing.T) {
 	}
 	if updated2.Version != "1.0.2" {
 		t.Errorf("after second update version = %q, want %q", updated2.Version, "1.0.2")
+	}
+}
+
+// TestUpdateSkillMissingFile verifies that UpdateSkill recreates the parent
+// directory and writes the file when the on-disk SKILL.md has been deleted
+// (e.g. DB copied to a new volume without the skill files).
+func TestUpdateSkillMissingFile(t *testing.T) {
+	db := testDB(t)
+	store := memory.NewStore(db)
+	contentDir := t.TempDir()
+	contentMgr := memory.NewContentManager(contentDir)
+	skillsDir := t.TempDir()
+	eventBus := bus.New()
+	defer eventBus.Close()
+
+	meta := SkillMeta{
+		Slug:        "missing-file",
+		DisplayName: "Missing File Skill",
+		Summary:     "Tests self-healing write",
+		Version:     "1.0.0",
+	}
+	zipMeta := SkillZipMeta{Slug: "missing-file", Version: "1.0.0"}
+	srv := testV1Server(t, meta, "# Original\n", zipMeta)
+
+	mgr := NewManager(ManagerConfig{
+		ClawHub:   NewClawHub(srv.URL, nil),
+		Memory:    store,
+		Content:   contentMgr,
+		EventBus:  eventBus,
+		SkillsDir: skillsDir,
+	})
+
+	nodeID, err := mgr.Install(context.Background(), meta)
+	if err != nil {
+		t.Fatalf("Install() error: %v", err)
+	}
+
+	node, err := store.GetNode(nodeID)
+	if err != nil {
+		t.Fatalf("GetNode() error: %v", err)
+	}
+
+	// Delete the entire skill directory to simulate the DB-without-files scenario.
+	if err := os.RemoveAll(filepath.Dir(node.SkillPath)); err != nil {
+		t.Fatalf("RemoveAll() error: %v", err)
+	}
+
+	// UpdateSkill should self-heal: recreate the dir and write the file.
+	updated, err := mgr.UpdateSkill(nodeID, "", "", "# Recreated\n")
+	if err != nil {
+		t.Fatalf("UpdateSkill() with missing file should self-heal, got error: %v", err)
+	}
+	if updated.Version != "1.0.1" {
+		t.Errorf("version = %q, want %q", updated.Version, "1.0.1")
+	}
+
+	// Verify the file was actually written.
+	data, err := os.ReadFile(node.SkillPath)
+	if err != nil {
+		t.Fatalf("ReadFile() after self-heal: %v", err)
+	}
+	if string(data) != "# Recreated\n" {
+		t.Errorf("file content = %q, want %q", string(data), "# Recreated\n")
+	}
+}
+
+// TestReadSkillRawMissingFile verifies that ReadSkillRaw returns
+// ErrSkillFileNotFound when the SKILL.md file is missing from disk.
+func TestReadSkillRawMissingFile(t *testing.T) {
+	db := testDB(t)
+	store := memory.NewStore(db)
+	skillsDir := t.TempDir()
+
+	meta := SkillMeta{
+		Slug:        "vanished",
+		DisplayName: "Vanished Skill",
+		Version:     "1.0.0",
+	}
+	zipMeta := SkillZipMeta{Slug: "vanished", Version: "1.0.0"}
+	srv := testV1Server(t, meta, "# Vanished\n", zipMeta)
+
+	mgr := NewManager(ManagerConfig{
+		ClawHub:   NewClawHub(srv.URL, nil),
+		Memory:    store,
+		SkillsDir: skillsDir,
+	})
+
+	nodeID, err := mgr.Install(context.Background(), meta)
+	if err != nil {
+		t.Fatalf("Install() error: %v", err)
+	}
+
+	// Delete the file but keep the DB node.
+	node, _ := store.GetNode(nodeID)
+	os.RemoveAll(filepath.Dir(node.SkillPath))
+
+	_, err = mgr.ReadSkillRaw(nodeID)
+	if err == nil {
+		t.Fatal("ReadSkillRaw() expected error for missing file, got nil")
+	}
+	if !errors.Is(err, ErrSkillFileNotFound) {
+		t.Errorf("ReadSkillRaw() error = %v, want ErrSkillFileNotFound", err)
+	}
+}
+
+// TestReadSkillMissingFile verifies that ReadSkill returns ErrSkillFileNotFound
+// when the SKILL.md file is missing from disk.
+func TestReadSkillMissingFile(t *testing.T) {
+	db := testDB(t)
+	store := memory.NewStore(db)
+	skillsDir := t.TempDir()
+
+	meta := SkillMeta{
+		Slug:        "ghost",
+		DisplayName: "Ghost Skill",
+		Version:     "1.0.0",
+	}
+	zipMeta := SkillZipMeta{Slug: "ghost", Version: "1.0.0"}
+	srv := testV1Server(t, meta, "# Ghost\n", zipMeta)
+
+	mgr := NewManager(ManagerConfig{
+		ClawHub:   NewClawHub(srv.URL, nil),
+		Memory:    store,
+		SkillsDir: skillsDir,
+	})
+
+	nodeID, err := mgr.Install(context.Background(), meta)
+	if err != nil {
+		t.Fatalf("Install() error: %v", err)
+	}
+
+	node, _ := store.GetNode(nodeID)
+	os.RemoveAll(filepath.Dir(node.SkillPath))
+
+	_, err = mgr.ReadSkill(nodeID)
+	if err == nil {
+		t.Fatal("ReadSkill() expected error for missing file, got nil")
+	}
+	if !errors.Is(err, ErrSkillFileNotFound) {
+		t.Errorf("ReadSkill() error = %v, want ErrSkillFileNotFound", err)
 	}
 }

@@ -2,6 +2,7 @@ package skills
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,6 +15,10 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/memory"
 	"github.com/cogitatorai/cogitator/server/internal/security"
 )
+
+// ErrSkillFileNotFound is returned when a skill's SKILL.md file is missing
+// from disk (e.g. the database was copied without the skill files).
+var ErrSkillFileNotFound = errors.New("skill file not found on disk")
 
 // SlugFromPath extracts the skill slug from a skill_path like "<dir>/<slug>/SKILL.md".
 // Returns empty string if the path doesn't match the expected pattern.
@@ -408,6 +413,9 @@ func (m *Manager) ReadSkill(nodeID string) (string, error) {
 	}
 	data, err := os.ReadFile(node.SkillPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("read skill file %s: %w", node.SkillPath, ErrSkillFileNotFound)
+		}
 		return "", fmt.Errorf("read skill file: %w", err)
 	}
 
@@ -446,6 +454,9 @@ func (m *Manager) ReadSkillRaw(nodeID string) (string, error) {
 	}
 	data, err := os.ReadFile(node.SkillPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("read skill file %s: %w", node.SkillPath, ErrSkillFileNotFound)
+		}
 		return "", fmt.Errorf("read skill file: %w", err)
 	}
 	return string(data), nil
@@ -487,6 +498,11 @@ func (m *Manager) UpdateSkill(nodeID, title, summary, content string) (*memory.N
 	}
 
 	if content != "" && node.SkillPath != "" {
+		// Ensure the parent directory exists. The directory may be missing if
+		// the database was copied to a new volume without the skill files.
+		if err := os.MkdirAll(filepath.Dir(node.SkillPath), 0o755); err != nil {
+			return nil, fmt.Errorf("create skill dir: %w", err)
+		}
 		if err := os.WriteFile(node.SkillPath, []byte(content), 0o644); err != nil {
 			return nil, fmt.Errorf("write skill file: %w", err)
 		}

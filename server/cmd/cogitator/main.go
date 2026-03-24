@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata" // Embed timezone database so TZ env var works in minimal containers (Alpine).
 
 	"github.com/cogitatorai/cogitator/server/internal/app"
 )

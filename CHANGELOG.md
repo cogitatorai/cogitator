@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.42.1 (2026-03-24)
+
+### Fixes
+
+- Skill editing now self-heals when SKILL.md files are missing from disk, e.g. when a database is copied to a new Docker volume without the skill files (recreates parent directory before writing)
+- Embedded Go timezone database (`time/tzdata`) so scheduled tasks respect the `TZ` environment variable in minimal Docker containers (Alpine)
+- Skill content read API returns 404 with actionable message when the skill file is missing instead of a generic 500 error
+- Dashboard skill editor surfaces load and save errors to the user instead of failing silently
+
+### Improvements
+
+- Documented Google connector tools (calendar_list, calendar_search, email_search, email_read) in README
+
 ## 0.42.0 (2026-03-23)
 
 ### Features

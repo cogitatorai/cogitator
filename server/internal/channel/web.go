@@ -313,6 +313,25 @@ func (wc *WebChannel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Forward per-connection events (title updates, cross-channel responses) for the connection lifetime.
 	connDone := make(chan struct{})
 	defer close(connDone)
+
+	// Ping every 30s to keep the connection alive through proxies and detect dead peers.
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-connDone:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := conn.Ping(ctx); err != nil {
+					return
+				}
+			}
+		}
+	}()
+
 	if wc.eventBus != nil {
 		globalCh := wc.eventBus.Subscribe(bus.SessionTitleSet, bus.MessageResponded, bus.SessionDeleted, bus.SettingsChanged, bus.NotificationsRead)
 		go func() {

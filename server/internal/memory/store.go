@@ -169,11 +169,11 @@ func (s *Store) UpdateNode(n *Node) error {
 	_, err := s.db.Exec(`UPDATE nodes SET
 		title=?, summary=?, tags=?, retrieval_triggers=?, confidence=?,
 		content_path=?, enrichment_status=?, origin=?, source_url=?,
-		version=?, skill_path=?, updated_at=?, pinned=?, private=?, consolidated_into=?
+		version=?, skill_path=?, updated_at=?, pinned=?, private=?, consolidated_into=?, type=?
 		WHERE id=?`,
 		n.Title, n.Summary, string(tags), string(triggers), n.Confidence,
 		n.ContentPath, n.EnrichmentStatus, n.Origin, n.SourceURL,
-		n.Version, n.SkillPath, n.UpdatedAt, n.Pinned, n.Private, n.ConsolidatedInto, n.ID)
+		n.Version, n.SkillPath, n.UpdatedAt, n.Pinned, n.Private, n.ConsolidatedInto, n.Type, n.ID)
 	return err
 }
 
@@ -193,9 +193,10 @@ func (s *Store) ListNodes(userID string, nodeType NodeType, limit, offset int) (
 	if userID != "" {
 		query += " AND (private = 0 OR user_id = ?)"
 		args = append(args, userID)
-		// Hide memories about other people from the current user's list.
-		query += " AND (subject_id IS NULL OR subject_id = ?)"
-		args = append(args, userID)
+		// Hide memories about other people from the current user's list,
+		// but always show the owner their own nodes regardless of subject.
+		query += " AND (subject_id IS NULL OR subject_id = ? OR user_id = ?)"
+		args = append(args, userID, userID)
 	}
 	if nodeType != "" {
 		query += " AND type = ?"

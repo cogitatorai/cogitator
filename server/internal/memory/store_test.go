@@ -150,6 +150,54 @@ func TestListNodesByType(t *testing.T) {
 	}
 }
 
+func TestUpdateNode_PersistsTypeChange(t *testing.T) {
+	store := NewStore(testDB(t))
+
+	// Simulate the reflector creating an episode node.
+	id, err := store.CreateNode(&Node{Type: NodeEpisode, Title: "Behavioral signal", Confidence: 0.7})
+	if err != nil {
+		t.Fatalf("CreateNode() error: %v", err)
+	}
+
+	// Simulate the enricher reclassifying the node type to fact.
+	node, err := store.GetNode(id)
+	if err != nil {
+		t.Fatalf("GetNode() error: %v", err)
+	}
+	node.Type = NodeFact
+	node.Summary = "Enriched summary"
+	if err := store.UpdateNode(node); err != nil {
+		t.Fatalf("UpdateNode() error: %v", err)
+	}
+
+	// Verify the type change persisted in the database.
+	updated, err := store.GetNode(id)
+	if err != nil {
+		t.Fatalf("GetNode() after update error: %v", err)
+	}
+	if updated.Type != NodeFact {
+		t.Errorf("expected type %q after update, got %q", NodeFact, updated.Type)
+	}
+
+	// The node should now appear in a type-filtered list for "fact".
+	facts, err := store.ListNodes("", NodeFact, 100, 0)
+	if err != nil {
+		t.Fatalf("ListNodes(fact) error: %v", err)
+	}
+	if len(facts) != 1 {
+		t.Errorf("expected 1 fact after enrichment reclassification, got %d", len(facts))
+	}
+
+	// It should no longer appear under "episode".
+	episodes, err := store.ListNodes("", NodeEpisode, 100, 0)
+	if err != nil {
+		t.Fatalf("ListNodes(episode) error: %v", err)
+	}
+	if len(episodes) != 0 {
+		t.Errorf("expected 0 episodes after reclassification, got %d", len(episodes))
+	}
+}
+
 func TestGetPendingEnrichment(t *testing.T) {
 	store := NewStore(testDB(t))
 
@@ -419,6 +467,44 @@ func TestListNodes_VisibilityRule(t *testing.T) {
 	}
 	if len(all) != 3 {
 		t.Errorf("worker: expected 3 nodes, got %d", len(all))
+	}
+}
+
+func TestListNodes_OwnerSeesOwnNodesRegardlessOfSubject(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+	insertTestUser(t, db, "alice")
+	insertTestUser(t, db, "bob")
+
+	// Alice saves a memory about Bob (e.g. "Bob prefers dark mode").
+	// The agent sets user_id=alice (owner) and subject_id=bob (about Bob).
+	store.CreateNode(&Node{
+		Type: NodeFact, Title: "Bob prefers dark mode",
+		Confidence: 0.9, UserID: ptr("alice"), SubjectID: ptr("bob"),
+	})
+
+	// Alice also has a standard self-memory (subject_id = alice).
+	store.CreateNode(&Node{
+		Type: NodeFact, Title: "Alice likes Go",
+		Confidence: 0.9, UserID: ptr("alice"), SubjectID: ptr("alice"),
+	})
+
+	// Alice should see BOTH her own nodes (she owns them).
+	aliceNodes, err := store.ListNodes("alice", "", 100, 0)
+	if err != nil {
+		t.Fatalf("ListNodes(alice) error: %v", err)
+	}
+	if len(aliceNodes) != 2 {
+		t.Errorf("alice should see 2 own nodes, got %d", len(aliceNodes))
+	}
+
+	// Bob should see only the node about himself (public, subject=bob).
+	bobNodes, err := store.ListNodes("bob", "", 100, 0)
+	if err != nil {
+		t.Fatalf("ListNodes(bob) error: %v", err)
+	}
+	if len(bobNodes) != 1 {
+		t.Errorf("bob should see 1 node (about him), got %d", len(bobNodes))
 	}
 }
 

@@ -314,7 +314,12 @@ func (e *Enricher) enrichNode(ctx context.Context, node memory.Node) error {
 		names, content,
 	)
 
-	node.Type = validated.NodeType
+	// Preserve the original type for nodes whose type was set intentionally
+	// (e.g. skills created by the skills system). Only reclassify types that
+	// are inferred at creation and meant to be refined by enrichment.
+	if node.Type != memory.NodeSkill && node.Type != memory.NodeTaskKnowledge {
+		node.Type = validated.NodeType
+	}
 	node.Summary = validated.Summary
 	node.Tags = validated.Tags
 	node.RetrievalTriggers = validated.Triggers

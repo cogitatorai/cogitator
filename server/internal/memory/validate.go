@@ -109,7 +109,7 @@ func ValidateEnrichmentResult(nodeType string, summary string, tags, triggers []
 	// Validate node type.
 	nt := NodeType(nodeType)
 	switch nt {
-	case NodeFact, NodePreference, NodePattern:
+	case NodeFact, NodePreference, NodePattern, NodeSkill:
 		// valid
 	default:
 		nt = NodeFact

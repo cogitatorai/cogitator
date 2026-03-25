@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.43.0 (2026-03-25)
+
+### Features
+
+- New `list_available_tools` built-in tool lets the agent inspect all registered capabilities (built-in, connector, MCP) before searching ClawHub, preventing duplicate skill recommendations (7e4b081)
+- MCP server instructions now rendered in the system prompt so the agent knows what stopped servers provide and can start them instead of installing redundant skills (0777941)
+
+### Fixes
+
+- `UpdateNode` now persists type field changes; enricher type reclassifications were silently lost on save
+- Memory list visibility: owners always see their own nodes regardless of subject_id filtering
+- Admin users bypass visibility filtering on memory node list and graph endpoints
+- Enricher preserves original type for skill and task_knowledge nodes instead of reclassifying them
+- `NodeSkill` added as valid enrichment type, preventing skills from being reclassified to "fact"
+- Migration re-enriches nodes with stuck types and restores incorrectly reclassified skill nodes
+- Favicon regenerated with light background for better visibility
+
 ## 0.42.2 (2026-03-24)
 
 ### Fixes

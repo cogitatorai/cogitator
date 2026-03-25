@@ -129,7 +129,7 @@ dashboard/
 
 ### Tools
 
-29 built-in tools plus custom tool support via YAML definitions.
+30 built-in tools plus custom tool support via YAML definitions.
 
 | Tool | Description |
 |---|---|
@@ -144,6 +144,7 @@ dashboard/
 | `delete_task` | Delete a task |
 | `toggle_task` | Enable or disable a task |
 | `heal_task` | Diagnose and fix a task from its last run |
+| `list_available_tools` | List all available tools (built-in, connector, MCP) |
 | `search_skills` | Search for skills |
 | `install_skill` | Install a skill |
 | `create_skill` | Create a custom skill |

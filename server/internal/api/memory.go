@@ -43,7 +43,13 @@ func (r *Router) handleListMemoryNodes(w http.ResponseWriter, req *http.Request)
 		}
 	}
 
-	nodes, err := r.memory.ListNodes(userIDFromRequest(req), nodeType, limit, offset)
+	// Admin sees all nodes without visibility filtering, consistent with
+	// admin access patterns elsewhere (canAccessNode, ownsResource, etc.).
+	uid := userIDFromRequest(req)
+	if isAdmin(req) {
+		uid = ""
+	}
+	nodes, err := r.memory.ListNodes(uid, nodeType, limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list nodes")
 		return
@@ -197,6 +203,9 @@ func (r *Router) handleGetConnectedNodes(w http.ResponseWriter, req *http.Reques
 
 func (r *Router) handleMemoryGraph(w http.ResponseWriter, req *http.Request) {
 	uid := userIDFromRequest(req)
+	if isAdmin(req) {
+		uid = ""
+	}
 	nodes, err := r.memory.GetNodeSummaries(uid)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list nodes")

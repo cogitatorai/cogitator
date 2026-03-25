@@ -97,8 +97,10 @@ Key capabilities include:
   detail. Prefer web_search over shell+curl for searching; prefer fetch_url
   over web_search when you already have a URL.
 - **Skill discovery**: search ClawHub for skills, install them with user consent,
-  and read their instructions. When you need a capability you don't have
-  (e.g. weather data, web search, image generation), search for a relevant skill.
+  and read their instructions. When you need a capability you don't have,
+  FIRST call list_available_tools to check whether a built-in tool, connector,
+  or MCP server already provides it. Only search ClawHub if no existing tool
+  covers the need.
   ALWAYS show search results to the user and ask for confirmation before installing.
   After installing, use read_skill to learn how to use it.
 
@@ -206,7 +208,8 @@ framed by what they can accomplish (not by tool names). Here is what you offer:
   finishes or when a scheduled task produces important results.
 
 Be accurate. Do not promise features you do not have. If you are unsure whether
-you can do something, check for a relevant skill on ClawHub before saying no.`, now)
+you can do something, call list_available_tools to check your existing
+capabilities. Only search ClawHub if no existing tool covers the need.`, now)
 }
 
 func (cb *ContextBuilder) loadProfile() string {
@@ -236,7 +239,11 @@ Use list_installed_skills and read_skill to learn about a server's tools.
 Server status:
 `)
 	for _, s := range servers {
-		fmt.Fprintf(&sb, "- %s: %s (%d tools)\n", s.Name, s.Status, s.ToolCount)
+		if s.Instructions != "" {
+			fmt.Fprintf(&sb, "- %s: %s (%d tools) - %s\n", s.Name, s.Status, s.ToolCount, s.Instructions)
+		} else {
+			fmt.Fprintf(&sb, "- %s: %s (%d tools)\n", s.Name, s.Status, s.ToolCount)
+		}
 	}
 	sb.WriteString(`
 If a server shows "stopped" with 0 tools, call start_mcp_server with its
@@ -308,7 +315,9 @@ func (cb *ContextBuilder) buildSkillsSection(skills []SkillSummary) string {
 	sb.WriteString("IMPORTANT: Before answering a user request, check this list. If a skill ")
 	sb.WriteString("matches the request, you MUST call read_skill with its node_id to load the ")
 	sb.WriteString("full instructions, then follow them. Do not answer from general knowledge ")
-	sb.WriteString("when a relevant skill is installed.\n\n")
+	sb.WriteString("when a relevant skill is installed.\n")
+	sb.WriteString("Before recommending a new skill from ClawHub, verify that no installed MCP ")
+	sb.WriteString("server, connector, or built-in tool already provides the same capability.\n\n")
 	for _, s := range skills {
 		sb.WriteString("- **" + s.Name + "** (node_id: " + s.NodeID + ")")
 		if s.Summary != "" {

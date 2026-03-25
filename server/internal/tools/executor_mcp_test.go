@@ -36,6 +36,14 @@ func (m *mockMCPManager) ServerNames() []string {
 	return m.serverNames
 }
 
+func (m *mockMCPManager) ServerInstructions() map[string]string {
+	out := make(map[string]string, len(m.serverNames))
+	for _, n := range m.serverNames {
+		out[n] = ""
+	}
+	return out
+}
+
 func TestExecute_MCPTool(t *testing.T) {
 	reg := NewRegistry(t.TempDir(), slog.Default())
 	reg.Register(ToolDef{

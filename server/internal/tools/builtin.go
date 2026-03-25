@@ -70,7 +70,7 @@ func registerBuiltinTools(r *Registry) {
 		},
 		{
 			Name:        "create_task",
-			Description: "Create a scheduled task that runs automatically on a cron schedule. Use this when the user asks you to do something recurring (e.g. daily weather reports, periodic checks). IMPORTANT: Before creating, call list_tasks to check for an existing task with the same purpose. To modify an existing task, use update_task instead of deleting and recreating it. Before creating a task, follow this skill resolution chain: (1) Check installed skills (list_installed_skills). (2) If none match, search ClawHub (search_skills) and try candidates in order. For each candidate, call install_skill. If the response is domain_approval_required, present the required_domains to the user and ask if they approve adding them to the allowlist. If the user approves, retry with force=true. If the user denies, skip that skill and try the next search result. (3) After 3 consecutive domain denials, stop trying ClawHub skills and create your own skill (create_skill) with proper OpenClaw format. (4) If no ClawHub results match at all, create your own skill (create_skill). The task prompt MUST reference the skill via read_skill rather than calling raw APIs directly.",
+			Description: "Create a scheduled task that runs automatically on a cron schedule. Use this when the user asks you to do something recurring (e.g. daily weather reports, periodic checks). IMPORTANT: Before creating, call list_tasks to check for an existing task with the same purpose. To modify an existing task, use update_task instead of deleting and recreating it. Before creating a task, follow this skill resolution chain: (1) Call list_available_tools to check if a built-in tool, connector, or MCP server already provides the capability. (2) Check installed skills (list_installed_skills). (3) If neither covers the need, search ClawHub (search_skills) and try candidates in order. For each candidate, call install_skill. If the response is domain_approval_required, present the required_domains to the user and ask if they approve adding them to the allowlist. If the user approves, retry with force=true. If the user denies, skip that skill and try the next search result. (4) After 3 consecutive domain denials, stop trying ClawHub skills and create your own skill (create_skill) with proper OpenClaw format. (5) If no ClawHub results match at all, create your own skill (create_skill). The task prompt MUST reference the skill via read_skill rather than calling raw APIs directly.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -224,8 +224,17 @@ func registerBuiltinTools(r *Registry) {
 			Builtin: true,
 		},
 		{
+			Name:        "list_available_tools",
+			Description: "List all tools currently available to you: built-in, connector, and MCP server tools. Returns tool names and descriptions. Call this before searching ClawHub to verify that no existing tool already covers the capability you need.",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			},
+			Builtin: true,
+		},
+		{
 			Name:        "search_skills",
-			Description: "Search ClawHub for installable skills by keyword. IMPORTANT: Before searching, always call list_installed_skills first to check if a matching skill is already available. Only search if no installed skill matches your need.",
+			Description: "Search ClawHub for installable skills by keyword. IMPORTANT: Before searching, call list_available_tools to check whether a built-in tool, connector, or MCP server already provides the capability. Also call list_installed_skills to check for already-installed skills. Only search ClawHub if no existing tool or skill matches your need.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{

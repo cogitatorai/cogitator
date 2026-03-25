@@ -673,3 +673,136 @@ func TestAllowDomainToolNotAvailable(t *testing.T) {
 		t.Errorf("expected 'not available' error, got: %v", err)
 	}
 }
+
+// stubConnectorCaller is a minimal ConnectorCaller for testing tool source
+// classification in listAvailableTools.
+type stubConnectorCaller struct {
+	tools map[string]bool
+}
+
+func (s *stubConnectorCaller) IsConnectorTool(name string) bool { return s.tools[name] }
+func (s *stubConnectorCaller) CallTool(_ context.Context, _, _, _ string) (string, error) {
+	return "", nil
+}
+
+// stubMCPManager is a minimal MCPManager for testing listAvailableTools.
+type stubMCPManager struct {
+	instructions map[string]string
+}
+
+func (s *stubMCPManager) CallTool(context.Context, string, string, json.RawMessage) (string, error) {
+	return "", nil
+}
+func (s *stubMCPManager) StartServer(context.Context, string) error { return nil }
+func (s *stubMCPManager) ServerNames() []string {
+	names := make([]string, 0, len(s.instructions))
+	for n := range s.instructions {
+		names = append(names, n)
+	}
+	return names
+}
+func (s *stubMCPManager) ServerInstructions() map[string]string { return s.instructions }
+
+func TestListAvailableTools(t *testing.T) {
+	reg := NewRegistry("", slog.Default())
+
+	// Register an MCP tool (simulates a running server).
+	reg.Register(ToolDef{
+		Name:        "mcp__weather__get_forecast",
+		Description: "Get weather forecast",
+		MCPServer:   "weather",
+		MCPToolName: "get_forecast",
+	})
+
+	// Register a connector tool (Builtin=true, like real connectors).
+	reg.Register(ToolDef{
+		Name:        "google_calendar_list",
+		Description: "List calendar events",
+		Builtin:     true,
+	})
+
+	// Register a custom tool.
+	reg.Register(ToolDef{
+		Name:        "my_custom_tool",
+		Description: "A custom tool",
+		Command:     "echo hello",
+	})
+
+	exe := NewExecutor(reg, t.TempDir(), nil, nil, nil, nil, slog.Default(), nil, nil, nil, nil)
+	exe.SetConnectorCaller(&stubConnectorCaller{
+		tools: map[string]bool{"google_calendar_list": true},
+	})
+	// "weather" is running (has tools in registry), "github" is stopped.
+	exe.SetMCPManager(&stubMCPManager{
+		instructions: map[string]string{
+			"weather": "Weather data and forecasting",
+			"github":  "GitHub issue and PR management",
+		},
+	})
+
+	result, err := exe.Execute(context.Background(), "list_available_tools", "{}")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var entries []struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Source      string `json:"source"`
+	}
+	if err := json.Unmarshal([]byte(result), &entries); err != nil {
+		t.Fatalf("invalid JSON output: %v", err)
+	}
+
+	// Build lookups by name.
+	byName := make(map[string]string, len(entries))
+	descByName := make(map[string]string, len(entries))
+	for _, e := range entries {
+		byName[e.Name] = e.Source
+		descByName[e.Name] = e.Description
+	}
+
+	// Verify source classification.
+	tests := []struct {
+		name       string
+		wantSource string
+	}{
+		{"read_file", "built-in"},
+		{"google_calendar_list", "connector"},
+		{"mcp__weather__get_forecast", "mcp:weather"},
+		{"my_custom_tool", "custom"},
+		{"mcp:github", "mcp:github"}, // stopped server
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, ok := byName[tt.name]
+			if !ok {
+				t.Fatalf("tool %q not found in output", tt.name)
+			}
+			if source != tt.wantSource {
+				t.Errorf("source = %q, want %q", source, tt.wantSource)
+			}
+		})
+	}
+
+	// Stopped server should include instructions in description.
+	if desc := descByName["mcp:github"]; !strings.Contains(desc, "GitHub issue") {
+		t.Errorf("stopped server description should include instructions, got: %q", desc)
+	}
+	if desc := descByName["mcp:github"]; !strings.Contains(desc, "start_mcp_server") {
+		t.Errorf("stopped server description should mention start_mcp_server, got: %q", desc)
+	}
+
+	// Running server ("weather") should NOT appear as a stopped entry.
+	if _, ok := byName["mcp:weather"]; ok {
+		t.Error("running server 'weather' should not appear as a stopped mcp: entry")
+	}
+
+	// Verify output is sorted alphabetically.
+	for i := 1; i < len(entries); i++ {
+		if entries[i].Name < entries[i-1].Name {
+			t.Errorf("output not sorted: %q appears after %q", entries[i].Name, entries[i-1].Name)
+			break
+		}
+	}
+}

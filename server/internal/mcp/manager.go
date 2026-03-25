@@ -154,6 +154,18 @@ func (m *Manager) Servers() []ServerStatus {
 	return out
 }
 
+// ServerInstructions returns a map of server name to its configured
+// instructions for all servers (including stopped ones).
+func (m *Manager) ServerInstructions() map[string]string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make(map[string]string, len(m.servers))
+	for name, s := range m.servers {
+		out[name] = s.config.Instructions
+	}
+	return out
+}
+
 // ServerNames returns the names of all configured servers.
 func (m *Manager) ServerNames() []string {
 	m.mu.RLock()

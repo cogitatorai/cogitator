@@ -350,6 +350,7 @@ func TestBuildMCPSection_WithServers(t *testing.T) {
 	cb := NewContextBuilder("")
 	servers := []MCPServerInfo{
 		{Name: "github", Status: "running", ToolCount: 5},
+		{Name: "travel", Status: "stopped", ToolCount: 0, Instructions: "Travel directions and transit routes"},
 	}
 	got := cb.buildMCPSection(servers)
 
@@ -360,6 +361,7 @@ func TestBuildMCPSection_WithServers(t *testing.T) {
 		"read_skill",
 		"server is not running",
 		"- github: running (5 tools)",
+		"- travel: stopped (0 tools) - Travel directions and transit routes",
 		"start_mcp_server",
 	}
 	for _, want := range checks {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/cogitatorai/cogitator/server/internal/auth"
@@ -33,6 +34,9 @@ type MCPManager interface {
 	CallTool(ctx context.Context, serverName, toolName string, args json.RawMessage) (string, error)
 	StartServer(ctx context.Context, name string) error
 	ServerNames() []string
+	// ServerInstructions returns a map of server name to its configured
+	// instructions/description for all servers (including stopped ones).
+	ServerInstructions() map[string]string
 }
 
 // ConnectorCaller dispatches tool calls to connector plugins.
@@ -257,6 +261,8 @@ func (e *Executor) Execute(ctx context.Context, name string, arguments string) (
 		return e.toggleTask(arguments)
 	case "heal_task":
 		return e.healTask(ctx, arguments)
+	case "list_available_tools":
+		return e.listAvailableTools()
 	case "search_skills":
 		return e.searchSkills(ctx, arguments)
 	case "install_skill":
@@ -685,6 +691,62 @@ func (e *Executor) healTask(ctx context.Context, args string) (string, error) {
 		return "", fmt.Errorf("failed to heal task %d: %w", p.TaskID, err)
 	}
 	return result, nil
+}
+
+func (e *Executor) listAvailableTools() (string, error) {
+	defs := e.registry.List()
+	type toolEntry struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Source      string `json:"source"`
+	}
+	entries := make([]toolEntry, 0, len(defs))
+
+	// Track which MCP servers already have tools registered.
+	mcpServersWithTools := map[string]bool{}
+
+	for _, d := range defs {
+		source := "custom"
+		if d.MCPServer != "" {
+			source = "mcp:" + d.MCPServer
+			mcpServersWithTools[d.MCPServer] = true
+		} else if d.Builtin {
+			if e.connectorCaller != nil && e.connectorCaller.IsConnectorTool(d.Name) {
+				source = "connector"
+			} else {
+				source = "built-in"
+			}
+		}
+		entries = append(entries, toolEntry{
+			Name:        d.Name,
+			Description: d.Description,
+			Source:      source,
+		})
+	}
+
+	// Include stopped MCP servers whose tools are not yet in the registry.
+	if e.mcpManager != nil {
+		for name, instructions := range e.mcpManager.ServerInstructions() {
+			if mcpServersWithTools[name] {
+				continue
+			}
+			desc := "MCP server (not started). Call start_mcp_server to discover its tools."
+			if instructions != "" {
+				desc = instructions + ". Call start_mcp_server to discover its tools."
+			}
+			entries = append(entries, toolEntry{
+				Name:   "mcp:" + name,
+				Source:  "mcp:" + name,
+				Description: desc,
+			})
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name < entries[j].Name
+	})
+	data, _ := json.MarshalIndent(entries, "", "  ")
+	return string(data), nil
 }
 
 func (e *Executor) searchSkills(ctx context.Context, args string) (string, error) {

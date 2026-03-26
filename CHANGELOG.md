@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.43.1 (2026-03-26)
+
+### Fixes
+
+- Tasks that use `notify_user` no longer produce duplicate notifications; the recipient gets only the direct message, and the task owner is no longer bothered with a redundant "task completed" alert (0f0d36b)
+
 ## 0.43.0 (2026-03-25)
 
 ### Features

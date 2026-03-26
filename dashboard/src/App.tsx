@@ -78,17 +78,21 @@ function TaskNotificationListener({ onNotification }: { onNotification?: () => v
 
   useEffect(() => {
     const tasksPage = `chat/${encodeURIComponent('tasks:output')}`;
-    const listener = (data: { type: string; content?: string; error?: string; status?: string }) => {
+    const listener = (data: { type: string; content?: string; error?: string; status?: string; silent?: boolean }) => {
       if (data.type === 'task_completed') {
-        sendNotification('Task completed', data.content || 'A task finished successfully', { page: tasksPage });
+        if (!data.silent) {
+          sendNotification('Task completed', data.content || 'A task finished successfully', { page: tasksPage });
+        }
       } else if (data.type === 'task_failed') {
         const body = data.error
           ? `${data.content}: ${data.error}`.slice(0, 120)
           : `${data.content || 'A task'} failed`;
         sendNotification('Task failed', body, { page: tasksPage });
       } else if (data.type === 'notification') {
-        const title = data.status === 'failed' ? 'Task failed' : 'Task completed';
-        sendNotification(title, data.status === 'failed' ? 'A task has failed' : 'A task has completed', { subtitle: data.content, page: tasksPage });
+        if (!data.silent) {
+          const title = data.status === 'failed' ? 'Task failed' : 'Task completed';
+          sendNotification(title, data.status === 'failed' ? 'A task has failed' : 'A task has completed', { subtitle: data.content, page: tasksPage });
+        }
         onNotification?.();
       } else if (data.type === 'notifications_read') {
         onNotification?.();

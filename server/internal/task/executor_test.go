@@ -338,6 +338,89 @@ func TestHealTaskWithReason(t *testing.T) {
 	}
 }
 
+func TestNotifyChatSuppressedWhenNotifyUserCalled(t *testing.T) {
+	store := NewStore(testDB(t))
+	eventBus := bus.New()
+	defer eventBus.Close()
+
+	notifyCh := eventBus.Subscribe(bus.TaskNotifyChat)
+	completedCh := eventBus.Subscribe(bus.TaskCompleted)
+
+	taskID, _ := store.CreateTask(&Task{
+		Name:       "reminder",
+		Prompt:     "remind Bob about antibiotics",
+		NotifyChat: true,
+	})
+	tk, _ := store.GetTask(taskID)
+
+	// Agent that records a successful notify_user tool call via the collector.
+	agent := func(ctx context.Context, _, _, _, _ string) (string, error) {
+		if c := ToolCallCollectorFromContext(ctx); c != nil {
+			c.Record("notify_user", `{"user_name":"Bob","message":"Take antibiotics"}`, "Notification sent to Bob.", time.Second, 0, nil)
+		}
+		return "I've reminded Bob about antibiotics.", nil
+	}
+
+	executor := NewExecutor(store, agent, nil, eventBus, nil)
+	run, err := executor.Execute(context.Background(), *tk, TriggerCron)
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if run.Status != RunStatusCompleted {
+		t.Errorf("expected 'completed', got %q", run.Status)
+	}
+
+	select {
+	case <-notifyCh:
+		t.Error("expected TaskNotifyChat to be suppressed when notify_user was used")
+	default:
+		// Good: no notification.
+	}
+
+	// TaskCompleted should still fire but with notified_directly=true.
+	select {
+	case evt := <-completedCh:
+		if nd, _ := evt.Payload["notified_directly"].(bool); !nd {
+			t.Error("expected notified_directly=true on TaskCompleted when notify_user was used")
+		}
+	default:
+		t.Error("expected TaskCompleted event")
+	}
+}
+
+func TestNotifyChatSentWhenNoNotifyUser(t *testing.T) {
+	store := NewStore(testDB(t))
+	eventBus := bus.New()
+	defer eventBus.Close()
+
+	notifyCh := eventBus.Subscribe(bus.TaskNotifyChat)
+
+	taskID, _ := store.CreateTask(&Task{
+		Name:       "report",
+		Prompt:     "generate weekly report",
+		NotifyChat: true,
+	})
+	tk, _ := store.GetTask(taskID)
+
+	executor := NewExecutor(store, mockAgentSuccess("Here is the report."), nil, eventBus, nil)
+	run, err := executor.Execute(context.Background(), *tk, TriggerCron)
+	if err != nil {
+		t.Fatalf("Execute() error: %v", err)
+	}
+	if run.Status != RunStatusCompleted {
+		t.Errorf("expected 'completed', got %q", run.Status)
+	}
+
+	select {
+	case evt := <-notifyCh:
+		if evt.Payload["result"] != "Here is the report." {
+			t.Errorf("unexpected result: %v", evt.Payload["result"])
+		}
+	default:
+		t.Error("expected TaskNotifyChat when notify_user was NOT used")
+	}
+}
+
 func TestHealTaskNoRuns(t *testing.T) {
 	store := NewStore(testDB(t))
 

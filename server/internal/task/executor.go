@@ -170,6 +170,9 @@ func (e *Executor) Execute(ctx context.Context, t Task, trigger Trigger) (*Run, 
 				},
 			})
 
+			// TODO: if notify_user was called before the failure, the recipient
+			// already got the message but will also receive this failure notification.
+			// Consider suppressing or targeting only the task owner.
 			if t.NotifyChat && trigger != TriggerConversation {
 				e.eventBus.Publish(bus.Event{
 					Type: bus.TaskNotifyChat,
@@ -198,16 +201,22 @@ func (e *Executor) Execute(ctx context.Context, t Task, trigger Trigger) (*Run, 
 	// to diagnose and fix the root cause (skill, prompt, or transient).
 	e.selfHeal(ctx, t, runID, collector, e.modelResolver("standard"), "")
 
+	notifiedDirectly := collector.UsedToolSuccessfully("notify_user")
+
 	if e.eventBus != nil {
 		e.eventBus.Publish(bus.Event{
 			Type: bus.TaskCompleted,
 			Payload: map[string]any{
-				"task_id": t.ID,
-				"run_id":  runID,
+				"task_id":            t.ID,
+				"run_id":             runID,
+				"notified_directly":  notifiedDirectly,
 			},
 		})
 
-		if t.NotifyChat && trigger != TriggerConversation {
+		// Skip the completion notification when the agent already delivered
+		// a message via notify_user (e.g. reminders). The recipient got the
+		// real content; the task owner doesn't need a "task completed" echo.
+		if t.NotifyChat && trigger != TriggerConversation && !notifiedDirectly {
 			e.eventBus.Publish(bus.Event{
 				Type: bus.TaskNotifyChat,
 				Payload: map[string]any{

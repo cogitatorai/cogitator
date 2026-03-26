@@ -27,6 +27,7 @@ type wsMessage struct {
 	Tool          string          `json:"tool,omitempty"`
 	ToolsUsed     json.RawMessage `json:"tools_used,omitempty"`
 	Private       bool            `json:"private,omitempty"`
+	Silent        bool            `json:"silent,omitempty"`
 	VoiceData     string          `json:"voice_data,omitempty"`
 	VoiceFormat   string          `json:"voice_format,omitempty"`
 	VoiceDuration int             `json:"voice_duration,omitempty"`
@@ -210,10 +211,12 @@ func (wc *WebChannel) Start(ctx context.Context) error {
 						if wc.taskNameFunc != nil {
 							taskName = wc.taskNameFunc(taskID)
 						}
+						silent, _ := evt.Payload["notified_directly"].(bool)
 						wc.broadcast(wsMessage{
 							Type:    "task_completed",
 							Content: taskName,
 							Status:  "completed",
+							Silent:  silent,
 						})
 					case bus.TaskFailed:
 						taskID, _ := evt.Payload["task_id"].(int64)
@@ -257,6 +260,7 @@ func (wc *WebChannel) Start(ctx context.Context) error {
 								Type:    "notification",
 								Content: "Message from " + senderName,
 								Status:  "info",
+								Silent:  true, // push notification handles the visible alert
 							})
 						}
 					}

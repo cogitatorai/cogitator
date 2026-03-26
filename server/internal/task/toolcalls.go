@@ -60,6 +60,19 @@ func (c *ToolCallCollector) HasFailures() bool {
 	return false
 }
 
+// UsedToolSuccessfully reports whether the named tool was called at least
+// once without error.
+func (c *ToolCallCollector) UsedToolSuccessfully(name string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, r := range c.records {
+		if r.Tool == name && r.Error == "" {
+			return true
+		}
+	}
+	return false
+}
+
 // NewCollectorFromRecords reconstructs a ToolCallCollector from persisted
 // records, allowing self-healing to operate on historical runs.
 func NewCollectorFromRecords(records []ToolCallRecord) *ToolCallCollector {

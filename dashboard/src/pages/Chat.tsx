@@ -943,8 +943,19 @@ function ToolsUsedIndicator({ toolsUsed }: { toolsUsed: ResolvedTools }) {
   );
 }
 
+function formatMessageTime(date: Date): string {
+  const now = new Date();
+  const isToday = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return time;
+  const day = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return `${day}, ${time}`;
+}
+
 const MessageBubble = memo(function MessageBubble({ message, onDelete }: { message: ChatMessage; onDelete?: (id: number) => void }) {
-  const time = message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = formatMessageTime(message.timestamp);
 
   if (message.role === 'system' && message.content === '[cancelled]') {
     return (
@@ -987,7 +998,7 @@ const MessageBubble = memo(function MessageBubble({ message, onDelete }: { messa
           <span className={`text-[12px] uppercase tracking-widest font-medium ${
             isUser ? 'text-orange-500' : 'text-zinc-500'
           }`}>
-            {isUser ? 'You' : 'Cogitator'}
+            {isUser ? 'You' : 'Agent'}
           </span>
           <span className="text-[12px] text-zinc-600">{time}</span>
           <CopyButton text={message.content} />

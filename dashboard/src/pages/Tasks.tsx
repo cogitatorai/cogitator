@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Trash2 } from 'lucide-react';
 import { fetchJSON, postJSON, putJSON, deleteJSON, usePolling } from '../api';
 import type { Task } from '../api';
@@ -290,7 +290,15 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand, showOwner }
   task: Task; checked: boolean; onCheck: () => void;
   expanded: boolean; onToggleExpand: () => void; showOwner?: boolean;
 }) {
-  const [toggling, setToggling] = useState(false);
+  const [enabledOverride, setEnabledOverride] = useState<boolean | null>(null);
+  const prevTaskEnabled = useRef(task.enabled);
+  useEffect(() => {
+    if (task.enabled !== prevTaskEnabled.current) {
+      prevTaskEnabled.current = task.enabled;
+      setEnabledOverride(null);
+    }
+  }, [task.enabled]);
+  const enabled = enabledOverride !== null ? enabledOverride : task.enabled;
   const [triggerState, setTriggerState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [editPrompt, setEditPrompt] = useState(task.prompt);
   const [editCron, setEditCron] = useState(task.cron_expr || '');
@@ -321,13 +329,14 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand, showOwner }
   };
 
   const handleToggle = async () => {
-    setToggling(true);
+    const newValue = !enabled;
+    setEnabledOverride(newValue);
     try {
-      await putJSON(`/api/tasks/${task.id}`, { enabled: !task.enabled });
+      await putJSON(`/api/tasks/${task.id}`, { enabled: newValue });
     } catch (e) {
       console.error('toggle failed', e);
+      setEnabledOverride(null);
     }
-    setToggling(false);
   };
 
   const handleTrigger = useCallback(async () => {
@@ -397,13 +406,12 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand, showOwner }
         <td className="py-2">
           <button
             onClick={handleToggle}
-            disabled={toggling}
             className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${
-              task.enabled ? 'bg-orange-600' : 'bg-zinc-700'
+              enabled ? 'bg-orange-600' : 'bg-zinc-700'
             }`}
           >
             <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-zinc-100 transition-transform ${
-              task.enabled ? 'left-5' : 'left-0.5'
+              enabled ? 'left-5' : 'left-0.5'
             }`} />
           </button>
         </td>
@@ -477,8 +485,8 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand, showOwner }
                   <span className="text-sm text-zinc-400 ml-2">{task.notify}</span>
                 </div>
               )}
-              <NotifyChatToggle taskId={task.id} initial={task.notify_chat} />
-              <BroadcastToggle taskId={task.id} initial={task.broadcast} />
+              <NotifyChatToggle taskId={task.id} value={task.notify_chat} />
+              <BroadcastToggle taskId={task.id} value={task.broadcast} />
             </div>
           </td>
         </tr>
@@ -487,19 +495,26 @@ function TaskRow({ task, checked, onCheck, expanded, onToggleExpand, showOwner }
   );
 }
 
-function NotifyChatToggle({ taskId, initial }: { taskId: number; initial: boolean }) {
-  const [enabled, setEnabled] = useState(initial);
-  const [toggling, setToggling] = useState(false);
+function NotifyChatToggle({ taskId, value }: { taskId: number; value: boolean }) {
+  const [override, setOverride] = useState<boolean | null>(null);
+  const prev = useRef(value);
+  useEffect(() => {
+    if (value !== prev.current) {
+      prev.current = value;
+      setOverride(null);
+    }
+  }, [value]);
+  const enabled = override !== null ? override : value;
 
   const handleToggle = async () => {
-    setToggling(true);
+    const newValue = !enabled;
+    setOverride(newValue);
     try {
-      await putJSON(`/api/tasks/${taskId}`, { notify_chat: !enabled });
-      setEnabled(!enabled);
+      await putJSON(`/api/tasks/${taskId}`, { notify_chat: newValue });
     } catch (e) {
       console.error('toggle notify_chat failed', e);
+      setOverride(null);
     }
-    setToggling(false);
   };
 
   return (
@@ -507,7 +522,6 @@ function NotifyChatToggle({ taskId, initial }: { taskId: number; initial: boolea
       <span className="text-[12px] uppercase tracking-widest font-medium text-zinc-500">Send output to chat</span>
       <button
         onClick={handleToggle}
-        disabled={toggling}
         className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${
           enabled ? 'bg-orange-600' : 'bg-zinc-700'
         }`}
@@ -520,19 +534,26 @@ function NotifyChatToggle({ taskId, initial }: { taskId: number; initial: boolea
   );
 }
 
-function BroadcastToggle({ taskId, initial }: { taskId: number; initial: boolean }) {
-  const [enabled, setEnabled] = useState(initial);
-  const [toggling, setToggling] = useState(false);
+function BroadcastToggle({ taskId, value }: { taskId: number; value: boolean }) {
+  const [override, setOverride] = useState<boolean | null>(null);
+  const prev = useRef(value);
+  useEffect(() => {
+    if (value !== prev.current) {
+      prev.current = value;
+      setOverride(null);
+    }
+  }, [value]);
+  const enabled = override !== null ? override : value;
 
   const handleToggle = async () => {
-    setToggling(true);
+    const newValue = !enabled;
+    setOverride(newValue);
     try {
-      await putJSON(`/api/tasks/${taskId}`, { broadcast: !enabled });
-      setEnabled(!enabled);
+      await putJSON(`/api/tasks/${taskId}`, { broadcast: newValue });
     } catch (e) {
       console.error('toggle broadcast failed', e);
+      setOverride(null);
     }
-    setToggling(false);
   };
 
   return (
@@ -540,7 +561,6 @@ function BroadcastToggle({ taskId, initial }: { taskId: number; initial: boolean
       <span className="text-[12px] uppercase tracking-widest font-medium text-zinc-500">Broadcast to all users</span>
       <button
         onClick={handleToggle}
-        disabled={toggling}
         className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${
           enabled ? 'bg-orange-500' : 'bg-zinc-700'
         }`}

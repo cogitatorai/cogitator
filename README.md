@@ -338,7 +338,7 @@ All endpoints require JWT authentication. The WebSocket endpoint is at `/ws`.
 
 ## Platforms
 
-**macOS app.** A native .app bundle wraps the server with a WebKit-based UI, system notifications, and auto-updates from GitHub releases. Available at [cogitator.cloud](https://cogitator.cloud).
+**macOS app.** A native .app bundle wraps the server with a WebKit-based UI, system notifications, and auto-updates from GitHub releases. Available at [cogitator.me](https://cogitator.me).
 
 **iOS and Android.** A React Native companion app connects to a running Cogitator instance. Supports voice conversation mode with real-time waveform visualization, continuous conversation toggle, and silence detection.
 

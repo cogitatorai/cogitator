@@ -129,7 +129,7 @@ dashboard/
 
 ### Tools
 
-30 built-in tools plus custom tool support via YAML definitions.
+30+ built-in tools plus custom tool support via YAML definitions.
 
 | Tool | Description |
 |---|---|

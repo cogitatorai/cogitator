@@ -31,6 +31,7 @@ const PROVIDERS: ProviderOption[] = [
     value: 'openai',
     label: 'OpenAI',
     models: [
+      { value: 'gpt-5.4', label: 'GPT-5.4' },
       { value: 'gpt-5.2', label: 'GPT-5.2' },
       { value: 'gpt-4.1', label: 'GPT-4.1' },
       { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
@@ -74,6 +75,7 @@ const PROVIDERS: ProviderOption[] = [
     models: [
       { value: 'anthropic/claude-opus-4', label: 'Claude Opus 4' },
       { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4' },
+      { value: 'openai/gpt-5.4', label: 'GPT-5.4' },
       { value: 'openai/gpt-4.1', label: 'GPT-4.1' },
       { value: 'openai/gpt-4o', label: 'GPT-4o' },
       { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },

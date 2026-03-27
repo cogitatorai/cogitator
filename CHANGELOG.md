@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.44.1 (2026-03-27)
+
+### Features
+
+- Added GPT-5.4 to OpenAI and OpenRouter model selection lists (3a03945)
+
+### Improvements
+
+- Docker Hub overview now syncs automatically from README on releases and README changes (85b8a9f)
+- Fixed project URL to cogitator.me in README (f255ecb)
+
 ## 0.44.0 (2026-03-27)
 
 ### Features

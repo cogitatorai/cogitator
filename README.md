@@ -356,6 +356,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guidelines.
 
 ## License
 
-AGPL-3.0. See [LICENSE.md](LICENSE.md).
+[AGPL-3.0](LICENSE.md).
 
 The server and dashboard source code are free to use, modify, and distribute under the terms of the GNU Affero General Public License v3.0. If you run a modified version as a network service, you must make your source code available to users of that service.

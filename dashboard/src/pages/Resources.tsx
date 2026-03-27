@@ -98,12 +98,9 @@ export default function Resources() {
 function HudHeader() {
   return (
     <div className="mb-4">
-      <div className="flex items-baseline gap-3">
-        <h2 className="text-4xl font-semibold uppercase tracking-[0.1em] text-zinc-100">
-          Resources
-        </h2>
-        <span className="text-sm tracking-[0.2em] text-zinc-600 uppercase">#SYS-MON</span>
-      </div>
+      <h2 className="text-4xl font-semibold uppercase tracking-[0.1em] text-zinc-100">
+        Resources
+      </h2>
       <div className="h-[2px] w-16 bg-orange-600 mt-2" />
       <p className="text-[13px] text-zinc-500 mt-3 uppercase tracking-[0.2em]">
         System diagnostics and token consumption

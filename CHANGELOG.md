@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.44.0 (2026-03-27)
+
+### Features
+
+- Task toggles (enabled, notify chat, broadcast) now update optimistically with rollback on failure (f622e03)
+
+### Improvements
+
+- Replaced "Cogitator" label with "Agent" on assistant chat messages (f622e03)
+- Cleaned up Resources page header layout (3f72521)
+
 ## 0.43.1 (2026-03-26)
 
 ### Fixes

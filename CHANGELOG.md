@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.44.2 (2026-03-31)
+
+### Fixes
+
+- Token refresh endpoint now returns user data, fixing forced logout after 24 hours on mobile clients
+- Refresh token expiry timestamps normalized to UTC, fixing cleanup of expired tokens in non-UTC timezones
+
 ## 0.44.1 (2026-03-27)
 
 ### Features

@@ -80,7 +80,7 @@ func (s *JWTService) GenerateRefreshToken() (raw string, hash string, expiresAt 
 	raw = hex.EncodeToString(b)
 	h := sha256.Sum256([]byte(raw))
 	hash = hex.EncodeToString(h[:])
-	expiresAt = time.Now().Add(s.refreshTokenTTL)
+	expiresAt = time.Now().UTC().Add(s.refreshTokenTTL)
 	return raw, hash, expiresAt, nil
 }
 

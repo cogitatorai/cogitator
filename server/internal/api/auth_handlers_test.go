@@ -386,6 +386,17 @@ func TestRefresh_HappyPath(t *testing.T) {
 	if resp.RefreshToken == loginResp.RefreshToken {
 		t.Error("expected rotated refresh token to be different from original")
 	}
+
+	// The refresh response MUST include the user, just like login/register.
+	// The mobile client calls saveUser(resp.user) after refresh. If user is
+	// nil/missing, saveUser(undefined) throws, the token provider's catch block
+	// clears all auth state, and the user is logged out after 24h.
+	if resp.User == nil {
+		t.Fatal("refresh response missing user; mobile client crashes on saveUser(undefined) causing forced logout")
+	}
+	if resp.User.Email != "alice@example.com" {
+		t.Errorf("refresh user email: got %q, want %q", resp.User.Email, "alice@example.com")
+	}
 }
 
 func TestRefresh_InvalidToken(t *testing.T) {

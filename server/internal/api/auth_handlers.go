@@ -181,27 +181,7 @@ func (r *Router) handleRefresh(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	accessToken, err := r.jwtSvc.GenerateAccessToken(u.ID, string(u.Role))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to generate access token")
-		return
-	}
-
-	rawRefresh, hashRefresh, expiresAt, err := r.jwtSvc.GenerateRefreshToken()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to generate refresh token")
-		return
-	}
-
-	if err := r.users.StoreRefreshToken(hashRefresh, u.ID, expiresAt); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to store refresh token")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, authResponse{
-		AccessToken:  accessToken,
-		RefreshToken: rawRefresh,
-	})
+	r.issueTokens(w, u, http.StatusOK)
 }
 
 // handleLogout revokes a refresh token.

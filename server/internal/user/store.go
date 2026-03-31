@@ -299,7 +299,7 @@ func (s *Store) StoreRefreshToken(tokenHash, userID string, expiresAt time.Time)
 	_, err := s.db.Exec(
 		`INSERT INTO refresh_tokens (token_hash, user_id, expires_at, created_at)
 		 VALUES (?, ?, ?, ?)`,
-		tokenHash, userID, expiresAt, time.Now().UTC(),
+		tokenHash, userID, expiresAt.UTC(), time.Now().UTC(),
 	)
 	return err
 }

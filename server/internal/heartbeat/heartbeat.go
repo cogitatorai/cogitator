@@ -82,6 +82,9 @@ func (h *Heartbeat) send() {
 		"request_count":  snap.RequestCount,
 		"error_rate":     snap.ErrorRate,
 		"p95_latency_ms": snap.P95LatencyMs,
+		"count_2xx":      snap.Count2xx,
+		"count_4xx":      snap.Count4xx,
+		"count_5xx":      snap.Count5xx,
 	}
 
 	body, _ := json.Marshal(payload)

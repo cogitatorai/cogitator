@@ -21,6 +21,9 @@ type Snapshot struct {
 	RequestCount int     `json:"request_count"`
 	ErrorRate    float64 `json:"error_rate"`
 	P95LatencyMs float64 `json:"p95_latency_ms"`
+	Count2xx     int     `json:"count_2xx"`
+	Count4xx     int     `json:"count_4xx"`
+	Count5xx     int     `json:"count_5xx"`
 }
 
 // Ring is a fixed-size, thread-safe circular buffer of request entries.
@@ -68,12 +71,17 @@ func (r *Ring) Snapshot() Snapshot {
 	}
 
 	latencies := make([]float64, count)
-	errors := 0
+	var count2xx, count4xx, count5xx int
 	for i := 0; i < count; i++ {
 		e := r.entries[i]
 		latencies[i] = float64(e.latency) / float64(time.Millisecond)
-		if e.status >= 500 {
-			errors++
+		switch {
+		case e.status >= 500:
+			count5xx++
+		case e.status >= 400:
+			count4xx++
+		case e.status >= 200 && e.status < 300:
+			count2xx++
 		}
 	}
 	r.mu.Unlock()
@@ -86,7 +94,10 @@ func (r *Ring) Snapshot() Snapshot {
 
 	return Snapshot{
 		RequestCount: count,
-		ErrorRate:    float64(errors) / float64(count),
+		ErrorRate:    float64(count5xx) / float64(count),
 		P95LatencyMs: latencies[p95Idx],
+		Count2xx:     count2xx,
+		Count4xx:     count4xx,
+		Count5xx:     count5xx,
 	}
 }

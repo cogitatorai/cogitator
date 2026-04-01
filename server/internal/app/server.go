@@ -849,11 +849,18 @@ func New(opts Options) (*Server, error) {
 	if isSaaS {
 		orchestratorURL := os.Getenv("COGITATOR_ORCHESTRATOR_URL")
 		tenantID := os.Getenv("COGITATOR_TENANT_ID")
+		var hbInterval time.Duration
+		if v := os.Getenv("COGITATOR_HEARTBEAT_INTERVAL"); v != "" {
+			if d, err := time.ParseDuration(v); err == nil {
+				hbInterval = d
+			}
+		}
 		hb := heartbeat.New(heartbeat.Config{
 			OrchestratorURL: orchestratorURL,
 			TenantID:        tenantID,
 			InternalSecret:  internalSecret,
 			Ring:            metricsRing,
+			Interval:        hbInterval,
 		})
 		hb.Start()
 		srv.heartbeat = hb

@@ -68,6 +68,10 @@ func isPublicEndpoint(method, path string) bool {
 	if method == http.MethodGet && path == "/api/version" {
 		return true
 	}
+	// Internal endpoints use their own X-Internal-Secret auth, not JWT.
+	if strings.HasPrefix(path, "/api/internal/") {
+		return true
+	}
 	return false
 }
 

@@ -201,6 +201,35 @@ func TestJWTMiddleware_WSWithoutTokenReturns401(t *testing.T) {
 	}
 }
 
+func TestJWTMiddleware_InternalBypassWhenSecretConfigured(t *testing.T) {
+	jwtSvc := newTestJWTService()
+	handler := jwtAuthMiddleware(jwtSvc, true, ok200)
+
+	req := httptest.NewRequest("GET", "/api/internal/metrics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	// Should pass through JWT (bypassed) and reach the inner handler.
+	// The inner handler returns 200. The actual internal auth (X-Internal-Secret)
+	// is applied by a separate middleware on the mux, not tested here.
+	if rec.Code != http.StatusOK {
+		t.Errorf("with hasInternalSecret=true, /api/internal/* should bypass JWT, got %d", rec.Code)
+	}
+}
+
+func TestJWTMiddleware_InternalNoBypassWithoutSecret(t *testing.T) {
+	jwtSvc := newTestJWTService()
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
+
+	req := httptest.NewRequest("GET", "/api/internal/metrics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("with hasInternalSecret=false, /api/internal/* should require JWT, got %d", rec.Code)
+	}
+}
+
 func TestCORSMiddleware(t *testing.T) {
 	const port = 8484
 	allowedOrigin := "http://127.0.0.1:8484"

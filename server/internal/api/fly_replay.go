@@ -13,13 +13,13 @@ import (
 func flyReplayMiddleware(expectedHost string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host := r.Host
-		// Strip port if present (e.g. "starter.cogitator.cloud:443").
-		if i := len(host) - 1; i > 0 && host[i] >= '0' && host[i] <= '9' {
-			if h, _, err := net.SplitHostPort(host); err == nil {
-				host = h
-			}
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
 		}
 		if host != expectedHost {
+			// Fly's proxy retries the request on another instance when it
+			// sees any fly-replay header. "elsewhere=true" is not a documented
+			// directive but is treated as a generic retry signal.
 			w.Header().Set("fly-replay", "elsewhere=true")
 			w.WriteHeader(http.StatusConflict)
 			return

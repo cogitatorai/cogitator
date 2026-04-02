@@ -23,13 +23,14 @@ type voiceCapability struct {
 
 type settingsResponse struct {
 	Workspace workspaceResponse            `json:"workspace"`
-	Models    modelsResponse              `json:"models"`
-	Providers map[string]providerResponse `json:"providers"`
+	Models    *modelsResponse             `json:"models,omitempty"`
+	Providers map[string]providerResponse `json:"providers,omitempty"`
 	Telegram  telegramSettingsResponse    `json:"telegram"`
 	Security  securitySettingsResponse    `json:"security"`
 	Server    serverSettingsResponse      `json:"server"`
 	Memory    memorySettingsResponse      `json:"memory"`
 	Voice     voiceCapability             `json:"voice"`
+	SaaS      bool                        `json:"saas,omitempty"`
 }
 
 type serverSettingsResponse struct {
@@ -149,7 +150,7 @@ func (r *Router) handleGetSettings(w http.ResponseWriter, req *http.Request) {
 		Workspace: workspaceResponse{
 			Path: cfg.Workspace.Path,
 		},
-		Models: modelsResponse{
+		Models: &modelsResponse{
 			Standard: modelResponse{
 				Provider: cfg.Models.Standard.Provider,
 				Model:    cfg.Models.Standard.Model,
@@ -182,6 +183,11 @@ func (r *Router) handleGetSettings(w http.ResponseWriter, req *http.Request) {
 			MaxUploadBytes: cfg.Voice.MaxUploadBytes,
 		},
 	}
+	resp.SaaS = r.isSaaS
+	if r.isSaaS {
+		resp.Models = nil
+		resp.Providers = nil
+	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -194,6 +200,13 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
+	}
+
+	if r.isSaaS {
+		if body.Models != nil || body.Providers != nil {
+			writeError(w, http.StatusForbidden, "model settings cannot be changed in SaaS mode")
+			return
+		}
 	}
 
 	cfg := r.configStore.Get()

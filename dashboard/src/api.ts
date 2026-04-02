@@ -374,11 +374,11 @@ export interface TelegramSettings {
 
 export interface Settings {
   workspace: { path: string };
-  models: {
+  models?: {
     standard: ModelSettings;
     cheap: ModelSettings;
   };
-  providers: Record<string, ProviderSettings>;
+  providers?: Record<string, ProviderSettings>;
   telegram: TelegramSettings;
   security: { allowed_domains: string[] };
   server: { public_url: string };
@@ -390,6 +390,7 @@ export interface Settings {
     tts_voice: string;
     max_upload_bytes: number;
   };
+  saas?: boolean;
 }
 
 export interface ModelUpdateRequest {

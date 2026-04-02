@@ -162,6 +162,7 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function ModelsSection() {
+  const [isSaaS, setIsSaaS] = useState(false);
   const [standard, setStandard] = useState<ModelFormState>({ provider: '', model: '', customModel: '' });
   const [cheap, setCheap] = useState<ModelFormState>({ provider: '', model: '', customModel: '' });
   const [providerKeys, setProviderKeys] = useState<Record<string, ProviderKeyState>>({});
@@ -180,6 +181,11 @@ export default function ModelsSection() {
   const load = useCallback(async () => {
     try {
       const s = await fetchJSON<Settings>('/api/settings');
+      if (s.saas) {
+        setIsSaaS(true);
+        setLoading(false);
+        return;
+      }
       setStandard(modelStateFromSettings(s.models.standard.provider, s.models.standard.model));
       setCheap(modelStateFromSettings(s.models.cheap.provider, s.models.cheap.model));
       const keys: Record<string, ProviderKeyState> = {};
@@ -297,6 +303,8 @@ export default function ModelsSection() {
       </>
     );
   }
+
+  if (isSaaS) return null;
 
   return (
     <>

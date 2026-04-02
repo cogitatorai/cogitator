@@ -828,6 +828,7 @@ func New(opts Options) (*Server, error) {
 		DrainManager:       drainMgr,
 		VoiceRegistry:        voiceRegistry,
 		VoiceRegistryBuilder: buildVoiceRegistry,
+		IsSaaS:               isSaaS,
 	}
 
 	// Use an indirect shutdown function so the router can trigger server shutdown

@@ -111,6 +111,7 @@ type Router struct {
 	reembedCancel        context.CancelFunc // cancels any in-flight re-embed goroutine
 	voiceRegistry        *voice.Registry
 	voiceRegistryBuilder func(*config.Config) *voice.Registry
+	isSaaS               bool
 }
 
 type RouterConfig struct {
@@ -157,6 +158,7 @@ type RouterConfig struct {
 	DrainManager    *drain.Manager
 	VoiceRegistry        *voice.Registry
 	VoiceRegistryBuilder func(*config.Config) *voice.Registry
+	IsSaaS               bool
 }
 
 func NewRouter(cfg RouterConfig) *Router {
@@ -205,6 +207,7 @@ func NewRouter(cfg RouterConfig) *Router {
 		drainManager:    cfg.DrainManager,
 		voiceRegistry:        cfg.VoiceRegistry,
 		voiceRegistryBuilder: cfg.VoiceRegistryBuilder,
+		isSaaS:               cfg.IsSaaS,
 	}
 	r.registerRoutes()
 

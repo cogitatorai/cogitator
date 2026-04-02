@@ -162,7 +162,7 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function ModelsSection() {
-  const [isSaaS, setIsSaaS] = useState(false);
+  const [saasMode, setSaasMode] = useState(false);
   const [standard, setStandard] = useState<ModelFormState>({ provider: '', model: '', customModel: '' });
   const [cheap, setCheap] = useState<ModelFormState>({ provider: '', model: '', customModel: '' });
   const [providerKeys, setProviderKeys] = useState<Record<string, ProviderKeyState>>({});
@@ -182,19 +182,20 @@ export default function ModelsSection() {
     try {
       const s = await fetchJSON<Settings>('/api/settings');
       if (s.saas) {
-        setIsSaaS(true);
+        setSaasMode(true);
         setLoading(false);
         return;
       }
-      setStandard(modelStateFromSettings(s.models.standard.provider, s.models.standard.model));
-      setCheap(modelStateFromSettings(s.models.cheap.provider, s.models.cheap.model));
+      const models = s.models!;
+      setStandard(modelStateFromSettings(models.standard.provider, models.standard.model));
+      setCheap(modelStateFromSettings(models.cheap.provider, models.cheap.model));
       const keys: Record<string, ProviderKeyState> = {};
       for (const [name, ps] of Object.entries(s.providers ?? {})) {
         keys[name] = { apiKey: '', apiKeySet: ps.api_key_set };
       }
       setProviderKeys(keys);
       const loadedEmb = s.memory?.embedding_model ?? '';
-      const stdProv = s.models.standard.provider;
+      const stdProv = models.standard.provider;
       const knownEmb = EMBEDDING_MODELS[stdProv]?.some((m) => m.value === loadedEmb);
       setEmbeddingModel(knownEmb ? loadedEmb : (loadedEmb ? CUSTOM_VALUE : ''));
       setEmbeddingCustomModel(knownEmb ? '' : loadedEmb);
@@ -268,15 +269,16 @@ export default function ModelsSection() {
 
     try {
       const updated = await putJSON<Settings>('/api/settings', body);
-      setStandard(modelStateFromSettings(updated.models.standard.provider, updated.models.standard.model));
-      setCheap(modelStateFromSettings(updated.models.cheap.provider, updated.models.cheap.model));
+      const updatedModels = updated.models!;
+      setStandard(modelStateFromSettings(updatedModels.standard.provider, updatedModels.standard.model));
+      setCheap(modelStateFromSettings(updatedModels.cheap.provider, updatedModels.cheap.model));
       const keys: Record<string, ProviderKeyState> = {};
       for (const [name, ps] of Object.entries(updated.providers ?? {})) {
         keys[name] = { apiKey: '', apiKeySet: ps.api_key_set };
       }
       setProviderKeys(keys);
       const updatedEmb = updated.memory?.embedding_model ?? '';
-      const updatedProv = updated.models.standard.provider;
+      const updatedProv = updatedModels.standard.provider;
       const knownUpdatedEmb = EMBEDDING_MODELS[updatedProv]?.some((m) => m.value === updatedEmb);
       setEmbeddingModel(knownUpdatedEmb ? updatedEmb : (updatedEmb ? CUSTOM_VALUE : ''));
       setEmbeddingCustomModel(knownUpdatedEmb ? '' : updatedEmb);
@@ -304,7 +306,7 @@ export default function ModelsSection() {
     );
   }
 
-  if (isSaaS) return null;
+  if (saasMode) return null;
 
   return (
     <>

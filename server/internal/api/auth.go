@@ -13,7 +13,7 @@ import (
 // Token sources (checked in order):
 //  1. Authorization: Bearer <token> header
 //  2. ?token=<token> query parameter (WebSocket handshake fallback)
-func jwtAuthMiddleware(jwtSvc *auth.JWTService, next http.Handler) http.Handler {
+func jwtAuthMiddleware(jwtSvc *auth.JWTService, hasInternalSecret bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
@@ -25,6 +25,13 @@ func jwtAuthMiddleware(jwtSvc *auth.JWTService, next http.Handler) http.Handler 
 
 		// Public endpoints that don't need auth.
 		if isPublicEndpoint(r.Method, path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Internal endpoints bypass JWT auth only when the internal secret
+		// auth layer is active (they use X-Internal-Secret instead).
+		if hasInternalSecret && strings.HasPrefix(path, "/api/internal/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -66,10 +73,6 @@ func isPublicEndpoint(method, path string) bool {
 	}
 	// Version info (read-only, used by login/register pages to display current version).
 	if method == http.MethodGet && path == "/api/version" {
-		return true
-	}
-	// Internal endpoints use their own X-Internal-Secret auth, not JWT.
-	if strings.HasPrefix(path, "/api/internal/") {
 		return true
 	}
 	return false

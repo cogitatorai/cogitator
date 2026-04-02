@@ -214,7 +214,7 @@ func NewRouter(cfg RouterConfig) *Router {
 	// Compose middleware chain: CORS (outermost) -> auth -> mux (innermost).
 	var handler http.Handler = r.mux
 	if cfg.JWTService != nil {
-		handler = jwtAuthMiddleware(cfg.JWTService, handler)
+		handler = jwtAuthMiddleware(cfg.JWTService, r.internalSecret != "", handler)
 	}
 	handler = corsMiddleware(cfg.ServerPort, handler)
 	if cfg.MetricsRing != nil {

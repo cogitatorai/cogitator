@@ -43,7 +43,7 @@ func TestJWTMiddleware_ValidToken(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := jwtAuthMiddleware(jwtSvc, inner)
+	handler := jwtAuthMiddleware(jwtSvc, false, inner)
 	req := httptest.NewRequest("GET", "/api/status", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -65,7 +65,7 @@ func TestJWTMiddleware_ExpiredToken(t *testing.T) {
 	// Use the "real" service to validate (it will see the token as expired).
 	validatorSvc := auth.NewJWTService("test-secret", 15*time.Minute, 24*time.Hour)
 
-	handler := jwtAuthMiddleware(validatorSvc, ok200)
+	handler := jwtAuthMiddleware(validatorSvc, false, ok200)
 	req := httptest.NewRequest("GET", "/api/status", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -79,7 +79,7 @@ func TestJWTMiddleware_ExpiredToken(t *testing.T) {
 
 func TestJWTMiddleware_NoToken(t *testing.T) {
 	jwtSvc := newTestJWTService()
-	handler := jwtAuthMiddleware(jwtSvc, ok200)
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
 
 	req := httptest.NewRequest("GET", "/api/status", nil)
 	rec := httptest.NewRecorder()
@@ -93,7 +93,7 @@ func TestJWTMiddleware_NoToken(t *testing.T) {
 
 func TestJWTMiddleware_PublicEndpoints(t *testing.T) {
 	jwtSvc := newTestJWTService()
-	handler := jwtAuthMiddleware(jwtSvc, ok200)
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
 
 	endpoints := []struct {
 		method string
@@ -120,7 +120,7 @@ func TestJWTMiddleware_PublicEndpoints(t *testing.T) {
 
 func TestJWTMiddleware_StaticAssets(t *testing.T) {
 	jwtSvc := newTestJWTService()
-	handler := jwtAuthMiddleware(jwtSvc, ok200)
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
 
 	paths := []string{"/", "/assets/app.js", "/index.html", "/favicon.ico"}
 
@@ -144,7 +144,7 @@ func TestJWTMiddleware_QueryParamToken(t *testing.T) {
 		t.Fatalf("generating token: %v", err)
 	}
 
-	handler := jwtAuthMiddleware(jwtSvc, ok200)
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
 	req := httptest.NewRequest("GET", "/ws?token="+token, nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -164,7 +164,7 @@ func TestJWTMiddleware_InvalidSignature(t *testing.T) {
 		t.Fatalf("generating token: %v", err)
 	}
 
-	handler := jwtAuthMiddleware(validator, ok200)
+	handler := jwtAuthMiddleware(validator, false, ok200)
 	req := httptest.NewRequest("GET", "/api/status", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -177,7 +177,7 @@ func TestJWTMiddleware_InvalidSignature(t *testing.T) {
 
 func TestJWTMiddleware_PostHealthRequiresAuth(t *testing.T) {
 	jwtSvc := newTestJWTService()
-	handler := jwtAuthMiddleware(jwtSvc, ok200)
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
 
 	req := httptest.NewRequest("POST", "/api/health", nil)
 	rec := httptest.NewRecorder()
@@ -190,7 +190,7 @@ func TestJWTMiddleware_PostHealthRequiresAuth(t *testing.T) {
 
 func TestJWTMiddleware_WSWithoutTokenReturns401(t *testing.T) {
 	jwtSvc := newTestJWTService()
-	handler := jwtAuthMiddleware(jwtSvc, ok200)
+	handler := jwtAuthMiddleware(jwtSvc, false, ok200)
 
 	req := httptest.NewRequest("GET", "/ws", nil)
 	rec := httptest.NewRecorder()

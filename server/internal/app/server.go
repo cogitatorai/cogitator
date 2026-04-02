@@ -551,7 +551,10 @@ func New(opts Options) (*Server, error) {
 	taskAdapter.Scheduler = taskScheduler
 
 	if isSaaS {
-		saasProvider := buildSaaSProvider()
+		saasProvider, err := buildSaaSProvider()
+		if err != nil {
+			return nil, fmt.Errorf("saas provider: %w", err)
+		}
 		a.SetProvider(saasProvider, "standard")
 		a.SetModelProvider("cheap", saasProvider)
 		retriever.SetProvider(saasProvider, "cheap")

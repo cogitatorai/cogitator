@@ -29,7 +29,13 @@ const maxTarballSize = 100 << 20
 // publicDir with the new files. If any step fails, publicDir is left untouched.
 func DownloadAndSwap(publicDir, url, expectedSHA256 string) error {
 	// Download the tarball, hashing as we go.
-	resp, err := http.Get(url)
+	// Use a client that does not follow redirects to prevent SSRF.
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := noRedirectClient.Get(url)
 	if err != nil {
 		return fmt.Errorf("download frontend tarball: %w", err)
 	}

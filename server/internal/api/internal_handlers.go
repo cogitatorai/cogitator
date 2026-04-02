@@ -3,9 +3,17 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/cogitatorai/cogitator/server/internal/frontend"
 )
+
+// allowedFrontendURLPrefixes restricts where the update-frontend endpoint
+// can download tarballs from. This prevents a compromised internal secret
+// from being used to inject a malicious dashboard.
+var allowedFrontendURLPrefixes = []string{
+	"https://assets.cogitator.cloud/",
+}
 
 func (r *Router) handleMetrics(w http.ResponseWriter, req *http.Request) {
 	snap := r.metricsRing.Snapshot()
@@ -41,6 +49,18 @@ func (r *Router) handleUpdateFrontend(w http.ResponseWriter, req *http.Request) 
 
 	if body.URL == "" || body.SHA256 == "" {
 		http.Error(w, "url and sha256 are required", http.StatusBadRequest)
+		return
+	}
+
+	allowed := false
+	for _, prefix := range allowedFrontendURLPrefixes {
+		if strings.HasPrefix(body.URL, prefix) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		http.Error(w, "url not allowed", http.StatusForbidden)
 		return
 	}
 

@@ -239,6 +239,7 @@ export interface SystemStatus {
   goroutines: number;
   provider_configured: boolean;
   desktop_mode: boolean;
+  saas?: boolean;
   memory: {
     alloc_mb: number;
     total_alloc_mb: number;

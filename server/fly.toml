@@ -1,0 +1,8 @@
+app = "cogitator-saas"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+  [build.args]
+    BUILD_TAGS = "saas"

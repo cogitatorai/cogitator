@@ -517,6 +517,12 @@ func New(opts Options) (*Server, error) {
 
 	// Wire the task executor now that the agent exists.
 	modelResolver := func(tier string) string {
+		if isSaaS {
+			if tier == "standard" || tier == "cheap" {
+				return tier
+			}
+			return "standard"
+		}
 		current := configStore.Get()
 		switch tier {
 		case "standard":
@@ -544,36 +550,48 @@ func New(opts Options) (*Server, error) {
 	}
 	taskAdapter.Scheduler = taskScheduler
 
-	// If a provider is already configured, activate it immediately.
-	stdProvider := cfg.Models.Standard.Provider
-	stdKey := cfg.ProviderAPIKey(stdProvider)
-	if stdProvider != "" && (stdKey != "" || provider.IsKeyless(stdProvider)) {
-		if stdP, err := buildProvider(stdProvider, stdKey); err == nil {
-			a.SetProvider(stdP, cfg.Models.Standard.Model)
+	if isSaaS {
+		saasProvider := buildSaaSProvider()
+		a.SetProvider(saasProvider, "standard")
+		a.SetModelProvider("cheap", saasProvider)
+		retriever.SetProvider(saasProvider, "cheap")
+		retriever.SetStandardProvider(saasProvider, "standard")
+		enricher.SetProvider(saasProvider, "cheap")
+		profiler.SetProvider(saasProvider, "standard")
+		consolidator.SetProvider(saasProvider, "cheap")
+		reflector.SetProvider(saasProvider, "cheap")
+	} else {
+		// If a provider is already configured, activate it immediately.
+		stdProvider := cfg.Models.Standard.Provider
+		stdKey := cfg.ProviderAPIKey(stdProvider)
+		if stdProvider != "" && (stdKey != "" || provider.IsKeyless(stdProvider)) {
+			if stdP, err := buildProvider(stdProvider, stdKey); err == nil {
+				a.SetProvider(stdP, cfg.Models.Standard.Model)
 
-			cheapProvider := cfg.Models.Cheap.Provider
-			cheapModel := cfg.Models.Cheap.Model
-			cheapP := stdP
-			if cheapProvider != "" && cheapProvider != stdProvider {
-				cheapKey := cfg.ProviderAPIKey(cheapProvider)
-				if cheapKey != "" || provider.IsKeyless(cheapProvider) {
-					if cp, err := buildProvider(cheapProvider, cheapKey); err == nil {
-						cheapP = cp
+				cheapProvider := cfg.Models.Cheap.Provider
+				cheapModel := cfg.Models.Cheap.Model
+				cheapP := stdP
+				if cheapProvider != "" && cheapProvider != stdProvider {
+					cheapKey := cfg.ProviderAPIKey(cheapProvider)
+					if cheapKey != "" || provider.IsKeyless(cheapProvider) {
+						if cp, err := buildProvider(cheapProvider, cheapKey); err == nil {
+							cheapP = cp
+						}
 					}
 				}
+				if cheapModel == "" {
+					cheapModel = cfg.Models.Standard.Model
+				}
+				if cheapP != stdP {
+					a.SetModelProvider(cheapModel, cheapP)
+				}
+				retriever.SetProvider(cheapP, cheapModel)
+				retriever.SetStandardProvider(stdP, cfg.Models.Standard.Model)
+				enricher.SetProvider(cheapP, cheapModel)
+				profiler.SetProvider(stdP, cfg.Models.Standard.Model)
+				consolidator.SetProvider(cheapP, cheapModel)
+				reflector.SetProvider(cheapP, cheapModel)
 			}
-			if cheapModel == "" {
-				cheapModel = cfg.Models.Standard.Model
-			}
-			if cheapP != stdP {
-				a.SetModelProvider(cheapModel, cheapP)
-			}
-			retriever.SetProvider(cheapP, cheapModel)
-			retriever.SetStandardProvider(stdP, cfg.Models.Standard.Model)
-			enricher.SetProvider(cheapP, cheapModel)
-			profiler.SetProvider(stdP, cfg.Models.Standard.Model)
-			consolidator.SetProvider(cheapP, cheapModel)
-			reflector.SetProvider(cheapP, cheapModel)
 		}
 	}
 

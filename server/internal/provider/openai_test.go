@@ -1,6 +1,43 @@
 package provider
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+func TestOpenAI_ExtraHeaders(t *testing.T) {
+	const validResponse = `{"choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`
+
+	var gotTenantID, gotSecret string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotTenantID = r.Header.Get("X-Tenant-ID")
+		gotSecret = r.Header.Get("X-Internal-Secret")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(validResponse))
+	}))
+	defer srv.Close()
+
+	p := NewOpenAI(srv.URL, "")
+	p.ExtraHeaders = map[string]string{
+		"X-Tenant-ID":       "tenant-123",
+		"X-Internal-Secret": "secret-abc",
+	}
+
+	messages := []Message{{Role: "user", Content: "hi"}}
+	if _, err := p.Chat(context.Background(), messages, nil, "test", nil); err != nil {
+		t.Fatalf("Chat returned error: %v", err)
+	}
+
+	if gotTenantID != "tenant-123" {
+		t.Errorf("X-Tenant-ID = %q, want %q", gotTenantID, "tenant-123")
+	}
+	if gotSecret != "secret-abc" {
+		t.Errorf("X-Internal-Secret = %q, want %q", gotSecret, "secret-abc")
+	}
+}
 
 func TestOpenAI_Capabilities_StreamCancel(t *testing.T) {
 	tests := []struct {

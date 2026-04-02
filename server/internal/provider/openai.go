@@ -35,10 +35,11 @@ func IsKeyless(name string) bool {
 // OpenAI implements the Provider interface using the OpenAI Chat Completions API.
 // It works with any OpenAI-compatible endpoint (OpenAI, Groq, Together, Ollama, OpenRouter, etc.).
 type OpenAI struct {
-	apiKey  string
-	baseURL string
-	name    string
-	client  *http.Client
+	apiKey       string
+	baseURL      string
+	name         string
+	client       *http.Client
+	ExtraHeaders map[string]string
 }
 
 // NewOpenAI creates a provider for the given provider name.
@@ -108,6 +109,9 @@ func (o *OpenAI) Chat(ctx context.Context, messages []Message, tools []Tool, mod
 		req.Header.Set("Content-Type", "application/json")
 		if o.apiKey != "" {
 			req.Header.Set("Authorization", "Bearer "+o.apiKey)
+		}
+		for k, v := range o.ExtraHeaders {
+			req.Header.Set(k, v)
 		}
 
 		var resp *http.Response

@@ -817,7 +817,7 @@ func New(opts Options) (*Server, error) {
 		Notifications:   notificationStore,
 		PushTokens:      pushStore,
 		ServerPort:      cfg.Server.Port,
-		PublicURL:       cfg.Server.PublicURL,
+		PublicURL:       publicURLFromEnvOrConfig(cfg.Server.PublicURL),
 		MCP:              mcpManager,
 		Connectors:       connectorMgr,
 		BrowserConnector: browserConn,
@@ -1082,6 +1082,15 @@ func buildNameResolver(users *user.Store) memory.NameResolver {
 // buildVoiceRegistry creates a voice provider registry and registers any
 // providers whose API keys are already configured. The registry is safe to
 // pass even when voice is not configured (the handler checks config fields).
+// publicURLFromEnvOrConfig returns the public URL from the COGITATOR_PUBLIC_URL
+// env var (set by the orchestrator in SaaS mode), falling back to the config value.
+func publicURLFromEnvOrConfig(configValue string) string {
+	if v := os.Getenv("COGITATOR_PUBLIC_URL"); v != "" {
+		return v
+	}
+	return configValue
+}
+
 func buildVoiceRegistry(cfg *config.Config) *voice.Registry {
 	reg := voice.NewRegistry()
 

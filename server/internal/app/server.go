@@ -740,7 +740,7 @@ func New(opts Options) (*Server, error) {
 		if v := os.Getenv("COGITATOR_DASHBOARD_DIR"); v != "" {
 			dashboardDir = v
 		} else if isSaaS {
-			dashboardDir = defaultSaaSDashboardDir
+			dashboardDir = filepath.Join(ws.Root, "public")
 		}
 	}
 	// Auto-detect: try ../cogitator/dashboard/dist relative to the executable.

@@ -889,6 +889,13 @@ func New(opts Options) (*Server, error) {
 		srv.orchestratorURL = orchestratorURL
 		srv.tenantID = tenantID
 		srv.saasInternalSecret = internalSecret
+
+		// Notify the orchestrator that this tenant is now active.
+		go func() {
+			if err := heartbeat.NotifyStatus(orchestratorURL, tenantID, internalSecret, "active"); err != nil {
+				slog.Warn("failed to notify orchestrator of active status", "error", err)
+			}
+		}()
 	}
 
 	return srv, nil
@@ -935,9 +942,13 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully stops the HTTP server and all subsystems.
 func (s *Server) Shutdown(ctx context.Context) {
-	// In SaaS mode, notify the orchestrator of the next scheduled wake time
-	// before stopping, so scale-to-zero does not miss cron tasks.
+	// In SaaS mode, notify the orchestrator before stopping.
 	if s.heartbeat != nil {
+		// Report idle status so the operator UI reflects the machine is down.
+		if err := heartbeat.NotifyStatus(s.orchestratorURL, s.tenantID, s.saasInternalSecret, "idle"); err != nil {
+			slog.Warn("failed to notify orchestrator of idle status", "error", err)
+		}
+		// Schedule a wake time for the next cron task.
 		if wakeAt, ok := s.taskScheduler.NextScheduledTime(); ok {
 			if err := heartbeat.NotifyWakeTime(s.orchestratorURL, s.tenantID, s.saasInternalSecret, wakeAt); err != nil {
 				slog.Warn("failed to notify orchestrator of next wake time", "error", err)

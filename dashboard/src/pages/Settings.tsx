@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJSON, putJSON, getServerUrl, clearServerUrl } from '../api';
-import type { Settings, SettingsUpdateRequest } from '../api';
+import type { Settings, SettingsUpdateRequest, SystemStatus } from '../api';
 import { isNotificationsEnabled, setNotificationsEnabled } from '../hooks/useDesktopNotifications';
 import { useAuth } from '../auth';
 import Panel from '../components/Panel';
@@ -29,6 +29,7 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(!isAdmin ? false : true);
+  const [isSaas, setIsSaas] = useState(false);
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -54,6 +55,12 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
   }, [isAdmin]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    fetchJSON<SystemStatus>('/api/status')
+      .then((s) => setIsSaas(!!s.saas))
+      .catch(() => {});
+  }, []);
 
   const save = async () => {
     setSaving(true);
@@ -211,6 +218,27 @@ export default function SettingsPage({ themePreference, setTheme }: { themePrefe
             </p>
           )}
         </Panel>
+
+        {isSaas && (
+          <>
+            <SectionHeader title="Subscription" />
+
+            <Panel>
+              <h3 className="text-[12px] uppercase tracking-widest font-medium text-zinc-500 mb-1">
+                Manage Subscription
+              </h3>
+              <p className="text-sm text-zinc-600 mb-4">
+                View invoices, update your payment method, or change your plan.
+              </p>
+              <a
+                href="/api/billing/portal"
+                className="inline-block px-4 py-2 text-sm font-medium uppercase tracking-widest bg-orange-600 text-white hover:bg-orange-500 transition-colors"
+              >
+                Open Billing Portal
+              </a>
+            </Panel>
+          </>
+        )}
 
         {isAdmin && (
           <>

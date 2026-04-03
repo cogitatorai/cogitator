@@ -23,6 +23,7 @@ import Models from './pages/Models';
 import UsersPage from './pages/Users';
 import Account from './pages/Account';
 import NotificationBell from './components/NotificationBell';
+import SubscriptionBanner from './components/SubscriptionBanner';
 
 type Page = 'tasks' | 'history' | 'resources' | 'chat' | 'memory' | 'skills' | 'connectors' | 'settings' | 'account' | 'models' | 'users' | 'register' | 'connect';
 
@@ -350,6 +351,7 @@ function AppShell() {
 
       {/* Content */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden hud-grid-bg">
+        {status?.saas && <SubscriptionBanner />}
         {(showBanner || (versionInfo?.latest && isNewer(versionInfo.latest.tag, versionInfo.current) &&
           bareVersion(versionInfo.latest.tag) !== bareVersion(versionInfo.skipped_version ?? ''))) && (
           <div className="shrink-0 px-6 pt-6 space-y-4">

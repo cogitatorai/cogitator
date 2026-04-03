@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -223,16 +222,6 @@ func NewRouter(cfg RouterConfig) *Router {
 	}
 	if cfg.DrainManager != nil {
 		handler = cfg.DrainManager.Middleware()(handler)
-	}
-	// In SaaS mode, ensure requests reach the correct tenant machine.
-	// Fly's proxy may route a request to any machine in the app; if the
-	// Host header doesn't match this tenant's hostname, reply with
-	// fly-replay so the proxy retries on another instance.
-	if r.isSaaS && r.publicURL != "" {
-		if u, err := url.Parse(r.publicURL); err == nil && u.Host != "" {
-			expectedHost := u.Host
-			handler = flyReplayMiddleware(expectedHost, handler)
-		}
 	}
 	r.handler = handler
 

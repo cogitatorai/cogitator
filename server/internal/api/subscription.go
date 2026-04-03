@@ -6,6 +6,40 @@ import (
 	"net/http"
 )
 
+// requireActiveSubscription blocks write operations when subscription is in
+// grace_period or expired. Only applies in SaaS mode. Self-hosted instances
+// bypass this check.
+func (rt *Router) requireActiveSubscription(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !rt.isSaaS {
+			next(w, r)
+			return
+		}
+
+		var status string
+		err := rt.db.QueryRow(
+			`SELECT status FROM subscription_status WHERE id = 1`,
+		).Scan(&status)
+		if err != nil {
+			// No row = active (default).
+			next(w, r)
+			return
+		}
+
+		if status == "grace_period" || status == "expired" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error":  "subscription inactive",
+				"status": status,
+			})
+			return
+		}
+
+		next(w, r)
+	}
+}
+
 type subscriptionStatusRequest struct {
 	Status      string `json:"status"`
 	GraceEndsAt string `json:"grace_ends_at"`

@@ -285,9 +285,9 @@ func (r *Router) registerRoutes() {
 	}
 
 	if r.agent != nil {
-		r.mux.HandleFunc("POST /api/chat", r.handleChat)
-		r.mux.HandleFunc("POST /api/chat/message", r.handleChatWithFile)
-		r.mux.HandleFunc("POST /api/chat/voice", r.handleVoice)
+		r.mux.HandleFunc("POST /api/chat", r.requireActiveSubscription(r.handleChat))
+		r.mux.HandleFunc("POST /api/chat/message", r.requireActiveSubscription(r.handleChatWithFile))
+		r.mux.HandleFunc("POST /api/chat/voice", r.requireActiveSubscription(r.handleVoice))
 	}
 
 	if r.sessions != nil {
@@ -315,11 +315,11 @@ func (r *Router) registerRoutes() {
 
 	if r.tasks != nil {
 		r.mux.HandleFunc("GET /api/tasks", r.handleListTasks)
-		r.mux.HandleFunc("POST /api/tasks", r.handleCreateTask)
+		r.mux.HandleFunc("POST /api/tasks", r.requireActiveSubscription(r.handleCreateTask))
 		r.mux.HandleFunc("GET /api/tasks/{id}", r.handleGetTask)
 		r.mux.HandleFunc("PUT /api/tasks/{id}", r.handleUpdateTask)
 		r.mux.HandleFunc("DELETE /api/tasks/{id}", r.handleDeleteTask)
-		r.mux.HandleFunc("POST /api/tasks/{id}/trigger", r.handleTriggerTask)
+		r.mux.HandleFunc("POST /api/tasks/{id}/trigger", r.requireActiveSubscription(r.handleTriggerTask))
 		r.mux.HandleFunc("GET /api/tasks/{id}/runs", r.handleListTaskRuns)
 		r.mux.HandleFunc("GET /api/tasks/{id}/runs/{run_id}", r.handleGetRun)
 		r.mux.HandleFunc("GET /api/runs/recent", r.handleRecentRuns)

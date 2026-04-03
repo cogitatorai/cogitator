@@ -224,4 +224,11 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE TABLE IF NOT EXISTS schema_migrations (
 	version INTEGER PRIMARY KEY
 );
+
+CREATE TABLE IF NOT EXISTS subscription_status (
+	id            INTEGER PRIMARY KEY CHECK (id = 1),
+	status        TEXT NOT NULL DEFAULT 'active',
+	grace_ends_at TEXT,
+	updated_at    DATETIME NOT NULL DEFAULT (datetime('now'))
+);
 `

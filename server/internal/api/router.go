@@ -376,6 +376,7 @@ func (r *Router) registerRoutes() {
 	if r.db != nil {
 		r.mux.HandleFunc("GET /api/usage/daily", r.handleDailyTokenStats)
 		r.mux.HandleFunc("GET /api/audit/logs", r.handleListAuditLogs)
+		r.mux.HandleFunc("GET /api/subscription-status", r.handleSubscriptionStatusGet)
 	}
 
 	if r.web != nil {
@@ -419,6 +420,9 @@ func (r *Router) registerRoutes() {
 		}
 		if r.dashboardDir != "" {
 			r.mux.Handle("POST /api/internal/update-frontend", internal(http.HandlerFunc(r.handleUpdateFrontend)))
+		}
+		if r.db != nil {
+			r.mux.Handle("POST /api/internal/subscription-status", internal(http.HandlerFunc(r.handleSubscriptionStatusPush)))
 		}
 	}
 

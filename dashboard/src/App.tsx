@@ -161,9 +161,10 @@ function AppShell() {
     }
   }, [page, authLoading, isAuthenticated, isAdmin, isModerator]);
 
-  const { data: status } = usePolling<SystemStatus>(
-    () => isAuthenticated ? fetchJSON('/api/status') : Promise.resolve(null as unknown as SystemStatus),
+  const { data: status } = usePolling<SystemStatus | null>(
+    () => isAuthenticated ? fetchJSON<SystemStatus>('/api/status') : Promise.resolve(null),
     5000,
+    isAuthenticated ? 'authed' : 'anon',
   );
 
   const nav = useMemo(() => {
@@ -173,7 +174,8 @@ function AppShell() {
       items.splice(accountIdx, 0, RESOURCES_NAV_ITEM);
     }
     // Models page visible to admin only (hidden in SaaS mode).
-    if (isAdmin && !status?.saas) {
+    // Wait for status to load before showing Models to avoid a flash.
+    if (isAdmin && status && !status.saas) {
       items.splice(items.findIndex((i) => i.id === 'account'), 0, MODELS_NAV_ITEM);
     }
     // Users page visible to admin and moderator (inserted after Models if present).
@@ -182,7 +184,7 @@ function AppShell() {
       items.splice(insertIdx >= 0 ? insertIdx + 1 : items.findIndex((i) => i.id === 'account'), 0, USERS_NAV_ITEM);
     }
     return items;
-  }, [isAdmin, isModerator, status?.saas]);
+  }, [isAdmin, isModerator, status]);
 
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [localDownloading, setLocalDownloading] = useState(false);

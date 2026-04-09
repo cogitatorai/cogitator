@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/agent"
@@ -112,6 +113,12 @@ type Router struct {
 	voiceRegistry        *voice.Registry
 	voiceRegistryBuilder func(*config.Config) *voice.Registry
 	isSaaS               bool
+
+	usageWarningMu         sync.RWMutex
+	usageWarningLevel      string
+	usageWarningPct        float64
+	usageWarningPeriodEnd  string
+	usageWarningUpgradeURL string
 }
 
 type RouterConfig struct {
@@ -377,6 +384,7 @@ func (r *Router) registerRoutes() {
 		r.mux.HandleFunc("GET /api/usage/daily", r.handleDailyTokenStats)
 		r.mux.HandleFunc("GET /api/audit/logs", r.handleListAuditLogs)
 		r.mux.HandleFunc("GET /api/subscription-status", r.handleSubscriptionStatusGet)
+		r.mux.HandleFunc("GET /api/usage-warning", r.handleUsageWarningGet)
 	}
 
 	if r.web != nil {
@@ -424,6 +432,7 @@ func (r *Router) registerRoutes() {
 		if r.db != nil {
 			r.mux.Handle("POST /api/internal/subscription-status", internal(http.HandlerFunc(r.handleSubscriptionStatusPush)))
 		}
+		r.mux.Handle("POST /api/internal/usage-warning", internal(http.HandlerFunc(r.handleUsageWarningPush)))
 	}
 
 	// Serve dashboard static files (SPA with fallback to index.html).

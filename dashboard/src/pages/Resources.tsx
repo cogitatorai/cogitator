@@ -1,6 +1,12 @@
-import { fetchJSON, usePolling, fetchDailyTokenStats } from '../api';
-import type { SystemStatus, DailyTokenStats } from '../api';
+import { fetchJSON, usePolling, fetchDailyTokenStats, fetchMeteringStatus } from '../api';
+import type { SystemStatus, DailyTokenStats, MeteringStatus } from '../api';
 import TokenChart from '../components/TokenChart';
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toString();
+}
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -20,6 +26,15 @@ export default function Resources() {
     () => fetchDailyTokenStats(14),
     30000,
   );
+
+  const { data: meteringData } = usePolling<MeteringStatus | null>(
+    async () => {
+      if (!status?.saas) return null;
+      try { return await fetchMeteringStatus(); } catch { return null; }
+    },
+    30000,
+  );
+  const metering = status?.saas ? meteringData : null;
 
   if (loading && !status) {
     return (
@@ -71,6 +86,52 @@ export default function Resources() {
           <MemStat label="Memory Reserved" value={`${s.memory.sys_mb}`} unit="MB" />
         </div>
       </div>
+
+      {/* Token Allowance (SaaS only) */}
+      {status?.saas && metering && !metering.uncapped && (
+        <div className="hud-panel hud-panel-orange mb-6">
+          <SectionLabel text="Token Allowance" />
+          <div className="mt-4 space-y-3">
+            {/* Usage bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-3xl font-semibold text-zinc-100">
+                  {metering.usage_pct.toFixed(2)}<span className="text-base text-zinc-500 ml-1">%</span>
+                </span>
+                <span className="text-[13px] uppercase tracking-[0.2em] text-zinc-500">
+                  {formatTokens(metering.weighted_usage)} / {formatTokens(metering.token_limit)}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-zinc-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    metering.usage_pct < 80 ? 'bg-green-500' :
+                    metering.usage_pct < 95 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min(100, metering.usage_pct)}%` }}
+                />
+              </div>
+            </div>
+            {/* Details row */}
+            <div className="flex gap-6">
+              <div>
+                <span className="text-[13px] uppercase tracking-[0.2em] font-medium text-zinc-500 block mb-1">Output Weight</span>
+                <span className="text-lg font-semibold text-zinc-300">{metering.output_weight}x</span>
+              </div>
+              <div>
+                <span className="text-[13px] uppercase tracking-[0.2em] font-medium text-zinc-500 block mb-1">Resets</span>
+                <span className="text-lg font-semibold text-zinc-300">
+                  {new Date(metering.period_end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+              <div>
+                <span className="text-[13px] uppercase tracking-[0.2em] font-medium text-zinc-500 block mb-1">Tier</span>
+                <span className="text-lg font-semibold text-orange-500 uppercase">{metering.tier}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Component Counts */}
       <div className="hud-panel mb-6">

@@ -255,6 +255,18 @@ export interface SystemStatus {
   };
 }
 
+export interface MeteringStatus {
+  tenant_id: string;
+  tier: string;
+  weighted_usage: number;
+  token_limit: number;
+  output_weight: number;
+  usage_pct: number;
+  period_end: string;
+  has_override: boolean;
+  uncapped?: boolean;
+}
+
 export interface Task {
   id: number;
   name: string;
@@ -476,6 +488,10 @@ export function importSkill(content: string): Promise<{ node_id: string; name: s
 
 export function fetchDailyTokenStats(days = 14): Promise<{ stats: DailyTokenStats[] }> {
   return fetchJSON(`/api/usage/daily?days=${days}`);
+}
+
+export function fetchMeteringStatus(): Promise<MeteringStatus> {
+  return fetchJSON('/api/metering');
 }
 
 // Version / auto-update

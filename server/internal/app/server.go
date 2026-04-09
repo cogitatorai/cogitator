@@ -833,6 +833,10 @@ func New(opts Options) (*Server, error) {
 		VoiceRegistryBuilder: buildVoiceRegistry,
 		IsSaaS:               isSaaS,
 	}
+	if isSaaS {
+		routerCfg.OrchestratorURL = os.Getenv("COGITATOR_ORCHESTRATOR_URL")
+		routerCfg.TenantID = os.Getenv("COGITATOR_TENANT_ID")
+	}
 
 	// Use an indirect shutdown function so the router can trigger server shutdown
 	// for the auto-updater (the server doesn't exist yet at router creation time).

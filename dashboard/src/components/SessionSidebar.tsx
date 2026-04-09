@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Plus, PanelLeftOpen, PanelLeftClose, Trash2, Lock, ListTodo } from 'lucide-react';
-import type { Session } from '../api';
+import type { Session, MeteringStatus } from '../api';
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toString();
+}
 
 interface SessionSidebarProps {
   sessions: Session[];
@@ -12,6 +18,7 @@ interface SessionSidebarProps {
   onToggle: () => void;
   pinnedSession?: Session | null;
   unreadSessions?: Set<string>;
+  metering?: MeteringStatus | null;
 }
 
 function timeAgo(iso: string): string {
@@ -38,7 +45,7 @@ function channelLabel(channel: string): string {
 }
 
 export default function SessionSidebar({
-  sessions, activeKey, onSelect, onNew, onDelete, collapsed, onToggle, pinnedSession, unreadSessions,
+  sessions, activeKey, onSelect, onNew, onDelete, collapsed, onToggle, pinnedSession, unreadSessions, metering,
 }: SessionSidebarProps) {
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
@@ -247,6 +254,29 @@ export default function SessionSidebar({
           </>
         )}
       </div>
+
+      {/* Metering indicator (SaaS) */}
+      {metering && !metering.uncapped && (
+        <div className="px-3 py-2 border-t border-zinc-700">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">Usage</span>
+            <span className="text-[11px] tabular-nums text-zinc-400">{metering.usage_pct.toFixed(2)}%</span>
+          </div>
+          <div className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full ${
+                metering.usage_pct < 80 ? 'bg-green-500' :
+                metering.usage_pct < 95 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${Math.min(100, metering.usage_pct)}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] text-zinc-600">{formatTokens(metering.weighted_usage)} / {formatTokens(metering.token_limit)}</span>
+            <span className="text-[10px] text-zinc-600 uppercase">{metering.tier}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

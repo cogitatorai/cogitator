@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { fetchJSON, putJSON, deleteJSON, sendChatMessage, markTaskNotificationsRead } from '../api';
-import type { Session, SessionDetail, PersistedMessage } from '../api';
+import { fetchJSON, putJSON, deleteJSON, sendChatMessage, markTaskNotificationsRead, usePolling, fetchMeteringStatus } from '../api';
+import type { Session, SessionDetail, PersistedMessage, SystemStatus, MeteringStatus } from '../api';
 import { useWebSocket } from '../ws';
 import type { WsMessage } from '../ws';
 import { Lock, Paperclip, ListTodo } from 'lucide-react';
@@ -114,6 +114,20 @@ export default function Chat({ onNotificationsCleared }: { onNotificationsCleare
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pinnedSession, setPinnedSession] = useState<Session | null>(null);
   const [unreadSessions, setUnreadSessions] = useState<Set<string>>(() => new Set());
+
+  // Metering data for SaaS sidebar indicator
+  const { data: sysStatus } = usePolling<SystemStatus>(
+    () => fetchJSON('/api/status'),
+    10000,
+  );
+  const { data: meteringData } = usePolling<MeteringStatus | null>(
+    async () => {
+      if (!sysStatus?.saas) return null;
+      try { return await fetchMeteringStatus(); } catch { return null; }
+    },
+    30000,
+  );
+  const metering = sysStatus?.saas ? meteringData : null;
 
   useEffect(() => {
     fetchJSON<SessionDetail>('/api/sessions/tasks:output').then((d) => setPinnedSession(d.session)).catch(() => {});
@@ -590,6 +604,7 @@ export default function Chat({ onNotificationsCleared }: { onNotificationsCleare
           onToggle={toggleSidebar}
           pinnedSession={pinnedSession}
           unreadSessions={unreadSessions}
+          metering={metering}
         />
 
         <div className="flex flex-col flex-1 min-h-0 min-w-0 pl-4">

@@ -113,6 +113,8 @@ type Router struct {
 	voiceRegistry        *voice.Registry
 	voiceRegistryBuilder func(*config.Config) *voice.Registry
 	isSaaS               bool
+	orchestratorURL      string
+	tenantID             string
 
 	usageWarningMu         sync.RWMutex
 	usageWarningLevel      string
@@ -166,6 +168,8 @@ type RouterConfig struct {
 	VoiceRegistry        *voice.Registry
 	VoiceRegistryBuilder func(*config.Config) *voice.Registry
 	IsSaaS               bool
+	OrchestratorURL      string
+	TenantID             string
 }
 
 func NewRouter(cfg RouterConfig) *Router {
@@ -215,6 +219,8 @@ func NewRouter(cfg RouterConfig) *Router {
 		voiceRegistry:        cfg.VoiceRegistry,
 		voiceRegistryBuilder: cfg.VoiceRegistryBuilder,
 		isSaaS:               cfg.IsSaaS,
+		orchestratorURL:      cfg.OrchestratorURL,
+		tenantID:             cfg.TenantID,
 	}
 	r.registerRoutes()
 
@@ -385,6 +391,9 @@ func (r *Router) registerRoutes() {
 		r.mux.HandleFunc("GET /api/audit/logs", r.handleListAuditLogs)
 		r.mux.HandleFunc("GET /api/subscription-status", r.handleSubscriptionStatusGet)
 		r.mux.HandleFunc("GET /api/usage-warning", r.handleUsageWarningGet)
+		if r.isSaaS && r.orchestratorURL != "" {
+			r.mux.HandleFunc("GET /api/metering", r.handleMeteringProxy)
+		}
 	}
 
 	if r.web != nil {

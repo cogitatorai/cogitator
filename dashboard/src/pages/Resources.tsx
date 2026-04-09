@@ -33,6 +33,7 @@ export default function Resources() {
       try { return await fetchMeteringStatus(); } catch { return null; }
     },
     30000,
+    status?.saas ? 'saas' : 'none',
   );
   const metering = status?.saas ? meteringData : null;
 

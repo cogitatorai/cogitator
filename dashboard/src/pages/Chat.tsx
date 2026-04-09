@@ -126,6 +126,7 @@ export default function Chat({ onNotificationsCleared }: { onNotificationsCleare
       try { return await fetchMeteringStatus(); } catch { return null; }
     },
     30000,
+    sysStatus?.saas ? 'saas' : 'none',
   );
   const metering = sysStatus?.saas ? meteringData : null;
 

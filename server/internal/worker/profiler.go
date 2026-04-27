@@ -6,36 +6,28 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/memory"
-	"github.com/cogitatorai/cogitator/server/internal/provider"
 )
 
 // ProfilerConfig holds the dependencies and configuration for the Profiler worker.
 type ProfilerConfig struct {
 	Memory         *memory.Store
-	Provider       provider.Provider
 	EventBus       *bus.Bus
-	Model          string
 	ProfilePath    string
 	Logger         *slog.Logger
 	RegenThreshold int // number of new memories before profile regeneration (default 5)
 }
 
-// Profiler listens for ProfileRevisionDue events, queries recent behavioral
-// evidence from the memory graph, and calls an LLM to revise the behavioral
-// profile on disk. It also counts EnrichmentQueued events and triggers
-// revision when the count reaches regenThreshold.
+// Profiler listens for ProfileRevisionDue events and rebuilds the behavioral
+// profile on disk from the memory graph. It also counts EnrichmentQueued events
+// and triggers revision when the count reaches regenThreshold.
 type Profiler struct {
-	mu             sync.RWMutex
 	memory         *memory.Store
-	provider       provider.Provider
 	eventBus       *bus.Bus
-	model          string
 	profilePath    string
 	logger         *slog.Logger
 	cancel         context.CancelFunc
@@ -55,9 +47,7 @@ func NewProfiler(cfg ProfilerConfig) *Profiler {
 	}
 	return &Profiler{
 		memory:         cfg.Memory,
-		provider:       cfg.Provider,
 		eventBus:       cfg.EventBus,
-		model:          cfg.Model,
 		profilePath:    cfg.ProfilePath,
 		logger:         cfg.Logger,
 		regenThreshold: threshold,
@@ -106,16 +96,6 @@ func (p *Profiler) Start(ctx context.Context) {
 func (p *Profiler) Stop() {
 	if p.cancel != nil {
 		p.cancel()
-	}
-}
-
-// SetProvider hot-swaps the LLM provider and model used for profile revision.
-func (p *Profiler) SetProvider(prov provider.Provider, model string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.provider = prov
-	if model != "" {
-		p.model = model
 	}
 }
 

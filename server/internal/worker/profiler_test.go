@@ -9,7 +9,6 @@ import (
 
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/memory"
-	"github.com/cogitatorai/cogitator/server/internal/provider"
 )
 
 const initialProfile = `## Communication
@@ -19,7 +18,7 @@ const initialProfile = `## Communication
 - Always verify API responses before processing. [evidence: node_def]
 `
 
-func setupProfiler(t *testing.T, mockResp string) (*Profiler, *bus.Bus, string) {
+func setupProfiler(t *testing.T) (*Profiler, *bus.Bus, string) {
 	t.Helper()
 	db := testDB(t)
 	memStore := memory.NewStore(db)
@@ -33,13 +32,9 @@ func setupProfiler(t *testing.T, mockResp string) (*Profiler, *bus.Bus, string) 
 		t.Fatalf("write initial profile: %v", err)
 	}
 
-	mock := provider.NewMock(provider.Response{Content: mockResp})
-
 	p := NewProfiler(ProfilerConfig{
 		Memory:      memStore,
-		Provider:    mock,
 		EventBus:    eventBus,
-		Model:       "test-model",
 		ProfilePath: profilePath,
 		Logger:      nil,
 	})
@@ -85,13 +80,9 @@ func TestProfilerRevisesProfile(t *testing.T) {
 
 	addTestNodes(t, memStore)
 
-	mock := provider.NewMock(provider.Response{Content: ""})
-
 	p := NewProfiler(ProfilerConfig{
 		Memory:      memStore,
-		Provider:    mock,
 		EventBus:    eventBus,
-		Model:       "test-model",
 		ProfilePath: profilePath,
 	})
 
@@ -113,9 +104,6 @@ func TestProfilerRevisesProfile(t *testing.T) {
 		t.Fatalf("read profile: %v", err)
 	}
 
-	// The new profile is generated from graph queries, not the LLM response.
-	// It should contain the preference node ("Prefers bullet points") and
-	// the episode node ("User corrected verbosity").
 	if !strings.Contains(string(content), "Prefers bullet points") {
 		t.Error("revised profile should contain the preference node")
 	}
@@ -123,7 +111,6 @@ func TestProfilerRevisesProfile(t *testing.T) {
 		t.Error("revised profile should contain the episode node")
 	}
 
-	// Verify the backup holds the original content.
 	backupContent, err := os.ReadFile(backupPath)
 	if err != nil {
 		t.Fatalf("read backup: %v", err)
@@ -131,16 +118,11 @@ func TestProfilerRevisesProfile(t *testing.T) {
 	if string(backupContent) != initialProfile {
 		t.Errorf("backup content mismatch.\ngot:  %q\nwant: %q", string(backupContent), initialProfile)
 	}
-
-	// The LLM must not be called.
-	if n := mock.CallCount(); n != 0 {
-		t.Errorf("expected 0 LLM calls, got %d", n)
-	}
 }
 
 func TestProfilerNoChanges(t *testing.T) {
 	// With an empty store the generated profile is the template skeleton.
-	p, eventBus, profilePath := setupProfiler(t, "")
+	p, eventBus, profilePath := setupProfiler(t)
 
 	ctx := t.Context()
 	p.Start(ctx)
@@ -170,7 +152,7 @@ func TestProfilerNoChanges(t *testing.T) {
 }
 
 func TestProfilerCreatesBackup(t *testing.T) {
-	p, eventBus, profilePath := setupProfiler(t, "")
+	p, eventBus, profilePath := setupProfiler(t)
 
 	ctx := t.Context()
 	p.Start(ctx)
@@ -222,13 +204,9 @@ func TestProfilerRegenOnMemoryCount(t *testing.T) {
 		t.Fatalf("write initial profile: %v", err)
 	}
 
-	mock := provider.NewMock(provider.Response{Content: ""})
-
 	p := NewProfiler(ProfilerConfig{
 		Memory:         memStore,
-		Provider:       mock,
 		EventBus:       eventBus,
-		Model:          "test-model",
 		ProfilePath:    profilePath,
 		RegenThreshold: 2,
 	})
@@ -254,11 +232,6 @@ func TestProfilerRegenOnMemoryCount(t *testing.T) {
 	}
 	if !strings.Contains(string(content), "## Identity") {
 		t.Error("expected structured profile after N EnrichmentQueued events")
-	}
-
-	// The LLM must not be called.
-	if n := mock.CallCount(); n != 0 {
-		t.Errorf("expected 0 LLM calls after threshold, got %d", n)
 	}
 }
 

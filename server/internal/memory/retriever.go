@@ -19,8 +19,6 @@ type Retriever struct {
 	content          *ContentManager
 	provider         provider.Provider
 	model            string
-	standardProvider provider.Provider
-	standardModel    string
 	topK             int
 	edgeMinWeight    float64
 	logger           *slog.Logger
@@ -46,8 +44,6 @@ type RetrieverConfig struct {
 	Content          *ContentManager
 	Provider         provider.Provider
 	Model            string
-	StandardProvider provider.Provider
-	StandardModel    string
 	TopK             int     // defaults to 5
 	EdgeMinWeight    float64 // minimum edge weight to follow, defaults to 0.5
 	Logger           *slog.Logger
@@ -94,8 +90,6 @@ func NewRetriever(cfg RetrieverConfig) *Retriever {
 		content:          cfg.Content,
 		provider:         cfg.Provider,
 		model:            cfg.Model,
-		standardProvider: cfg.StandardProvider,
-		standardModel:    cfg.StandardModel,
 		topK:             cfg.TopK,
 		edgeMinWeight:    cfg.EdgeMinWeight,
 		logger:           cfg.Logger,
@@ -118,17 +112,6 @@ func (r *Retriever) SetProvider(p provider.Provider, model string) {
 	r.provider = p
 	if model != "" {
 		r.model = model
-	}
-}
-
-// SetStandardProvider updates the standard-tier LLM provider used for
-// association expansion in two-stage retrieval.
-func (r *Retriever) SetStandardProvider(p provider.Provider, model string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.standardProvider = p
-	if model != "" {
-		r.standardModel = model
 	}
 }
 
@@ -465,8 +448,7 @@ func (r *Retriever) retrieveLLM(ctx context.Context, userID, message string) (*R
 		return &RetrievedContext{}, nil
 	}
 
-	associations := r.expandAssociations(ctx, message)
-	prompt := buildClassificationPrompt(message, summaries, associations)
+	prompt := buildClassificationPrompt(message, summaries)
 
 	messages := []provider.Message{
 		{Role: "system", Content: "You are a memory retrieval classifier. Respond ONLY with a JSON array of node IDs, most relevant first."},
@@ -573,67 +555,12 @@ func buildRetrievalText(message string, history []provider.Message, contextWindo
 	return b.String()
 }
 
-// expandAssociations uses the standard-tier LLM to brainstorm themes and
-// associations from the user message. Returns nil if no standard provider
-// is configured (graceful fallback to single-stage retrieval).
-func (r *Retriever) expandAssociations(ctx context.Context, message string) []string {
-	r.mu.RLock()
-	p := r.standardProvider
-	model := r.standardModel
-	r.mu.RUnlock()
-
-	if p == nil {
-		return nil
-	}
-
-	messages := []provider.Message{
-		{Role: "system", Content: `You are an association engine for a personal knowledge graph.
-The graph stores these types of user knowledge: facts, preferences, patterns, skills, episodes, and task_knowledge.
-
-Given a user message, brainstorm themes and associations that might connect to the user's stored knowledge. Think broadly: cultural references, geographic associations, related hobbies, and indirect connections.
-
-Respond ONLY with a JSON array of short theme strings.`},
-		{Role: "user", Content: message},
-	}
-
-	resp, err := p.Chat(ctx, messages, nil, model, nil)
-	if err != nil {
-		r.logger.Warn("association expansion failed", "error", err)
-		return nil
-	}
-
-	var themes []string
-	cleaned := strings.TrimSpace(resp.Content)
-	cleaned = strings.TrimPrefix(cleaned, "```json")
-	cleaned = strings.TrimPrefix(cleaned, "```")
-	cleaned = strings.TrimSuffix(cleaned, "```")
-	cleaned = strings.TrimSpace(cleaned)
-
-	if err := json.Unmarshal([]byte(cleaned), &themes); err != nil {
-		r.logger.Warn("failed to parse associations", "error", err, "response", resp.Content)
-		return nil
-	}
-
-	r.logger.Info("retrieval: associations expanded",
-		"message_prefix", truncate(message, 80),
-		"associations", themes,
-	)
-	return themes
-}
-
 // buildClassificationPrompt constructs the user-facing prompt sent to the
 // classifier LLM.
-func buildClassificationPrompt(message string, summaries []NodeSummary, associations []string) string {
+func buildClassificationPrompt(message string, summaries []NodeSummary) string {
 	var b strings.Builder
 	b.WriteString("Given the user message below, select the most relevant memory nodes.\n")
-	if len(associations) > 0 {
-		b.WriteString("Consider both direct matches and thematic connections between the expanded associations and node content.\n\n")
-		b.WriteString("User message: " + message + "\n\n")
-		assocJSON, _ := json.Marshal(associations)
-		b.WriteString("Expanded associations: " + string(assocJSON) + "\n\n")
-	} else {
-		b.WriteString("\nUser message: " + message + "\n\n")
-	}
+	b.WriteString("\nUser message: " + message + "\n\n")
 	b.WriteString("Available nodes:\n")
 	for _, s := range summaries {
 		b.WriteString("- [" + s.ID + "] " + string(s.Type) + ": " + s.Title)
@@ -663,12 +590,4 @@ func parseNodeIDs(content string) ([]string, error) {
 		return nil, err
 	}
 	return ids, nil
-}
-
-func truncate(s string, n int) string {
-	runes := []rune(s)
-	if len(runes) <= n {
-		return s
-	}
-	return string(runes[:n]) + "..."
 }

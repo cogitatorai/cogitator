@@ -428,96 +428,8 @@ func TestRetrieverContextStringPinned(t *testing.T) {
 	}
 }
 
-// TestRetrieverTwoStageAssociation verifies that when a standard provider is
-// configured, the retriever runs two-stage retrieval: stage 1 expands
-// associations, stage 2 uses them to select nodes.
-func TestRetrieverTwoStageAssociation(t *testing.T) {
-	db := testDB(t)
-	store := NewStore(db)
-
-	idPref, err := store.CreateNode(&Node{
-		Type:              NodePreference,
-		Title:             "Likes Lord of the Rings",
-		Summary:           "User enjoys Tolkien's work",
-		Confidence:        0.9,
-		RetrievalTriggers: []string{"tolkien", "fantasy", "lord of the rings"},
-	})
-	if err != nil {
-		t.Fatalf("CreateNode: %v", err)
-	}
-
-	idFact, err := store.CreateNode(&Node{
-		Type:       NodeFact,
-		Title:      "User lives in London",
-		Summary:    "Primary residence is London, UK",
-		Confidence: 0.8,
-	})
-	if err != nil {
-		t.Fatalf("CreateNode: %v", err)
-	}
-
-	// Stage 1 mock (standard provider): returns associations that bridge
-	// "New Zealand trip" to "Lord of the Rings".
-	stage1Mock := provider.NewMock(provider.Response{
-		Content: `["new zealand", "travel", "lord of the rings filming locations", "hiking"]`,
-	})
-
-	// Stage 2 mock (cheap provider): given the associations, selects the LOTR preference.
-	stage2Mock := provider.NewMock(provider.Response{
-		Content: jsonIDs(idPref),
-	})
-
-	r := NewRetriever(RetrieverConfig{
-		Store:            store,
-		Provider:         stage2Mock,
-		Model:            "cheap-model",
-		StandardProvider: stage1Mock,
-		StandardModel:    "standard-model",
-	})
-
-	got, err := r.Retrieve(context.Background(), "", "Recommend things to do on a trip to New Zealand", nil)
-	if err != nil {
-		t.Fatalf("Retrieve() error: %v", err)
-	}
-
-	// Stage 1 (standard) must have been called once.
-	if n := stage1Mock.CallCount(); n != 1 {
-		t.Errorf("expected 1 stage-1 call, got %d", n)
-	}
-
-	// Stage 2 (cheap) must have been called once.
-	if n := stage2Mock.CallCount(); n != 1 {
-		t.Errorf("expected 1 stage-2 call, got %d", n)
-	}
-
-	// The LOTR preference node must be retrieved.
-	if len(got.Nodes) != 1 {
-		t.Fatalf("expected 1 node, got %d", len(got.Nodes))
-	}
-	if got.Nodes[0].Node.ID != idPref {
-		t.Errorf("expected LOTR preference node %s, got %s", idPref, got.Nodes[0].Node.ID)
-	}
-
-	// The fact node about London must NOT be retrieved.
-	for _, n := range got.Nodes {
-		if n.Node.ID == idFact {
-			t.Errorf("London fact node %s should not be in results", idFact)
-		}
-	}
-
-	// Verify stage 2 prompt includes associations.
-	stage2Calls := stage2Mock.Calls
-	if len(stage2Calls) > 0 {
-		prompt := stage2Calls[0][len(stage2Calls[0])-1].ContentText()
-		if !strings.Contains(prompt, "lord of the rings filming locations") {
-			t.Error("stage 2 prompt should contain expanded associations")
-		}
-	}
-}
-
-// TestRetrieverFallbackSingleStage verifies that when no standard provider
-// is configured, the retriever falls back to single-stage classification
-// without calling expandAssociations.
+// TestRetrieverFallbackSingleStage verifies that the retriever performs
+// single-stage LLM classification when no embedder is configured.
 func TestRetrieverFallbackSingleStage(t *testing.T) {
 	db := testDB(t)
 	store := NewStore(db)
@@ -546,9 +458,9 @@ func TestRetrieverFallbackSingleStage(t *testing.T) {
 		t.Fatalf("Retrieve() error: %v", err)
 	}
 
-	// Only one LLM call (the cheap classifier), no stage 1.
+	// Exactly one LLM call: the classifier.
 	if n := cheapMock.CallCount(); n != 1 {
-		t.Errorf("expected 1 provider call (single-stage fallback), got %d", n)
+		t.Errorf("expected 1 provider call, got %d", n)
 	}
 
 	if len(got.Nodes) != 1 {

@@ -88,6 +88,7 @@ type Agent struct {
 	tools          []provider.Tool
 	eventBus       *bus.Bus
 	model          string
+	cheapModel     string // model name to use for title generation (empty: fall back to standard)
 	maxToolRounds  int
 	usageRecorder  UsageRecorder
 	budgetGuard    *budget.Guard
@@ -95,6 +96,10 @@ type Agent struct {
 	connectors     ConnectorStatusProvider
 	skills         SkillLister
 	logger         *slog.Logger
+
+	// toolsOffFastPath skips the tool schema on round 0 for chitchat turns,
+	// retrying with tools if the model returns empty content.
+	toolsOffFastPath bool
 }
 
 type Config struct {
@@ -152,7 +157,7 @@ type ChatRequest struct {
 	UserRole         string
 	Private          bool
 	Message          string
-	MessageSuffix    string                 // Appended to message for LLM but not stored in history.
+	MessageSuffix    string                  // Appended to message for LLM but not stored in history.
 	Attachments      []fileproc.ContentBlock // File content blocks to prepend.
 	Summary          string
 	Memory           string
@@ -198,6 +203,38 @@ func (a *Agent) SetModelProvider(model string, p provider.Provider) {
 	a.modelProviders[model] = p
 }
 
+// SetCheapModel sets the model name used for background title generation.
+// When set, generateTitle will use the provider registered under cheapModel
+// instead of the standard provider. Pass an empty string to revert to standard.
+func (a *Agent) SetCheapModel(name string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.cheapModel = name
+}
+
+// SetToolsOffFastPath enables or disables the tools-off fast path for chitchat
+// turns. When true, conversational messages that look like greetings or acks
+// are sent to the LLM without a tool schema on round 0, saving input tokens.
+// The call is retried with tools if the model returns empty content.
+func (a *Agent) SetToolsOffFastPath(enabled bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.toolsOffFastPath = enabled
+}
+
+// resolveTitleProvider returns the (provider, model) pair to use for title
+// generation. It prefers the cheap-model entry when one is configured and
+// registered; otherwise it falls back to the current standard pair.
+// Must be called with a.mu read-locked.
+func (a *Agent) resolveTitleProvider() (provider.Provider, string) {
+	if a.cheapModel != "" {
+		if cp, ok := a.modelProviders[a.cheapModel]; ok {
+			return cp, a.cheapModel
+		}
+	}
+	return a.provider, a.model
+}
+
 // ProviderConfigured reports whether an LLM provider is set.
 func (a *Agent) ProviderConfigured() bool {
 	a.mu.RLock()
@@ -232,6 +269,43 @@ func (a *Agent) RunTask(ctx context.Context, sessionKey, prompt, model, userID s
 		return "", err
 	}
 	return resp.Content, nil
+}
+
+// greetingAcks is the set of whole-message strings (trimmed, lowercased, with
+// optional trailing punctuation stripped) that qualify a turn as tool-free.
+var greetingAcks = func() map[string]struct{} {
+	words := []string{
+		"hi", "hello", "hey", "hey there", "yo", "sup",
+		"good morning", "good afternoon", "good evening", "good night",
+		"gn", "gm",
+		"thanks", "thank you", "thx", "ty", "cheers",
+		"ok", "okay", "cool", "nice", "great", "awesome",
+		"got it", "understood", "noted", "sounds good", "makes sense",
+		"you got it", "np", "no problem", "welcome", "you're welcome",
+	}
+	m := make(map[string]struct{}, len(words))
+	for _, w := range words {
+		m[w] = struct{}{}
+	}
+	return m
+}()
+
+// looksToolFree reports whether msg is a short conversational turn that does
+// not require tools. The heuristic is intentionally conservative: it only
+// matches whole-message greetings or acks. No LLM call is made.
+func looksToolFree(msg string) bool {
+	s := strings.TrimSpace(msg)
+	if len([]rune(s)) > 60 {
+		return false
+	}
+	lower := strings.ToLower(s)
+	if strings.ContainsAny(lower, "?/") {
+		return false
+	}
+	// Strip any trailing periods or exclamation marks before lookup.
+	trimmed := strings.TrimRight(lower, ".!")
+	_, ok := greetingAcks[trimmed]
+	return ok
 }
 
 func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
@@ -341,8 +415,11 @@ func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error
 
 	// Generate a session title immediately from the user's prompt so the
 	// sidebar updates before the agent produces a response.
-	if firstMessage && p != nil && a.sessions != nil {
-		go a.generateTitle(p, model, req.SessionKey, req.Message)
+	if firstMessage && a.sessions != nil {
+		a.mu.RLock()
+		titleP, titleModel := a.resolveTitleProvider()
+		a.mu.RUnlock()
+		go a.generateTitle(titleP, titleModel, req.SessionKey, req.Message)
 	}
 
 	// Build prompt and messages
@@ -373,6 +450,13 @@ func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error
 		Role:    req.UserRole,
 		Private: req.Private,
 	})
+
+	// Snapshot the toolsOffFastPath flag once per Chat call (avoids holding the
+	// lock inside the hot loop) and decide before round 0 whether to omit tools.
+	a.mu.RLock()
+	fastPathEnabled := a.toolsOffFastPath
+	a.mu.RUnlock()
+	omitToolsOnRound0 := fastPathEnabled && looksToolFree(req.Message)
 
 	// Agentic loop: call LLM, handle tool calls, repeat
 	var totalUsage provider.Usage
@@ -421,7 +505,19 @@ func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error
 			})
 		}
 
-		resp, err := a.callProvider(ctx, p, messages, a.tools, model)
+		// On round 0 with the fast path, try without tools first.
+		toolsForCall := a.tools
+		toolsOmitted := false
+		if round == 0 && omitToolsOnRound0 {
+			toolsForCall = nil
+			toolsOmitted = true
+			a.logger.Info("chat request: tools omitted for chitchat turn",
+				"session_key", req.SessionKey,
+				"tools_omitted", true,
+			)
+		}
+
+		resp, err := a.callProvider(ctx, p, messages, toolsForCall, model)
 		if err != nil {
 			if ctx.Err() != nil {
 				cancelCleanup()
@@ -430,8 +526,26 @@ func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error
 			return nil, fmt.Errorf("provider chat: %w", err)
 		}
 
+		// If we omitted tools and got empty content, retry once with the full tool list.
+		if toolsOmitted && resp.Content == "" && len(resp.ToolCalls) == 0 {
+			a.logger.Info("chat request: empty response without tools, retrying with tools",
+				"session_key", req.SessionKey,
+				"tools_retry", true,
+			)
+			resp, err = a.callProvider(ctx, p, messages, a.tools, model)
+			if err != nil {
+				if ctx.Err() != nil {
+					cancelCleanup()
+					return nil, ErrCancelled
+				}
+				return nil, fmt.Errorf("provider chat (retry with tools): %w", err)
+			}
+		}
+
 		totalUsage.InputTokens += resp.Usage.InputTokens
 		totalUsage.OutputTokens += resp.Usage.OutputTokens
+		totalUsage.CacheReadTokens += resp.Usage.CacheReadTokens
+		totalUsage.CacheCreationTokens += resp.Usage.CacheCreationTokens
 
 		// No tool calls: we have the final response
 		if len(resp.ToolCalls) == 0 {
@@ -463,16 +577,17 @@ func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error
 				a.eventBus.Publish(bus.Event{
 					Type: bus.MessageResponded,
 					Payload: map[string]any{
-						"session_key":   req.SessionKey,
-						"channel":       req.Channel,
-						"content":       resp.Content,
-						"input_tokens":  totalUsage.InputTokens,
-						"output_tokens": totalUsage.OutputTokens,
+						"session_key":           req.SessionKey,
+						"channel":               req.Channel,
+						"content":               resp.Content,
+						"input_tokens":          totalUsage.InputTokens,
+						"output_tokens":         totalUsage.OutputTokens,
+						"cache_read_tokens":     totalUsage.CacheReadTokens,
+						"cache_creation_tokens": totalUsage.CacheCreationTokens,
 					},
 				})
 			}
 
-	
 			// Record token usage for analytics.
 			if a.usageRecorder != nil {
 				tier := "standard"

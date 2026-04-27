@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -812,4 +812,260 @@ func TestChat_CancelledSecondRound_CleansUpAllMessages(t *testing.T) {
 	}
 
 	close(blockCh)
+}
+
+// TestChatTitleUseCheapProvider verifies that generateTitle is routed to the
+// cheap provider/model when SetCheapModel is configured, while the main chat
+// call continues to use the standard provider.
+func TestChatTitleUseCheapProvider(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	profilePath := filepath.Join(dir, "profile.md")
+	os.WriteFile(profilePath, []byte("Be helpful."), 0o644)
+
+	// Standard mock: one response for the chat call.
+	stdMock := provider.NewMock(
+		provider.Response{Content: "Standard answer", Usage: provider.Usage{InputTokens: 10, OutputTokens: 5}},
+	)
+	// Cheap mock: one response for the title call.
+	cheapMock := provider.NewMock(
+		provider.Response{Content: "Short Title Here"},
+	)
+
+	store := session.NewStore(db)
+	eventBus := bus.New()
+	t.Cleanup(func() { eventBus.Close() })
+
+	a := New(Config{
+		Provider:       stdMock,
+		Sessions:       store,
+		ContextBuilder: NewContextBuilder(profilePath),
+		EventBus:       eventBus,
+		Model:          "std-model",
+	})
+	a.SetModelProvider("cheap-mock", cheapMock)
+	a.SetCheapModel("cheap-mock")
+
+	// Subscribe before Chat so we don't miss the event.
+	titleEvt := eventBus.Subscribe(bus.SessionTitleSet)
+
+	resp, err := a.Chat(context.Background(), ChatRequest{
+		SessionKey: "title-cheap-test",
+		Channel:    "web",
+		ChatID:     "chat1",
+		Message:    "Tell me about Go generics",
+	})
+	if err != nil {
+		t.Fatalf("Chat() error: %v", err)
+	}
+	if resp.Content != "Standard answer" {
+		t.Errorf("expected standard answer from std mock, got %q", resp.Content)
+	}
+
+	// Wait for the title goroutine (it sleeps 200ms then calls the provider).
+	select {
+	case evt := <-titleEvt:
+		title, _ := evt.Payload["title"].(string)
+		if title != "Short Title Here" {
+			t.Errorf("expected title from cheap mock, got %q", title)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for SessionTitleSet event")
+	}
+
+	// Standard mock must have been called exactly once (for chat).
+	if n := stdMock.CallCount(); n != 1 {
+		t.Errorf("expected 1 std mock call (chat), got %d", n)
+	}
+	// Cheap mock must have been called exactly once (for title).
+	if n := cheapMock.CallCount(); n != 1 {
+		t.Errorf("expected 1 cheap mock call (title), got %d", n)
+	}
+}
+
+// TestLooksToolFree covers the heuristic that classifies chitchat turns.
+func TestLooksToolFree(t *testing.T) {
+	cases := []struct {
+		input string
+		want  bool
+	}{
+		// Greetings and acks that should match.
+		{"hi", true},
+		{"hello", true},
+		{"thanks!", true},
+		{"ok.", true},
+		{"got it", true},
+		{"np", true},
+		{"good morning", true},
+		{"you're welcome", true},
+		{"sounds good", true},
+		{"noted", true},
+		// Uppercase/mixed case: normalised to lower before lookup.
+		{"Hi", true},
+		{"THANKS", true},
+		// Questions: should not match.
+		{"what's the weather?", false},
+		// Slash commands: should not match.
+		{"/clear", false},
+		// Not in the greeting set even though short.
+		{"show me the schedule", false},
+		// Empty string: should not match.
+		{"", false},
+		// Long ramble: should not match.
+		{strings.Repeat("a", 200), false},
+		// Has "?" inside a long-ish string.
+		{"can you help me with something?", false},
+	}
+
+	for _, tc := range cases {
+		got := looksToolFree(tc.input)
+		if got != tc.want {
+			t.Errorf("looksToolFree(%q) = %v, want %v", tc.input, got, tc.want)
+		}
+	}
+}
+
+// TestToolsOffFastPath_ChitchatOmitsTools verifies that when ToolsOffFastPath
+// is enabled and the message is a greeting, the first provider call receives
+// nil tools, while a non-chitchat message receives the full tool list.
+func TestToolsOffFastPath_ChitchatOmitsTools(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	profilePath := filepath.Join(dir, "profile.md")
+	os.WriteFile(profilePath, []byte("Be helpful."), 0o644)
+
+	toolDef := provider.Tool{Name: "read_file"}
+
+	// Two separate chats: one greeting, one question.
+	mock := provider.NewMock(
+		provider.Response{Content: "Hey there!"},  // for "hi"
+		provider.Response{Content: "It is noon."}, // for "what time is it?"
+	)
+
+	store := session.NewStore(db)
+	eventBus := bus.New()
+	t.Cleanup(func() { eventBus.Close() })
+
+	a := New(Config{
+		Provider:       mock,
+		Sessions:       store,
+		ContextBuilder: NewContextBuilder(profilePath),
+		EventBus:       eventBus,
+		Model:          "test-model",
+		Tools:          []provider.Tool{toolDef},
+	})
+	a.SetToolsOffFastPath(true)
+
+	// First chat: greeting. Round-0 call should have nil tools.
+	_, err = a.Chat(context.Background(), ChatRequest{
+		SessionKey: "fast-path-hi",
+		Channel:    "web",
+		Message:    "hi",
+	})
+	if err != nil {
+		t.Fatalf("Chat(hi) error: %v", err)
+	}
+
+	// Second chat: question. Round-0 call should carry the tool.
+	_, err = a.Chat(context.Background(), ChatRequest{
+		SessionKey: "fast-path-q",
+		Channel:    "web",
+		Message:    "what time is it?",
+	})
+	if err != nil {
+		t.Fatalf("Chat(question) error: %v", err)
+	}
+
+	// Wait briefly for any title goroutines so they don't race with GetRecordedTools.
+	time.Sleep(10 * time.Millisecond)
+
+	recorded := mock.GetRecordedTools()
+	// The mock may have received a title-generation call on the "hi" session
+	// (first message). Filter to only the calls we care about by index: the
+	// first chat produces exactly 1 provider call (round 0), and the second
+	// chat produces exactly 1 provider call. Title calls happen asynchronously
+	// and may append extra entries. We take the first two entries.
+	if len(recorded) < 2 {
+		t.Fatalf("expected at least 2 recorded tool slices, got %d", len(recorded))
+	}
+
+	if recorded[0] != nil {
+		t.Errorf("first call (greeting) should have nil tools, got %v", recorded[0])
+	}
+	if len(recorded[1]) == 0 {
+		t.Errorf("second call (question) should have tools, got empty slice")
+	}
+}
+
+// TestToolsOffFastPath_EmptyContentRetry verifies that when the model returns
+// empty content with tools omitted, the agent retries with the full tool list.
+func TestToolsOffFastPath_EmptyContentRetry(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	profilePath := filepath.Join(dir, "profile.md")
+	os.WriteFile(profilePath, []byte("Be helpful."), 0o644)
+
+	toolDef := provider.Tool{Name: "read_file"}
+
+	// First call (no tools): empty content. Second call (with tools): real answer.
+	mock := provider.NewMock(
+		provider.Response{Content: ""},          // empty: triggers retry
+		provider.Response{Content: "Sure, hi!"}, // retry with tools
+	)
+
+	store := session.NewStore(db)
+	eventBus := bus.New()
+	t.Cleanup(func() { eventBus.Close() })
+
+	a := New(Config{
+		Provider:       mock,
+		Sessions:       store,
+		ContextBuilder: NewContextBuilder(profilePath),
+		EventBus:       eventBus,
+		Model:          "test-model",
+		Tools:          []provider.Tool{toolDef},
+	})
+	a.SetToolsOffFastPath(true)
+
+	resp, err := a.Chat(context.Background(), ChatRequest{
+		SessionKey: "retry-test",
+		Channel:    "web",
+		Message:    "hey",
+	})
+	if err != nil {
+		t.Fatalf("Chat() error: %v", err)
+	}
+	if resp.Content != "Sure, hi!" {
+		t.Errorf("expected retry response 'Sure, hi!', got %q", resp.Content)
+	}
+
+	// Wait briefly so any title goroutine doesn't affect counts below.
+	time.Sleep(10 * time.Millisecond)
+
+	recorded := mock.GetRecordedTools()
+	// First two entries are the two round-0 calls: no-tools, then with-tools.
+	if len(recorded) < 2 {
+		t.Fatalf("expected at least 2 provider calls, got %d", len(recorded))
+	}
+	if recorded[0] != nil {
+		t.Errorf("first call should have nil tools (fast path), got %v", recorded[0])
+	}
+	if len(recorded[1]) == 0 {
+		t.Errorf("retry call should have tools, got empty slice")
+	}
 }

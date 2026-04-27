@@ -180,8 +180,10 @@ func (o *OpenAI) Chat(ctx context.Context, messages []Message, tools []Tool, mod
 	result := &Response{
 		Content: choice.Message.Content,
 		Usage: Usage{
-			InputTokens:  oaiResp.Usage.PromptTokens,
-			OutputTokens: oaiResp.Usage.CompletionTokens,
+			InputTokens:         oaiResp.Usage.PromptTokens,
+			OutputTokens:        oaiResp.Usage.CompletionTokens,
+			CacheReadTokens:     oaiResp.Usage.PromptTokensDetails.CachedTokens,
+			CacheCreationTokens: oaiResp.Usage.CacheCreationInputTokens,
 		},
 	}
 
@@ -227,6 +229,14 @@ type openAIFunctionCall struct {
 type openAIUsage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
+	// PromptTokensDetails is populated by OpenAI; CachedTokens is the subset
+	// of PromptTokens that were served from the prefix cache.
+	PromptTokensDetails struct {
+		CachedTokens int `json:"cached_tokens"`
+	} `json:"prompt_tokens_details"`
+	// CacheCreationInputTokens is returned by Anthropic compat on the request
+	// that first writes a cache entry. OpenAI leaves this zero (field absent).
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 }
 
 type openAIEmbeddingResponse struct {

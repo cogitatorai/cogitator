@@ -10,19 +10,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// OptimizationConfig holds knobs for LLM cost-reduction strategies.
+// All fields default to false/zero (opt-in only).
+type OptimizationConfig struct {
+	// ToolsOffFastPath skips sending the tool schema on the first LLM call when
+	// the incoming message looks like a conversational ack or greeting. If the
+	// model returns empty content, the call is retried once with tools included.
+	ToolsOffFastPath bool `yaml:"tools_off_fast_path" json:"tools_off_fast_path"`
+}
+
 type Config struct {
-	Server     ServerConfig              `yaml:"server"`
-	Models     ModelsConfig              `yaml:"models"`
-	Providers  map[string]ProviderConfig `yaml:"providers"`
-	Resources  ResourcesConfig           `yaml:"resources"`
-	Memory     MemoryConfig              `yaml:"memory"`
-	Reflection ReflectionConfig          `yaml:"reflection"`
-	Tasks      TasksConfig               `yaml:"tasks"`
-	Workspace  WorkspaceConfig           `yaml:"workspace"`
-	Channels   ChannelsConfig            `yaml:"channels"`
-	Security   SecurityConfig            `yaml:"security"`
-	Update     UpdateConfig              `yaml:"update"`
-	Voice      VoiceConfig               `yaml:"voice"`
+	Server       ServerConfig              `yaml:"server"`
+	Models       ModelsConfig              `yaml:"models"`
+	Providers    map[string]ProviderConfig `yaml:"providers"`
+	Resources    ResourcesConfig           `yaml:"resources"`
+	Memory       MemoryConfig              `yaml:"memory"`
+	Reflection   ReflectionConfig          `yaml:"reflection"`
+	Tasks        TasksConfig               `yaml:"tasks"`
+	Workspace    WorkspaceConfig           `yaml:"workspace"`
+	Channels     ChannelsConfig            `yaml:"channels"`
+	Security     SecurityConfig            `yaml:"security"`
+	Update       UpdateConfig              `yaml:"update"`
+	Voice        VoiceConfig               `yaml:"voice"`
+	Optimization OptimizationConfig        `yaml:"optimization"`
 }
 
 type UpdateConfig struct {
@@ -314,6 +324,14 @@ func (c *Config) ApplyEnv() {
 	if v := os.Getenv("COGITATOR_DEDUP_SIMILARITY_THRESHOLD"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			c.Memory.DedupSimilarityThreshold = f
+		}
+	}
+
+	// Optimization toggles.
+	if v := os.Getenv("COGITATOR_TOOLS_OFF_FAST_PATH"); v != "" {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "1", "true", "yes":
+			c.Optimization.ToolsOffFastPath = true
 		}
 	}
 }

@@ -56,8 +56,10 @@ type Tool struct {
 }
 
 type Usage struct {
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
+	InputTokens         int `json:"input_tokens"`
+	OutputTokens        int `json:"output_tokens"`
+	CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
 }
 
 type Response struct {

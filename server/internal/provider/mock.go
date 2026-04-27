@@ -6,20 +6,21 @@ import (
 )
 
 type MockProvider struct {
-	Responses    []Response
-	StreamCancel bool
+	Responses     []Response
+	StreamCancel  bool
 	EmbedResponse [][]float32
 
-	mu      sync.Mutex
-	Calls   [][]Message
-	callIdx int
+	mu            sync.Mutex
+	Calls         [][]Message
+	RecordedTools [][]Tool // parallel to Calls: tools passed to each Chat invocation
+	callIdx       int
 }
 
 func NewMock(responses ...Response) *MockProvider {
 	return &MockProvider{Responses: responses}
 }
 
-func (m *MockProvider) Chat(ctx context.Context, messages []Message, _ []Tool, _ string, _ map[string]any) (*Response, error) {
+func (m *MockProvider) Chat(ctx context.Context, messages []Message, tools []Tool, _ string, _ map[string]any) (*Response, error) {
 	// When StreamCancel is enabled, honour context cancellation like a real
 	// streaming provider would.
 	if m.StreamCancel {
@@ -31,6 +32,7 @@ func (m *MockProvider) Chat(ctx context.Context, messages []Message, _ []Tool, _
 	defer m.mu.Unlock()
 
 	m.Calls = append(m.Calls, messages)
+	m.RecordedTools = append(m.RecordedTools, tools)
 
 	if m.callIdx < len(m.Responses) {
 		resp := m.Responses[m.callIdx]
@@ -64,6 +66,15 @@ func (m *MockProvider) GetCalls() [][]Message {
 		copy(inner, msgs)
 		cp[i] = inner
 	}
+	return cp
+}
+
+// GetRecordedTools returns a shallow copy of the tools slice recorded per call (thread-safe).
+func (m *MockProvider) GetRecordedTools() [][]Tool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cp := make([][]Tool, len(m.RecordedTools))
+	copy(cp, m.RecordedTools)
 	return cp
 }
 

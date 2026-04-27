@@ -329,10 +329,12 @@ func (r *Router) handleUpdateSettings(w http.ResponseWriter, req *http.Request) 
 		}
 		if cheapP != stdP {
 			r.agent.SetModelProvider(cheapModel, cheapP)
+			r.agent.SetCheapModel(cheapModel)
+		} else {
+			r.agent.SetCheapModel("")
 		}
 		if r.retriever != nil {
 			r.retriever.SetProvider(cheapP, cheapModel)
-			r.retriever.SetStandardProvider(stdP, cfg.Models.Standard.Model)
 		}
 		if r.enricher != nil {
 			r.enricher.SetProvider(cheapP, cheapModel)

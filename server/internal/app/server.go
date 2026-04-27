@@ -448,6 +448,7 @@ func New(opts Options) (*Server, error) {
 		Connectors:     &connectorStatusAdapter{mgr: connectorMgr},
 		Skills:         &skillListerAdapter{mgr: skillsMgr},
 	})
+	a.SetToolsOffFastPath(cfg.Optimization.ToolsOffFastPath)
 
 	mcpManager.SetToolRegistrationCallback(func() {
 		// Build lookups of server metadata and tools partitioned by server.
@@ -557,10 +558,9 @@ func New(opts Options) (*Server, error) {
 		}
 		a.SetProvider(saasProvider, "standard")
 		a.SetModelProvider("cheap", saasProvider)
+		a.SetCheapModel("cheap")
 		retriever.SetProvider(saasProvider, "cheap")
-		retriever.SetStandardProvider(saasProvider, "standard")
 		enricher.SetProvider(saasProvider, "cheap")
-		profiler.SetProvider(saasProvider, "standard")
 		consolidator.SetProvider(saasProvider, "cheap")
 		reflector.SetProvider(saasProvider, "cheap")
 	} else {
@@ -587,11 +587,10 @@ func New(opts Options) (*Server, error) {
 				}
 				if cheapP != stdP {
 					a.SetModelProvider(cheapModel, cheapP)
+					a.SetCheapModel(cheapModel)
 				}
 				retriever.SetProvider(cheapP, cheapModel)
-				retriever.SetStandardProvider(stdP, cfg.Models.Standard.Model)
 				enricher.SetProvider(cheapP, cheapModel)
-				profiler.SetProvider(stdP, cfg.Models.Standard.Model)
 				consolidator.SetProvider(cheapP, cheapModel)
 				reflector.SetProvider(cheapP, cheapModel)
 			}

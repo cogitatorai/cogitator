@@ -187,13 +187,17 @@ func (rc RetrievedContext) Format(resolve NameResolver, currentUserID string) st
 		header := "#### " + n.Node.Title + " (" + typeSuffix + ")"
 		b.WriteString(header + "\n")
 		if n.Content != "" {
-			b.WriteString(n.Content + "\n\n")
+			b.WriteString("[RETRIEVED MEMORY START]\n")
+			b.WriteString(n.Content + "\n")
+			b.WriteString("[RETRIEVED MEMORY END]\n\n")
 		} else if n.Node.Summary != "" {
-			b.WriteString(n.Node.Summary + "\n\n")
+			b.WriteString("[RETRIEVED MEMORY START]\n")
+			b.WriteString(n.Node.Summary + "\n")
+			b.WriteString("[RETRIEVED MEMORY END]\n\n")
 		}
 	}
 
-	b.WriteString("## Memory Instructions\nThe memories below are things you know about the user. You MUST actively use them to personalize your responses. NEVER ask the user for information that is already contained in these memories. When a memory is relevant, weave it in naturally (e.g., \"since your daughter is 9...\" or \"knowing you enjoy hiking...\").\n\n")
+	b.WriteString("The memories below are things you know about the user. Use them to personalize your responses. Do not ask the user for information already contained in these memories. When a memory is relevant, weave it in naturally.\n\n")
 
 	if len(rc.Pinned) > 0 {
 		b.WriteString("### Pinned Memories\n")

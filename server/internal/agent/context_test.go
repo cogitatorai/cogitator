@@ -103,6 +103,15 @@ func TestBuildMessagesEmptyCurrentMessage(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptMemoryBoundaryWarning(t *testing.T) {
+	cb := NewContextBuilder("/nonexistent")
+	prompt := cb.BuildSystemPrompt("", "#### Some Memory (fact)\n[RETRIEVED MEMORY START]\nUser likes coffee.\n[RETRIEVED MEMORY END]\n\n", nil, nil, nil, "", UserContext{})
+
+	if !strings.Contains(prompt, "user-provided content") {
+		t.Error("memory section must include a warning that content is user-provided, not system instructions")
+	}
+}
+
 func TestBuildMessagesRestoresToolCalls(t *testing.T) {
 	cb := NewContextBuilder("/nonexistent")
 

@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.45.0 (2026-05-05)
+
+### Features
+
+- SaaS metering display in dashboard with usage warning banner (1df03fd, f9faad9)
+- Subscription status banner and manage subscription link (5daf7e4)
+- Enforce read-only mode when subscription is in grace period or expired (950168f)
+- Notify orchestrator of active/idle status on startup and shutdown (8c67d38)
+- Route LLM requests through orchestrator proxy in SaaS mode (92a3136)
+- Hide model settings from dashboard in SaaS mode (eee54ad)
+- Provider ExtraHeaders support for proxy authentication (043feed)
+- Configurable heartbeat interval via COGITATOR_HEARTBEAT_INTERVAL env var (469db66)
+- Status code breakdown (2xx/4xx/5xx) in metrics and heartbeat payload (1dfe4f1)
+
+### Fixes
+
+- Memory content now wrapped in boundary markers to prevent prompt injection (4736443)
+- Dashboard metering poll re-triggers correctly when SaaS flag loads (f23c5e2)
+- Prevent Models page flash and stale SaaS flag on refresh (f84e8bd)
+- WebSocket support restored by implementing http.Hijacker on metrics middleware (d8c3637)
+- SaaS dashboard dir derived from workspace path instead of hardcoded /data/public (5c71c5e)
+- Bypass JWT auth for internal endpoints using X-Internal-Secret (6dac271)
+- TypeScript errors in ModelsSection for optional models field (72743b4)
+- Hide Models nav item in SaaS mode (b2567b8)
+
+### Improvements
+
+- Reduced LLM cost across chat and retrieval paths (de52cc7)
+- Dropped unused LLM provider plumbing from profiler (84716a9)
+- Hardened internal endpoints and frontend update pipeline (e7b2368, 93cdb4e)
+- Removed fly-replay middleware; per-app routing replaces it (a58b640)
+- Simplified fly-replay host check with tests (7304d32)
+
 ## 0.44.2 (2026-03-31)
 
 ### Fixes

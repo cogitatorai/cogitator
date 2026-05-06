@@ -2,6 +2,7 @@ package database
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -112,5 +113,90 @@ func TestForeignKeyCascade(t *testing.T) {
 	db.Reader().QueryRow("SELECT COUNT(*) FROM edges WHERE source_id = 'a'").Scan(&count)
 	if count != 0 {
 		t.Errorf("expected 0 edges after cascade delete, got %d", count)
+	}
+}
+
+func TestConcurrentReadsWhileWriting(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "test.db"), Options{MaxReaders: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Writer().Exec(`INSERT INTO nodes (id, type, title, created_at, updated_at)
+		VALUES ('seed', 'fact', 'Seed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+	if err != nil {
+		t.Fatalf("seed insert error: %v", err)
+	}
+
+	tx, err := db.Writer().Begin()
+	if err != nil {
+		t.Fatalf("begin transaction error: %v", err)
+	}
+
+	_, err = tx.Exec(`INSERT INTO nodes (id, type, title, created_at, updated_at)
+		VALUES ('txrow', 'fact', 'Tx Row', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+	if err != nil {
+		tx.Rollback()
+		t.Fatalf("in-transaction insert error: %v", err)
+	}
+
+	errs := make(chan error, 4)
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var count int
+			if scanErr := db.Reader().QueryRow("SELECT COUNT(*) FROM nodes").Scan(&count); scanErr != nil {
+				errs <- scanErr
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+
+	for e := range errs {
+		t.Errorf("concurrent read failed: %v", e)
+	}
+
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit error: %v", err)
+	}
+}
+
+func TestReaderRejectsWrites(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "test.db"), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Reader().Exec(`INSERT INTO nodes (id, type, title, created_at, updated_at)
+		VALUES ('ro', 'fact', 'Read-Only', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+	if err == nil {
+		t.Fatal("expected an error when writing via reader pool, got nil")
+	}
+}
+
+func TestCloseClosesBothPools(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Open(filepath.Join(dir, "test.db"), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close() error: %v", err)
+	}
+
+	if _, err := db.Reader().Query("SELECT 1"); err == nil {
+		t.Error("expected error querying reader after Close(), got nil")
+	}
+
+	if _, err := db.Writer().Exec("SELECT 1"); err == nil {
+		t.Error("expected error executing on writer after Close(), got nil")
 	}
 }

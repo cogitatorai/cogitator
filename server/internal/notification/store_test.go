@@ -9,7 +9,7 @@ import (
 
 func testDB(t *testing.T) *database.DB {
 	t.Helper()
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -94,8 +94,8 @@ func TestMarkAllRead(t *testing.T) {
 
 func TestUserScoping(t *testing.T) {
 	db := testDB(t)
-	db.Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('u1', 'alice', 'x', 'user')`)
-	db.Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('u2', 'bob', 'x', 'user')`)
+	db.Writer().Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('u1', 'alice', 'x', 'user')`)
+	db.Writer().Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('u2', 'bob', 'x', 'user')`)
 
 	store := NewStore(db)
 	store.Create(&Notification{UserID: "u1", TaskName: "alice task", Trigger: "cron", Status: "completed", Content: "a"})
@@ -112,7 +112,7 @@ func TestUserScoping(t *testing.T) {
 
 func TestNullUserIDVisibleToAuthenticatedUsers(t *testing.T) {
 	db := testDB(t)
-	db.Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('u1', 'alice', 'x', 'user')`)
+	db.Writer().Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('u1', 'alice', 'x', 'user')`)
 
 	store := NewStore(db)
 	// Legacy notification with no user_id (from tasks created before multi-user).

@@ -9,7 +9,7 @@ import (
 
 func testDB(t *testing.T) *database.DB {
 	t.Helper()
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -364,7 +364,7 @@ func ptr(s string) *string { return &s }
 // insertTestUser creates a minimal user row so FK constraints are satisfied.
 func insertTestUser(t *testing.T, db *database.DB, id string) {
 	t.Helper()
-	_, err := db.Exec(
+	_, err := db.Writer().Exec(
 		`INSERT INTO users (id, email, name, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
 		id, id, id, "hash", "user")
 	if err != nil {

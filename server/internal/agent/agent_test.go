@@ -24,7 +24,7 @@ func setupTestAgent(t *testing.T, responses ...provider.Response) (*Agent, *prov
 
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	db, err := database.Open(dbPath)
+	db, err := database.Open(dbPath, database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -203,7 +203,7 @@ func (m *mockToolExecutor) ResolveToolNames(names []string) tools.ResolvedTools 
 func TestChatWithToolCalls(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	db, err := database.Open(dbPath)
+	db, err := database.Open(dbPath, database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestChatWithToolCalls(t *testing.T) {
 func TestChatMaxToolRoundsExceeded(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	db, err := database.Open(dbPath)
+	db, err := database.Open(dbPath, database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestChatWithoutSessionStore(t *testing.T) {
 func TestChatToolExecutorError(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	db, err := database.Open(dbPath)
+	db, err := database.Open(dbPath, database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -581,7 +581,7 @@ func TestChat_CancelledDuringLLM_CleansUpMessages(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	db, _ := database.Open(filepath.Join(dir, "test.db"))
+	db, _ := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	t.Cleanup(func() { db.Close() })
 
 	store := session.NewStore(db)
@@ -655,7 +655,7 @@ func TestChat_CancelledDuringToolExecution_CleansUpMessages(t *testing.T) {
 	)
 
 	dir := t.TempDir()
-	db, _ := database.Open(filepath.Join(dir, "test.db"))
+	db, _ := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	t.Cleanup(func() { db.Close() })
 
 	store := session.NewStore(db)
@@ -753,7 +753,7 @@ func TestChat_CancelledSecondRound_CleansUpAllMessages(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	db, _ := database.Open(filepath.Join(dir, "test.db"))
+	db, _ := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	t.Cleanup(func() { db.Close() })
 
 	store := session.NewStore(db)
@@ -819,7 +819,7 @@ func TestChat_CancelledSecondRound_CleansUpAllMessages(t *testing.T) {
 // call continues to use the standard provider.
 func TestChatTitleUseCheapProvider(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -935,7 +935,7 @@ func TestLooksToolFree(t *testing.T) {
 // nil tools, while a non-chitchat message receives the full tool list.
 func TestToolsOffFastPath_ChitchatOmitsTools(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -1011,7 +1011,7 @@ func TestToolsOffFastPath_ChitchatOmitsTools(t *testing.T) {
 // empty content with tools omitted, the agent retries with the full tool list.
 func TestToolsOffFastPath_EmptyContentRetry(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

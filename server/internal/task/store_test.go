@@ -9,7 +9,7 @@ import (
 
 func testDB(t *testing.T) *database.DB {
 	t.Helper()
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -21,7 +21,7 @@ func testDB(t *testing.T) *database.DB {
 // on tasks.user_id are satisfied during testing.
 func insertTestUser(t *testing.T, db *database.DB, id string) {
 	t.Helper()
-	_, err := db.Exec(
+	_, err := db.Writer().Exec(
 		`INSERT OR IGNORE INTO users (id, email, password_hash, role) VALUES (?, ?, '', 'user')`,
 		id, id,
 	)

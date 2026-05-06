@@ -357,7 +357,7 @@ func TestWebChannelPrivateFlag(t *testing.T) {
 
 func TestWebChannelBroadcastNotification(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -417,14 +417,14 @@ func TestWebChannelBroadcastNotification(t *testing.T) {
 
 func TestUserNotificationWritesToTasksOutput(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
 
 	// Create the recipient user so FK constraints on sessions/messages are satisfied.
-	if _, err := db.Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('user-bob', 'bob@example.com', 'x', 'user')`); err != nil {
+	if _, err := db.Writer().Exec(`INSERT INTO users (id, email, password_hash, role) VALUES ('user-bob', 'bob@example.com', 'x', 'user')`); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
 
@@ -470,7 +470,7 @@ func TestUserNotificationWritesToTasksOutput(t *testing.T) {
 
 func TestWebChannelNonBroadcastNotification(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

@@ -50,7 +50,7 @@ func (s *Store) CreateNode(n *Node) (string, error) {
 	tags, _ := json.Marshal(n.Tags)
 	triggers, _ := json.Marshal(n.RetrievalTriggers)
 
-	_, err := s.db.Exec(`INSERT INTO nodes
+	_, err := s.db.Writer().Exec(`INSERT INTO nodes
 		(id, type, title, summary, tags, retrieval_triggers, confidence,
 		 content_path, enrichment_status, origin, source_url, version, skill_path,
 		 created_at, updated_at, pinned, private, consolidated_into, user_id, subject_id)
@@ -71,7 +71,7 @@ func (s *Store) GetNode(id string) (*Node, error) {
 	var userID, subjectID sql.NullString
 	var lastAccessed sql.NullTime
 
-	err := s.db.QueryRow(`SELECT
+	err := s.db.Reader().QueryRow(`SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
 		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
@@ -116,7 +116,7 @@ func (s *Store) GetNode(id string) (*Node, error) {
 // SetNodeVisibility sets the private flag on a node and cascades to all
 // connected edges. This is a pure database operation with no LLM involvement.
 func (s *Store) SetNodeVisibility(nodeID string, private bool) error {
-	tx, err := s.db.Begin()
+	tx, err := s.db.Writer().Begin()
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (s *Store) SetNodeVisibility(nodeID string, private bool) error {
 // FindNodeBySkillPath returns the node with the given skill_path, or nil if none exists.
 func (s *Store) FindNodeBySkillPath(skillPath string) (*Node, error) {
 	var id string
-	err := s.db.QueryRow("SELECT id FROM nodes WHERE skill_path = ? LIMIT 1", skillPath).Scan(&id)
+	err := s.db.Reader().QueryRow("SELECT id FROM nodes WHERE skill_path = ? LIMIT 1", skillPath).Scan(&id)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -166,7 +166,7 @@ func (s *Store) UpdateNode(n *Node) error {
 	tags, _ := json.Marshal(n.Tags)
 	triggers, _ := json.Marshal(n.RetrievalTriggers)
 
-	_, err := s.db.Exec(`UPDATE nodes SET
+	_, err := s.db.Writer().Exec(`UPDATE nodes SET
 		title=?, summary=?, tags=?, retrieval_triggers=?, confidence=?,
 		content_path=?, enrichment_status=?, origin=?, source_url=?,
 		version=?, skill_path=?, updated_at=?, pinned=?, private=?, consolidated_into=?, type=?
@@ -178,7 +178,7 @@ func (s *Store) UpdateNode(n *Node) error {
 }
 
 func (s *Store) DeleteNode(id string) error {
-	_, err := s.db.Exec("DELETE FROM nodes WHERE id = ?", id)
+	_, err := s.db.Writer().Exec("DELETE FROM nodes WHERE id = ?", id)
 	return err
 }
 
@@ -205,7 +205,7 @@ func (s *Store) ListNodes(userID string, nodeType NodeType, limit, offset int) (
 	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (s *Store) ListNodes(userID string, nodeType NodeType, limit, offset int) (
 }
 
 func (s *Store) GetPendingEnrichment(limit int) ([]Node, error) {
-	rows, err := s.db.Query(`SELECT
+	rows, err := s.db.Reader().Query(`SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
 		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
@@ -275,7 +275,7 @@ func (s *Store) GetNodeSummaries(userID string, types ...NodeType) ([]NodeSummar
 	}
 	query += " ORDER BY confidence DESC"
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -303,13 +303,13 @@ func (s *Store) CreateEdge(e *Edge) error {
 	}
 	// Derive edge privacy: if either endpoint is private, the edge is private.
 	var priv bool
-	s.db.QueryRow(
+	s.db.Reader().QueryRow(
 		"SELECT COALESCE(MAX(private), 0) FROM nodes WHERE id IN (?, ?)",
 		e.SourceID, e.TargetID,
 	).Scan(&priv)
 	e.Private = priv
 
-	_, err := s.db.Exec(`INSERT INTO edges (source_id, target_id, relation, weight, created_at, user_id, private)
+	_, err := s.db.Writer().Exec(`INSERT INTO edges (source_id, target_id, relation, weight, created_at, user_id, private)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		e.SourceID, e.TargetID, e.Relation, e.Weight, e.CreatedAt, e.UserID, e.Private)
 	return err
@@ -356,7 +356,7 @@ func (s *Store) GetConnectedNodes(nodeID, userID string) ([]NodeSummary, error) 
 	}
 	query += " ORDER BY e.weight DESC"
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +392,7 @@ func (s *Store) GetConnectedNodesByUser(nodeID, userID string) ([]NodeSummary, e
 	}
 	query += ` ORDER BY e.weight DESC`
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -426,13 +426,13 @@ func (s *Store) GetVisibleEdges(userID string) ([]Edge, error) {
 }
 
 func (s *Store) DeleteEdge(sourceID, targetID string, relation RelationType) error {
-	_, err := s.db.Exec("DELETE FROM edges WHERE source_id = ? AND target_id = ? AND relation = ?",
+	_, err := s.db.Writer().Exec("DELETE FROM edges WHERE source_id = ? AND target_id = ? AND relation = ?",
 		sourceID, targetID, relation)
 	return err
 }
 
 func (s *Store) TouchAccess(nodeID string) error {
-	_, err := s.db.Exec("UPDATE nodes SET last_accessed = ? WHERE id = ?", time.Now(), nodeID)
+	_, err := s.db.Writer().Exec("UPDATE nodes SET last_accessed = ? WHERE id = ?", time.Now(), nodeID)
 	return err
 }
 
@@ -440,20 +440,20 @@ func (s *Store) Stats() (map[string]int, error) {
 	stats := make(map[string]int)
 
 	var total int
-	s.db.QueryRow("SELECT COUNT(*) FROM nodes").Scan(&total)
+	s.db.Reader().QueryRow("SELECT COUNT(*) FROM nodes").Scan(&total)
 	stats["total_nodes"] = total
 
-	s.db.QueryRow("SELECT COUNT(*) FROM edges").Scan(&total)
+	s.db.Reader().QueryRow("SELECT COUNT(*) FROM edges").Scan(&total)
 	stats["total_edges"] = total
 
-	s.db.QueryRow("SELECT COUNT(*) FROM nodes WHERE enrichment_status = 'pending'").Scan(&total)
+	s.db.Reader().QueryRow("SELECT COUNT(*) FROM nodes WHERE enrichment_status = 'pending'").Scan(&total)
 	stats["pending_enrichment"] = total
 
 	return stats, nil
 }
 
 func (s *Store) queryEdges(query string, args ...any) ([]Edge, error) {
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +491,7 @@ func (s *Store) SaveEmbedding(nodeID string, vec []float32, model string) error 
 	for i, v := range vec {
 		binary.LittleEndian.PutUint32(blob[i*4:], math.Float32bits(v))
 	}
-	_, err := s.db.Exec(`INSERT OR REPLACE INTO node_embeddings (node_id, embedding, model, dimensions, updated_at)
+	_, err := s.db.Writer().Exec(`INSERT OR REPLACE INTO node_embeddings (node_id, embedding, model, dimensions, updated_at)
 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`, nodeID, blob, model, len(vec))
 	return err
 }
@@ -499,7 +499,7 @@ func (s *Store) SaveEmbedding(nodeID string, vec []float32, model string) error 
 // GetEmbedding returns the embedding vector for a node, or nil if none exists.
 func (s *Store) GetEmbedding(nodeID string) ([]float32, error) {
 	var blob []byte
-	err := s.db.QueryRow("SELECT embedding FROM node_embeddings WHERE node_id = ?", nodeID).Scan(&blob)
+	err := s.db.Reader().QueryRow("SELECT embedding FROM node_embeddings WHERE node_id = ?", nodeID).Scan(&blob)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -520,7 +520,7 @@ func (s *Store) GetAllEmbeddings(userID string) (map[string][]float32, error) {
 		args = append(args, userID)
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -540,14 +540,14 @@ func (s *Store) GetAllEmbeddings(userID string) (map[string][]float32, error) {
 
 // DeleteEmbedding removes the embedding for a node.
 func (s *Store) DeleteEmbedding(nodeID string) error {
-	_, err := s.db.Exec("DELETE FROM node_embeddings WHERE node_id = ?", nodeID)
+	_, err := s.db.Writer().Exec("DELETE FROM node_embeddings WHERE node_id = ?", nodeID)
 	return err
 }
 
 // DeleteAllEmbeddings removes all embedding rows. Returns the number deleted.
 // Used when the embedding model changes and all vectors must be regenerated.
 func (s *Store) DeleteAllEmbeddings() (int64, error) {
-	res, err := s.db.Exec("DELETE FROM node_embeddings")
+	res, err := s.db.Writer().Exec("DELETE FROM node_embeddings")
 	if err != nil {
 		return 0, err
 	}
@@ -580,7 +580,7 @@ func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[stri
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -612,7 +612,7 @@ func (s *Store) GetEmbeddingsWithMeta(userID string, types []NodeType) (map[stri
 
 // UpdateContentLength sets the content_length column for a node.
 func (s *Store) UpdateContentLength(nodeID string, length int) error {
-	_, err := s.db.Exec("UPDATE nodes SET content_length = ? WHERE id = ?", length, nodeID)
+	_, err := s.db.Writer().Exec("UPDATE nodes SET content_length = ? WHERE id = ?", length, nodeID)
 	return err
 }
 
@@ -638,7 +638,7 @@ func (s *Store) GetPinnedNodes(userID string) ([]Node, error) {
 		query += " AND (private = 0 OR user_id = ?)"
 		args = append(args, userID)
 	}
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +648,7 @@ func (s *Store) GetPinnedNodes(userID string) ([]Node, error) {
 
 // GetUnconsolidatedNodes returns enriched nodes that have not been consolidated yet, up to limit.
 func (s *Store) GetUnconsolidatedNodes(limit int) ([]Node, error) {
-	rows, err := s.db.Query(`SELECT
+	rows, err := s.db.Reader().Query(`SELECT
 		id, type, title, summary, tags, retrieval_triggers, confidence,
 		content_path, enrichment_status, origin, source_url, version, skill_path,
 		created_at, updated_at, last_accessed, pinned, private, consolidated_into, user_id, subject_id
@@ -665,14 +665,14 @@ func (s *Store) GetUnconsolidatedNodes(limit int) ([]Node, error) {
 // GetUnconsolidatedCount returns the number of enriched nodes not yet consolidated.
 func (s *Store) GetUnconsolidatedCount() (int, error) {
 	var count int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM nodes
+	err := s.db.Reader().QueryRow(`SELECT COUNT(*) FROM nodes
 		WHERE enrichment_status = 'complete' AND (consolidated_into IS NULL OR consolidated_into = '')`).Scan(&count)
 	return count, err
 }
 
 // GetNodesWithoutEmbeddings returns nodes that have no embedding row, up to limit.
 func (s *Store) GetNodesWithoutEmbeddings(limit int) ([]Node, error) {
-	rows, err := s.db.Query(`SELECT n.id, n.type, n.title, n.summary, n.tags, n.retrieval_triggers,
+	rows, err := s.db.Reader().Query(`SELECT n.id, n.type, n.title, n.summary, n.tags, n.retrieval_triggers,
 		n.confidence, n.content_path, n.enrichment_status, n.origin, n.source_url, n.version, n.skill_path,
 		n.created_at, n.updated_at, n.last_accessed, n.pinned, n.private, n.consolidated_into, n.user_id, n.subject_id
 		FROM nodes n LEFT JOIN node_embeddings ne ON n.id = ne.node_id
@@ -701,7 +701,7 @@ func (s *Store) GetEmbeddingsByTypeAndOwner(nodeType NodeType, userID *string) (
 		query += " AND n.private = 0"
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -746,7 +746,7 @@ func (s *Store) ListNodesByTags(userID string, nodeType NodeType, tags []string)
 		args = append(args, userID)
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -759,11 +759,11 @@ func (s *Store) ListNodesByTags(userID string, nodeType NodeType, tags []string)
 // bound acts as a floor.
 func (s *Store) AdjustConfidence(nodeID string, delta float64, bound float64) error {
 	if delta >= 0 {
-		_, err := s.db.Exec("UPDATE nodes SET confidence = MIN(confidence + ?, ?) WHERE id = ?",
+		_, err := s.db.Writer().Exec("UPDATE nodes SET confidence = MIN(confidence + ?, ?) WHERE id = ?",
 			delta, bound, nodeID)
 		return err
 	}
-	_, err := s.db.Exec("UPDATE nodes SET confidence = MAX(confidence + ?, ?) WHERE id = ?",
+	_, err := s.db.Writer().Exec("UPDATE nodes SET confidence = MAX(confidence + ?, ?) WHERE id = ?",
 		delta, bound, nodeID)
 	return err
 }

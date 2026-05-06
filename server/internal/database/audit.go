@@ -49,7 +49,7 @@ func (db *DB) MigrateAudit() error {
 	}
 
 	// Discover existing columns.
-	rows, err := db.reader.Query("PRAGMA table_info(audit_log)")
+	rows, err := db.writer.Query("PRAGMA table_info(audit_log)")
 	if err != nil {
 		return err
 	}

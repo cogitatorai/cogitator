@@ -10,7 +10,7 @@ import (
 
 func testDB(t *testing.T) *database.DB {
 	t.Helper()
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -22,7 +22,7 @@ func testDB(t *testing.T) *database.DB {
 // user_id columns are satisfied in tests.
 func createTestUser(t *testing.T, db *database.DB, id string) {
 	t.Helper()
-	_, err := db.Exec(`INSERT OR IGNORE INTO users (id, email, password_hash) VALUES (?, ?, ?)`,
+	_, err := db.Writer().Exec(`INSERT OR IGNORE INTO users (id, email, password_hash) VALUES (?, ?, ?)`,
 		id, id, "hash")
 	if err != nil {
 		t.Fatalf("create test user %q: %v", id, err)

@@ -214,6 +214,9 @@ COGITATOR_RETRIEVAL_TYPE_BOOST=1.1          # score multiplier for fact/preferen
 COGITATOR_DEDUP_SIMILARITY_THRESHOLD=0.90   # cosine threshold for deduplicating memories
 COGITATOR_ENRICHMENT_VERSION=1              # bump to trigger re-enrichment of all nodes
 
+# Database tuning (optional)
+COGITATOR_DATABASE_MAX_READERS=4            # concurrent reader connections (SQLite WAL mode)
+
 # Connectors and login (optional OAuth credentials)
 GOOGLE_CLIENT_ID=<your-google-client-id>
 GOOGLE_CLIENT_SECRET=<your-google-client-secret>

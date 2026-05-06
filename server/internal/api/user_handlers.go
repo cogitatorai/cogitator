@@ -181,7 +181,7 @@ func (r *Router) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
 			`DELETE FROM invite_codes WHERE created_by = ?`,
 		}
 		for _, q := range cleanupQueries {
-			if _, err := r.db.Exec(q, targetID); err != nil {
+			if _, err := r.db.Writer().Exec(q, targetID); err != nil {
 				// Log but continue; best-effort cleanup.
 			}
 		}
@@ -355,7 +355,7 @@ func (r *Router) handleUpdateProfile(w http.ResponseWriter, req *http.Request) {
 // countAdmins returns the number of users with the admin role.
 func (r *Router) countAdmins() (int, error) {
 	var count int
-	err := r.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = ?`, string(user.RoleAdmin)).Scan(&count)
+	err := r.db.Reader().QueryRow(`SELECT COUNT(*) FROM users WHERE role = ?`, string(user.RoleAdmin)).Scan(&count)
 	return count, err
 }
 

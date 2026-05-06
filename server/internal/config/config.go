@@ -10,6 +10,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// DatabaseConfig holds tuning parameters for the SQLite database layer.
+type DatabaseConfig struct {
+	MaxReaders int `yaml:"max_readers" json:"max_readers"`
+}
+
 // OptimizationConfig holds knobs for LLM cost-reduction strategies.
 // All fields default to false/zero (opt-in only).
 type OptimizationConfig struct {
@@ -33,6 +38,7 @@ type Config struct {
 	Update       UpdateConfig              `yaml:"update"`
 	Voice        VoiceConfig               `yaml:"voice"`
 	Optimization OptimizationConfig        `yaml:"optimization"`
+	Database     DatabaseConfig            `yaml:"database"`
 }
 
 type UpdateConfig struct {
@@ -204,6 +210,9 @@ func Default() *Config {
 			MaxUploadBytes: 10 * 1024 * 1024,
 			STTTimeoutSec:  30,
 		},
+		Database: DatabaseConfig{
+			MaxReaders: 4,
+		},
 	}
 }
 
@@ -324,6 +333,13 @@ func (c *Config) ApplyEnv() {
 	if v := os.Getenv("COGITATOR_DEDUP_SIMILARITY_THRESHOLD"); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			c.Memory.DedupSimilarityThreshold = f
+		}
+	}
+
+	// Database tuning.
+	if v := os.Getenv("COGITATOR_DATABASE_MAX_READERS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Database.MaxReaders = n
 		}
 	}
 

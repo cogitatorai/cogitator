@@ -136,7 +136,9 @@ func New(opts Options) (*Server, error) {
 	}
 
 	migrationsFS, _ := fs.Sub(database.EmbeddedMigrations, "migrations")
-	db, err := database.Open(ws.DBPath(), migrationsFS)
+	db, err := database.Open(ws.DBPath(), database.Options{
+		MaxReaders: cfg.Database.MaxReaders,
+	}, migrationsFS)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
@@ -611,14 +613,14 @@ func New(opts Options) (*Server, error) {
 		// stored version, trigger re-enrichment of all nodes.
 		storedVersion := 0
 		var sv string
-		if err := db.QueryRow("SELECT value FROM system_settings WHERE key = 'enrichment_version'").Scan(&sv); err == nil {
+		if err := db.Reader().QueryRow("SELECT value FROM system_settings WHERE key = 'enrichment_version'").Scan(&sv); err == nil {
 			storedVersion, _ = strconv.Atoi(sv)
 		}
 		if cfg.Memory.EnrichmentVersion > storedVersion {
 			slog.Info("enrichment version changed, triggering re-enrichment",
 				"stored", storedVersion, "configured", cfg.Memory.EnrichmentVersion)
 			worker.RunReenrichment(context.Background(), memoryStore, eventBus, 50)
-			db.Exec(`INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('enrichment_version', ?, CURRENT_TIMESTAMP)`,
+			db.Writer().Exec(`INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('enrichment_version', ?, CURRENT_TIMESTAMP)`,
 				strconv.Itoa(cfg.Memory.EnrichmentVersion))
 			retriever.InvalidateCache()
 		}

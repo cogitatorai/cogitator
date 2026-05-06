@@ -52,7 +52,7 @@ func (s *Store) CreateTask(t *Task) (int64, error) {
 		notifyUsersJSON = string(b)
 	}
 
-	result, err := s.db.Exec(`INSERT INTO tasks
+	result, err := s.db.Writer().Exec(`INSERT INTO tasks
 		(name, prompt, cron_expr, model_tier, enabled, max_retries, retry_backoff,
 		 timeout, working_dir, notify, allow_manual, notify_chat, broadcast,
 		 notify_users, created_at, created_by, updated_at, user_id)
@@ -76,7 +76,7 @@ func (s *Store) GetTask(id int64) (*Task, error) {
 	var t Task
 	var cronExpr, workingDir, notify, createdBy, userID, notifyUsersRaw sql.NullString
 
-	err := s.db.QueryRow(`SELECT id, name, prompt, cron_expr, model_tier, enabled,
+	err := s.db.Reader().QueryRow(`SELECT id, name, prompt, cron_expr, model_tier, enabled,
 		max_retries, retry_backoff, timeout, working_dir, notify, allow_manual,
 		notify_chat, broadcast, notify_users, created_at, created_by, updated_at, user_id
 		FROM tasks WHERE id = ?`, id).Scan(
@@ -126,7 +126,7 @@ func (s *Store) UpdateTask(t *Task) error {
 		notifyUsersJSON = string(b)
 	}
 
-	_, err := s.db.Exec(`UPDATE tasks SET
+	_, err := s.db.Writer().Exec(`UPDATE tasks SET
 		name=?, prompt=?, cron_expr=?, model_tier=?, enabled=?, max_retries=?,
 		retry_backoff=?, timeout=?, working_dir=?, notify=?, allow_manual=?,
 		notify_chat=?, broadcast=?, notify_users=?, updated_at=?
@@ -139,10 +139,10 @@ func (s *Store) UpdateTask(t *Task) error {
 
 func (s *Store) DeleteTask(id int64) error {
 	// Remove associated runs first so they don't become orphans.
-	if _, err := s.db.Exec("DELETE FROM task_runs WHERE task_id = ?", id); err != nil {
+	if _, err := s.db.Writer().Exec("DELETE FROM task_runs WHERE task_id = ?", id); err != nil {
 		return err
 	}
-	result, err := s.db.Exec("DELETE FROM tasks WHERE id = ?", id)
+	result, err := s.db.Writer().Exec("DELETE FROM tasks WHERE id = ?", id)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (s *Store) ListTasks(userID string) ([]Task, error) {
 	}
 	query += ` ORDER BY id ASC`
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (s *Store) ListTasks(userID string) ([]Task, error) {
 }
 
 func (s *Store) ListScheduledTasks() ([]Task, error) {
-	rows, err := s.db.Query(`SELECT id, name, prompt, cron_expr, model_tier, enabled,
+	rows, err := s.db.Reader().Query(`SELECT id, name, prompt, cron_expr, model_tier, enabled,
 		max_retries, retry_backoff, timeout, working_dir, notify, allow_manual,
 		notify_chat, broadcast, notify_users, created_at, created_by, updated_at, user_id
 		FROM tasks WHERE enabled = 1 AND cron_expr != '' AND cron_expr IS NOT NULL
@@ -237,7 +237,7 @@ func (s *Store) ListScheduledTasks() ([]Task, error) {
 // BackfillUserID assigns userID to all tasks that have a NULL or empty user_id.
 // This is used at startup to fix tasks created before the auth system was added.
 func (s *Store) BackfillUserID(userID string) (int64, error) {
-	result, err := s.db.Exec(
+	result, err := s.db.Writer().Exec(
 		`UPDATE tasks SET user_id = ? WHERE user_id IS NULL OR user_id = ''`,
 		userID,
 	)
@@ -250,7 +250,7 @@ func (s *Store) BackfillUserID(userID string) (int64, error) {
 // DisableAndReassignTasks disables all tasks owned by fromUserID and
 // reassigns them to toUserID. Used during user deletion.
 func (s *Store) DisableAndReassignTasks(fromUserID, toUserID string) error {
-	_, err := s.db.Exec(
+	_, err := s.db.Writer().Exec(
 		`UPDATE tasks SET enabled = 0, user_id = ? WHERE user_id = ?`,
 		toUserID, fromUserID,
 	)
@@ -262,7 +262,7 @@ func (s *Store) DisableAndReassignTasks(fromUserID, toUserID string) error {
 // HasRunningRun reports whether the given task already has a run in progress.
 func (s *Store) HasRunningRun(taskID int64) (bool, error) {
 	var count int
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT COUNT(*) FROM task_runs WHERE task_id = ? AND status = ?`,
 		taskID, RunStatusRunning,
 	).Scan(&count)
@@ -277,7 +277,7 @@ func (s *Store) CreateRun(r *Run) (int64, error) {
 		r.Status = RunStatusRunning
 	}
 
-	result, err := s.db.Exec(`INSERT INTO task_runs
+	result, err := s.db.Writer().Exec(`INSERT INTO task_runs
 		(task_id, trigger, started_at, status, model_used, session_key,
 		 parent_run_id, retry_of, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -302,7 +302,7 @@ func (s *Store) GetRun(id int64) (*Run, error) {
 	var skillsUsed, fixApplied, sessionKey, toolCallsJSON sql.NullString
 	var parentRunID, retryOf sql.NullInt64
 
-	err := s.db.QueryRow(`SELECT id, task_id, trigger, started_at, finished_at, status,
+	err := s.db.Reader().QueryRow(`SELECT id, task_id, trigger, started_at, finished_at, status,
 		model_used, error_message, error_class, result_summary, transcript_path,
 		skills_used, fix_applied, session_key, parent_run_id, retry_of, tool_calls, created_at
 		FROM task_runs WHERE id = ?`, id).Scan(
@@ -344,7 +344,7 @@ func (s *Store) GetRun(id int64) (*Run, error) {
 
 func (s *Store) CompleteRun(id int64, summary string) error {
 	now := time.Now()
-	_, err := s.db.Exec(`UPDATE task_runs SET
+	_, err := s.db.Writer().Exec(`UPDATE task_runs SET
 		status=?, finished_at=?, result_summary=?
 		WHERE id=?`, RunStatusCompleted, now, summary, id)
 	return err
@@ -352,26 +352,26 @@ func (s *Store) CompleteRun(id int64, summary string) error {
 
 func (s *Store) FailRun(id int64, errMsg string, errClass ErrorClass) error {
 	now := time.Now()
-	_, err := s.db.Exec(`UPDATE task_runs SET
+	_, err := s.db.Writer().Exec(`UPDATE task_runs SET
 		status=?, finished_at=?, error_message=?, error_class=?
 		WHERE id=?`, RunStatusFailed, now, errMsg, errClass, id)
 	return err
 }
 
 func (s *Store) SetRunModel(id int64, model string) error {
-	_, err := s.db.Exec(`UPDATE task_runs SET model_used=? WHERE id=?`, model, id)
+	_, err := s.db.Writer().Exec(`UPDATE task_runs SET model_used=? WHERE id=?`, model, id)
 	return err
 }
 
 func (s *Store) CancelRun(id int64) error {
 	now := time.Now()
-	_, err := s.db.Exec(`UPDATE task_runs SET status=?, finished_at=? WHERE id=?`,
+	_, err := s.db.Writer().Exec(`UPDATE task_runs SET status=?, finished_at=? WHERE id=?`,
 		RunStatusCancelled, now, id)
 	return err
 }
 
 func (s *Store) DeleteRun(id int64) error {
-	result, err := s.db.Exec("DELETE FROM task_runs WHERE id = ?", id)
+	result, err := s.db.Writer().Exec("DELETE FROM task_runs WHERE id = ?", id)
 	if err != nil {
 		return err
 	}
@@ -396,7 +396,7 @@ func (s *Store) DeleteRuns(ids []int64) (int, error) {
 		placeholders = append(placeholders, '?')
 		args[i] = id
 	}
-	result, err := s.db.Exec("DELETE FROM task_runs WHERE id IN ("+string(placeholders)+")", args...)
+	result, err := s.db.Writer().Exec("DELETE FROM task_runs WHERE id IN ("+string(placeholders)+")", args...)
 	if err != nil {
 		return 0, err
 	}
@@ -413,7 +413,7 @@ func (s *Store) SaveToolCalls(runID int64, calls []ToolCallRecord) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE task_runs SET tool_calls=? WHERE id=?`, string(data), runID)
+	_, err = s.db.Writer().Exec(`UPDATE task_runs SET tool_calls=? WHERE id=?`, string(data), runID)
 	return err
 }
 
@@ -422,7 +422,7 @@ func (s *Store) SaveToolCalls(runID int64, calls []ToolCallRecord) error {
 // Returns the number of runs cleaned up.
 func (s *Store) CleanupStaleRuns() (int, error) {
 	now := time.Now()
-	result, err := s.db.Exec(`UPDATE task_runs SET
+	result, err := s.db.Writer().Exec(`UPDATE task_runs SET
 		status=?, finished_at=?, error_message=?
 		WHERE status=?`,
 		RunStatusFailed, now, "server restarted while task was running", RunStatusRunning)
@@ -437,7 +437,7 @@ func (s *Store) CleanupStaleRuns() (int, error) {
 // time if no runs exist.
 func (s *Store) LastRunTime(taskID int64) (time.Time, error) {
 	var t sql.NullTime
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT MAX(started_at) FROM task_runs WHERE task_id = ?`, taskID,
 	).Scan(&t)
 	if err != nil {
@@ -453,7 +453,7 @@ func (s *Store) ListRunsForTask(taskID int64, limit int) ([]Run, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := s.db.Query(`SELECT id, task_id, trigger, started_at, finished_at, status,
+	rows, err := s.db.Reader().Query(`SELECT id, task_id, trigger, started_at, finished_at, status,
 		model_used, error_message, error_class, result_summary, created_at
 		FROM task_runs WHERE task_id = ? ORDER BY id DESC LIMIT ?`, taskID, limit)
 	if err != nil {
@@ -490,7 +490,7 @@ func (s *Store) RecentRuns(limit int) ([]Run, error) {
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := s.db.Query(`SELECT id, task_id, trigger, started_at, finished_at, status,
+	rows, err := s.db.Reader().Query(`SELECT id, task_id, trigger, started_at, finished_at, status,
 		model_used, error_message, error_class, result_summary, created_at
 		FROM task_runs ORDER BY id DESC LIMIT ?`, limit)
 	if err != nil {
@@ -543,7 +543,7 @@ func (s *Store) ListRuns(q RunQuery) (*RunListResult, error) {
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := s.db.QueryRow("SELECT COUNT(*) FROM task_runs tr WHERE "+where, countArgs...).Scan(&total)
+	err := s.db.Reader().QueryRow("SELECT COUNT(*) FROM task_runs tr WHERE "+where, countArgs...).Scan(&total)
 	if err != nil {
 		return nil, err
 	}
@@ -556,7 +556,7 @@ func (s *Store) ListRuns(q RunQuery) (*RunListResult, error) {
 		WHERE ` + where + ` ORDER BY tr.id DESC LIMIT ? OFFSET ?`
 	args = append(args, q.Limit, q.Offset)
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -608,7 +608,7 @@ type RunStat struct {
 
 // TaskRunStats returns run count and last run status for each task in a single query.
 func (s *Store) TaskRunStats() (map[int64]RunStat, error) {
-	rows, err := s.db.Query(`
+	rows, err := s.db.Reader().Query(`
 		SELECT task_id, COUNT(*) AS total,
 			(SELECT status FROM task_runs r2
 			 WHERE r2.task_id = task_runs.task_id
@@ -636,6 +636,6 @@ func (s *Store) TaskRunStats() (map[int64]RunStat, error) {
 // CountActiveRuns returns the number of task runs currently in "running" status.
 func (s *Store) CountActiveRuns() (int, error) {
 	var count int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM task_runs WHERE status = 'running'`).Scan(&count)
+	err := s.db.Reader().QueryRow(`SELECT COUNT(*) FROM task_runs WHERE status = 'running'`).Scan(&count)
 	return count, err
 }

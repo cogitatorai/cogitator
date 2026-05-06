@@ -44,12 +44,12 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
 // expected columns exist. Pre-existing tables with older schemas are
 // upgraded via ALTER TABLE ADD COLUMN.
 func (db *DB) MigrateAudit() error {
-	if _, err := db.Exec(auditCreateTable); err != nil {
+	if _, err := db.writer.Exec(auditCreateTable); err != nil {
 		return err
 	}
 
 	// Discover existing columns.
-	rows, err := db.Query("PRAGMA table_info(audit_log)")
+	rows, err := db.writer.Query("PRAGMA table_info(audit_log)")
 	if err != nil {
 		return err
 	}
@@ -73,18 +73,18 @@ func (db *DB) MigrateAudit() error {
 		if existing[col.name] {
 			continue
 		}
-		if _, err := db.Exec("ALTER TABLE audit_log ADD COLUMN " + col.name + " " + col.typedef); err != nil {
+		if _, err := db.writer.Exec("ALTER TABLE audit_log ADD COLUMN " + col.name + " " + col.typedef); err != nil {
 			return err
 		}
 	}
 
-	_, err = db.Exec(auditCreateIndexes)
+	_, err = db.writer.Exec(auditCreateIndexes)
 	return err
 }
 
 // LogAudit inserts an audit event into the audit_log table.
 func (db *DB) LogAudit(ctx context.Context, event security.AuditEvent) error {
-	_, err := db.ExecContext(ctx,
+	_, err := db.writer.ExecContext(ctx,
 		`INSERT INTO audit_log (action, tool, target, outcome, reason, session_key, task_run_id, user_id)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		event.Action, event.Tool, event.Target, event.Outcome, event.Reason,
@@ -146,7 +146,7 @@ func (db *DB) ListAuditLogs(q AuditQuery) ([]AuditLogEntry, int, error) {
 
 	var total int
 	countSQL := "SELECT COUNT(*) FROM audit_log " + clause
-	if err := db.QueryRow(countSQL, args...).Scan(&total); err != nil {
+	if err := db.reader.QueryRow(countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -154,7 +154,7 @@ func (db *DB) ListAuditLogs(q AuditQuery) ([]AuditLogEntry, int, error) {
 		clause + " ORDER BY id DESC LIMIT ? OFFSET ?"
 	queryArgs := append(args, q.Limit, q.Offset)
 
-	rows, err := db.Query(querySQL, queryArgs...)
+	rows, err := db.reader.Query(querySQL, queryArgs...)
 	if err != nil {
 		return nil, 0, err
 	}

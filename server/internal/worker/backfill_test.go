@@ -13,7 +13,7 @@ import (
 )
 
 func TestBackfillEmbedsUnembeddedNodes(t *testing.T) {
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestBackfillEmbedsUnembeddedNodes(t *testing.T) {
 }
 
 func TestBackfillSkipsAlreadyEmbedded(t *testing.T) {
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestBackfillNilEmbedder(t *testing.T) {
 
 func TestRunReenrichment(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestRunReenrichment(t *testing.T) {
 
 func TestRunContentLengthBackfill(t *testing.T) {
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestRunContentLengthBackfill(t *testing.T) {
 	}
 
 	var cl sql.NullInt64
-	db.QueryRow("SELECT content_length FROM nodes WHERE id = ?", id).Scan(&cl)
+	db.Reader().QueryRow("SELECT content_length FROM nodes WHERE id = ?", id).Scan(&cl)
 	if !cl.Valid || cl.Int64 != int64(len("hello world content")) {
 		t.Errorf("content_length = %v, want %d", cl, len("hello world content"))
 	}

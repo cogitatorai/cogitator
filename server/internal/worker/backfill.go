@@ -49,7 +49,7 @@ func RunReenrichment(ctx context.Context, store *memory.Store, eventBus *bus.Bus
 			return total, ctx.Err()
 		}
 
-		rows, err := store.DB().Query(`
+		rows, err := store.DB().Reader().Query(`
 			SELECT id FROM nodes
 			WHERE enrichment_status = 'complete'
 			ORDER BY CASE type
@@ -79,7 +79,7 @@ func RunReenrichment(ctx context.Context, store *memory.Store, eventBus *bus.Bus
 		}
 
 		for _, id := range ids {
-			_, err := store.DB().Exec(
+			_, err := store.DB().Writer().Exec(
 				"UPDATE nodes SET enrichment_status = 'pending' WHERE id = ?", id)
 			if err != nil {
 				slog.Warn("re-enrichment reset failed", "node_id", id, "error", err)
@@ -105,7 +105,7 @@ func RunContentLengthBackfill(ctx context.Context, store *memory.Store, cm *memo
 		return 0, nil
 	}
 
-	rows, err := store.DB().Query(
+	rows, err := store.DB().Reader().Query(
 		`SELECT id, content_path FROM nodes WHERE content_path != '' AND content_path IS NOT NULL AND content_length IS NULL`)
 	if err != nil {
 		return 0, err

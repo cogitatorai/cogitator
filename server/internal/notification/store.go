@@ -42,7 +42,7 @@ func (s *Store) Create(n *Notification) (int64, error) {
 	if n.TaskID != nil {
 		tid = *n.TaskID
 	}
-	result, err := s.db.Exec(`INSERT INTO notifications
+	result, err := s.db.Writer().Exec(`INSERT INTO notifications
 		(user_id, sender_id, task_id, task_name, run_id, trigger_type, status, content, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		uid, sid, tid, n.TaskName, n.RunID, n.Trigger, n.Status, n.Content, time.Now())
@@ -60,13 +60,13 @@ func (s *Store) List(userID string, limit, offset int) ([]Notification, int, err
 	where, args := userWhere(userID)
 
 	var total int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM notifications WHERE "+where, args...).Scan(&total); err != nil {
+	if err := s.db.Reader().QueryRow("SELECT COUNT(*) FROM notifications WHERE "+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	query := `SELECT id, user_id, sender_id, task_id, task_name, run_id, trigger_type, status, content, read, created_at
 		FROM notifications WHERE ` + where + ` ORDER BY id DESC LIMIT ? OFFSET ?`
-	rows, err := s.db.Query(query, append(args, limit, offset)...)
+	rows, err := s.db.Reader().Query(query, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -89,20 +89,20 @@ func (s *Store) List(userID string, limit, offset int) ([]Notification, int, err
 func (s *Store) UnreadCount(userID string) (int, error) {
 	where, args := userWhere(userID)
 	var count int
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		"SELECT COUNT(*) FROM notifications WHERE read = 0 AND "+where, args...,
 	).Scan(&count)
 	return count, err
 }
 
 func (s *Store) MarkRead(id int64) error {
-	_, err := s.db.Exec("UPDATE notifications SET read = 1 WHERE id = ?", id)
+	_, err := s.db.Writer().Exec("UPDATE notifications SET read = 1 WHERE id = ?", id)
 	return err
 }
 
 func (s *Store) MarkAllRead(userID string) error {
 	where, args := userWhere(userID)
-	_, err := s.db.Exec("UPDATE notifications SET read = 1 WHERE read = 0 AND "+where, args...)
+	_, err := s.db.Writer().Exec("UPDATE notifications SET read = 1 WHERE read = 0 AND "+where, args...)
 	return err
 }
 
@@ -111,20 +111,20 @@ func (s *Store) MarkAllRead(userID string) error {
 // types that may be added in the future are left untouched.
 func (s *Store) MarkTaskNotificationsRead(userID string) error {
 	where, args := userWhere(userID)
-	_, err := s.db.Exec(
+	_, err := s.db.Writer().Exec(
 		"UPDATE notifications SET read = 1 WHERE read = 0 AND (task_id IS NOT NULL OR trigger_type = 'user_message') AND "+where,
 		args...)
 	return err
 }
 
 func (s *Store) Delete(id int64) error {
-	_, err := s.db.Exec("DELETE FROM notifications WHERE id = ?", id)
+	_, err := s.db.Writer().Exec("DELETE FROM notifications WHERE id = ?", id)
 	return err
 }
 
 func (s *Store) DeleteAll(userID string) error {
 	where, args := userWhere(userID)
-	_, err := s.db.Exec("DELETE FROM notifications WHERE "+where, args...)
+	_, err := s.db.Writer().Exec("DELETE FROM notifications WHERE "+where, args...)
 	return err
 }
 

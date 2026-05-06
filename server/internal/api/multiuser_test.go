@@ -32,7 +32,7 @@ func setupMultiUserRouter(t *testing.T, responses ...provider.Response) *Router 
 
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
-	db, err := database.Open(dbPath)
+	db, err := database.Open(dbPath, database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

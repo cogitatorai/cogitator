@@ -17,7 +17,7 @@ func (rt *Router) requireActiveSubscription(next http.HandlerFunc) http.HandlerF
 		}
 
 		var status string
-		err := rt.db.QueryRow(
+		err := rt.db.Reader().QueryRow(
 			`SELECT status FROM subscription_status WHERE id = 1`,
 		).Scan(&status)
 		if err != nil {
@@ -53,7 +53,7 @@ func (rt *Router) handleSubscriptionStatusPush(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	_, err := rt.db.Exec(`
+	_, err := rt.db.Writer().Exec(`
 		INSERT INTO subscription_status (id, status, grace_ends_at, updated_at)
 		VALUES (1, ?, ?, datetime('now'))
 		ON CONFLICT(id) DO UPDATE SET
@@ -75,7 +75,7 @@ func (rt *Router) handleSubscriptionStatusPush(w http.ResponseWriter, r *http.Re
 func (rt *Router) handleSubscriptionStatusGet(w http.ResponseWriter, r *http.Request) {
 	var status string
 	var graceEndsAt *string
-	err := rt.db.QueryRow(
+	err := rt.db.Reader().QueryRow(
 		`SELECT status, grace_ends_at FROM subscription_status WHERE id = 1`,
 	).Scan(&status, &graceEndsAt)
 	if err != nil {

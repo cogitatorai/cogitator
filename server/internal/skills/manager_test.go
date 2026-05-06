@@ -19,7 +19,7 @@ import (
 func testDB(t *testing.T) *database.DB {
 	t.Helper()
 	dir := t.TempDir()
-	db, err := database.Open(filepath.Join(dir, "test.db"))
+	db, err := database.Open(filepath.Join(dir, "test.db"), database.Options{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

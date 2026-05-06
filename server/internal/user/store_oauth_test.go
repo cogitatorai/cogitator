@@ -10,7 +10,7 @@ import (
 
 func setupOAuthTestStore(t *testing.T) *Store {
 	t.Helper()
-	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"), database.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,7 +53,7 @@ func (s *Store) Create(input CreateUserInput) (*User, error) {
 		UpdatedAt:    now,
 	}
 
-	_, err = s.db.Exec(
+	_, err = s.db.Writer().Exec(
 		`INSERT INTO users (id, email, name, password_hash, role, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		u.ID, u.Email, u.Name, u.PasswordHash, string(u.Role), u.CreatedAt, u.UpdatedAt,
@@ -71,7 +71,7 @@ func (s *Store) Create(input CreateUserInput) (*User, error) {
 // Get retrieves a user by ID.
 func (s *Store) Get(id string) (*User, error) {
 	u := &User{}
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT id, email, name, password_hash, role, profile_overrides, created_at, updated_at
 		 FROM users WHERE id = ?`, id,
 	).Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.Role, &u.ProfileOverrides, &u.CreatedAt, &u.UpdatedAt)
@@ -87,7 +87,7 @@ func (s *Store) Get(id string) (*User, error) {
 // GetByEmail retrieves a user by email (case-insensitive).
 func (s *Store) GetByEmail(email string) (*User, error) {
 	u := &User{}
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT id, email, name, password_hash, role, profile_overrides, created_at, updated_at
 		 FROM users WHERE email = ? COLLATE NOCASE`, email,
 	).Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.Role, &u.ProfileOverrides, &u.CreatedAt, &u.UpdatedAt)
@@ -102,7 +102,7 @@ func (s *Store) GetByEmail(email string) (*User, error) {
 
 // List returns all users ordered by creation time.
 func (s *Store) List() ([]User, error) {
-	rows, err := s.db.Query(
+	rows, err := s.db.Reader().Query(
 		`SELECT id, email, name, password_hash, role, profile_overrides, created_at, updated_at
 		 FROM users ORDER BY created_at`,
 	)
@@ -125,13 +125,13 @@ func (s *Store) List() ([]User, error) {
 // Count returns the total number of users.
 func (s *Store) Count() (int, error) {
 	var count int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
+	err := s.db.Reader().QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
 	return count, err
 }
 
 // UpdateRole changes a user's role.
 func (s *Store) UpdateRole(id string, role Role) error {
-	res, err := s.db.Exec(`UPDATE users SET role = ?, updated_at = ? WHERE id = ?`, string(role), time.Now().UTC(), id)
+	res, err := s.db.Writer().Exec(`UPDATE users SET role = ?, updated_at = ? WHERE id = ?`, string(role), time.Now().UTC(), id)
 	if err != nil {
 		return fmt.Errorf("updating role: %w", err)
 	}
@@ -140,7 +140,7 @@ func (s *Store) UpdateRole(id string, role Role) error {
 
 // UpdateProfile sets a user's profile overrides.
 func (s *Store) UpdateProfile(id string, overrides string) error {
-	res, err := s.db.Exec(`UPDATE users SET profile_overrides = ?, updated_at = ? WHERE id = ?`, overrides, time.Now().UTC(), id)
+	res, err := s.db.Writer().Exec(`UPDATE users SET profile_overrides = ?, updated_at = ? WHERE id = ?`, overrides, time.Now().UTC(), id)
 	if err != nil {
 		return fmt.Errorf("updating profile: %w", err)
 	}
@@ -153,12 +153,12 @@ func (s *Store) UpdateUser(id string, name string, passwordHash *string) error {
 	var res sql.Result
 	var err error
 	if passwordHash != nil {
-		res, err = s.db.Exec(
+		res, err = s.db.Writer().Exec(
 			`UPDATE users SET name = ?, password_hash = ?, updated_at = ? WHERE id = ?`,
 			name, *passwordHash, now, id,
 		)
 	} else {
-		res, err = s.db.Exec(
+		res, err = s.db.Writer().Exec(
 			`UPDATE users SET name = ?, updated_at = ? WHERE id = ?`,
 			name, now, id,
 		)
@@ -172,7 +172,7 @@ func (s *Store) UpdateUser(id string, name string, passwordHash *string) error {
 // UpdateEmail changes a user's email. Returns ErrDuplicateUser if the
 // new email is already taken.
 func (s *Store) UpdateEmail(id, newEmail string) error {
-	res, err := s.db.Exec(
+	res, err := s.db.Writer().Exec(
 		`UPDATE users SET email = ?, updated_at = ? WHERE id = ?`,
 		newEmail, time.Now().UTC(), id,
 	)
@@ -187,7 +187,7 @@ func (s *Store) UpdateEmail(id, newEmail string) error {
 
 // Delete removes a user by ID.
 func (s *Store) Delete(id string) error {
-	res, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, id)
+	res, err := s.db.Writer().Exec(`DELETE FROM users WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("deleting user: %w", err)
 	}
@@ -220,7 +220,7 @@ func (s *Store) CreateInviteCode(input CreateInviteInput) (*InviteCode, error) {
 		CreatedAt: now,
 	}
 
-	_, err := s.db.Exec(
+	_, err := s.db.Writer().Exec(
 		`INSERT INTO invite_codes (code, created_by, role, expires_at, created_at)
 		 VALUES (?, ?, ?, ?, ?)`,
 		ic.Code, ic.CreatedBy, string(ic.Role), ic.ExpiresAt, ic.CreatedAt,
@@ -236,7 +236,7 @@ func (s *Store) CreateInviteCode(input CreateInviteInput) (*InviteCode, error) {
 // already been redeemed and has not expired.
 func (s *Store) RedeemInviteCode(code, userID string) (*InviteCode, error) {
 	ic := &InviteCode{}
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT code, created_by, role, redeemed_by, expires_at, created_at
 		 FROM invite_codes WHERE code = ?`, code,
 	).Scan(&ic.Code, &ic.CreatedBy, &ic.Role, &ic.RedeemedBy, &ic.ExpiresAt, &ic.CreatedAt)
@@ -254,7 +254,7 @@ func (s *Store) RedeemInviteCode(code, userID string) (*InviteCode, error) {
 		return nil, ErrCodeExpired
 	}
 
-	_, err = s.db.Exec(
+	_, err = s.db.Writer().Exec(
 		`UPDATE invite_codes SET redeemed_by = ? WHERE code = ?`,
 		userID, code,
 	)
@@ -268,7 +268,7 @@ func (s *Store) RedeemInviteCode(code, userID string) (*InviteCode, error) {
 
 // ListInviteCodes returns all invite codes, newest first.
 func (s *Store) ListInviteCodes() ([]InviteCode, error) {
-	rows, err := s.db.Query(
+	rows, err := s.db.Reader().Query(
 		`SELECT code, created_by, role, redeemed_by, expires_at, created_at
 		 FROM invite_codes ORDER BY created_at DESC`,
 	)
@@ -290,13 +290,13 @@ func (s *Store) ListInviteCodes() ([]InviteCode, error) {
 
 // DeleteInviteCode removes an invite code.
 func (s *Store) DeleteInviteCode(code string) error {
-	_, err := s.db.Exec(`DELETE FROM invite_codes WHERE code = ?`, code)
+	_, err := s.db.Writer().Exec(`DELETE FROM invite_codes WHERE code = ?`, code)
 	return err
 }
 
 // StoreRefreshToken persists a hashed refresh token.
 func (s *Store) StoreRefreshToken(tokenHash, userID string, expiresAt time.Time) error {
-	_, err := s.db.Exec(
+	_, err := s.db.Writer().Exec(
 		`INSERT INTO refresh_tokens (token_hash, user_id, expires_at, created_at)
 		 VALUES (?, ?, ?, ?)`,
 		tokenHash, userID, expiresAt.UTC(), time.Now().UTC(),
@@ -309,7 +309,7 @@ func (s *Store) StoreRefreshToken(tokenHash, userID string, expiresAt time.Time)
 func (s *Store) ValidateRefreshToken(tokenHash string) (string, error) {
 	var userID string
 	var expiresAt time.Time
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT user_id, expires_at FROM refresh_tokens WHERE token_hash = ?`, tokenHash,
 	).Scan(&userID, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -326,20 +326,20 @@ func (s *Store) ValidateRefreshToken(tokenHash string) (string, error) {
 
 // RevokeRefreshToken deletes a single refresh token.
 func (s *Store) RevokeRefreshToken(tokenHash string) error {
-	_, err := s.db.Exec(`DELETE FROM refresh_tokens WHERE token_hash = ?`, tokenHash)
+	_, err := s.db.Writer().Exec(`DELETE FROM refresh_tokens WHERE token_hash = ?`, tokenHash)
 	return err
 }
 
 // RevokeAllRefreshTokens deletes all refresh tokens for a given user.
 func (s *Store) RevokeAllRefreshTokens(userID string) error {
-	_, err := s.db.Exec(`DELETE FROM refresh_tokens WHERE user_id = ?`, userID)
+	_, err := s.db.Writer().Exec(`DELETE FROM refresh_tokens WHERE user_id = ?`, userID)
 	return err
 }
 
 // CleanupExpiredTokens removes all expired refresh tokens and returns
 // the number deleted.
 func (s *Store) CleanupExpiredTokens() (int, error) {
-	res, err := s.db.Exec(`DELETE FROM refresh_tokens WHERE expires_at < ?`, time.Now().UTC())
+	res, err := s.db.Writer().Exec(`DELETE FROM refresh_tokens WHERE expires_at < ?`, time.Now().UTC())
 	if err != nil {
 		return 0, err
 	}
@@ -370,7 +370,7 @@ func (s *Store) CreateSocial(email, name string, role Role) (*User, error) {
 		UpdatedAt: now,
 	}
 
-	_, err := s.db.Exec(
+	_, err := s.db.Writer().Exec(
 		`INSERT INTO users (id, email, name, password_hash, role, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		u.ID, u.Email, u.Name, "", string(u.Role), u.CreatedAt, u.UpdatedAt,
@@ -387,7 +387,7 @@ func (s *Store) CreateSocial(email, name string, role Role) (*User, error) {
 
 // LinkOAuth inserts a new OAuth link record associating a provider identity with a user.
 func (s *Store) LinkOAuth(userID, provider, subject, email string) error {
-	_, err := s.db.Exec(
+	_, err := s.db.Writer().Exec(
 		`INSERT INTO user_oauth_links (id, user_id, provider, subject, email, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		uuid.New().String(), userID, provider, subject, email, time.Now().UTC(),
@@ -402,7 +402,7 @@ func (s *Store) LinkOAuth(userID, provider, subject, email string) error {
 // Returns ErrNotFound if no matching link exists.
 func (s *Store) GetByOAuthLink(provider, subject string) (*User, error) {
 	u := &User{}
-	err := s.db.QueryRow(
+	err := s.db.Reader().QueryRow(
 		`SELECT u.id, u.email, u.name, u.password_hash, u.role, u.profile_overrides, u.created_at, u.updated_at
 		 FROM users u
 		 JOIN user_oauth_links l ON l.user_id = u.id
@@ -420,7 +420,7 @@ func (s *Store) GetByOAuthLink(provider, subject string) (*User, error) {
 
 // ListOAuthLinks returns all OAuth links for the given user, ordered by creation time.
 func (s *Store) ListOAuthLinks(userID string) ([]OAuthLink, error) {
-	rows, err := s.db.Query(
+	rows, err := s.db.Reader().Query(
 		`SELECT id, user_id, provider, subject, email, created_at
 		 FROM user_oauth_links WHERE user_id = ? ORDER BY created_at`,
 		userID,
@@ -444,7 +444,7 @@ func (s *Store) ListOAuthLinks(userID string) ([]OAuthLink, error) {
 // UnlinkOAuth removes the OAuth link for the given user and provider.
 // Returns ErrLinkNotFound if no such link exists.
 func (s *Store) UnlinkOAuth(userID, provider string) error {
-	res, err := s.db.Exec(
+	res, err := s.db.Writer().Exec(
 		`DELETE FROM user_oauth_links WHERE user_id = ? AND provider = ?`,
 		userID, provider,
 	)
@@ -464,7 +464,7 @@ func (s *Store) UnlinkOAuth(userID, provider string) error {
 // HasPassword reports whether the user has a non-empty password hash set.
 func (s *Store) HasPassword(userID string) (bool, error) {
 	var hash string
-	err := s.db.QueryRow(`SELECT password_hash FROM users WHERE id = ?`, userID).Scan(&hash)
+	err := s.db.Reader().QueryRow(`SELECT password_hash FROM users WHERE id = ?`, userID).Scan(&hash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, ErrNotFound
 	}

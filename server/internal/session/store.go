@@ -70,7 +70,7 @@ func scanSession(scanner interface{ Scan(...any) error }) (*Session, error) {
 }
 
 func (s *Store) GetOrCreate(key, channel, chatID, userID string, private bool) (*Session, error) {
-	sess, err := scanSession(s.db.QueryRow(
+	sess, err := scanSession(s.db.Reader().QueryRow(
 		`SELECT `+sessionColumns+` FROM sessions WHERE key = ?`, key))
 
 	if err == sql.ErrNoRows {
@@ -79,7 +79,7 @@ func (s *Store) GetOrCreate(key, channel, chatID, userID string, private bool) (
 		if userID != "" {
 			uid = userID
 		}
-		_, err = s.db.Exec(`INSERT INTO sessions (key, channel, chat_id, user_id, private, created_at, updated_at, last_active)
+		_, err = s.db.Writer().Exec(`INSERT INTO sessions (key, channel, chat_id, user_id, private, created_at, updated_at, last_active)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, key, channel, chatID, uid, private, now, now, now)
 		if err != nil {
 			return nil, err
@@ -98,7 +98,7 @@ func (s *Store) GetOrCreate(key, channel, chatID, userID string, private bool) (
 	// their session list. This covers sessions created before multi-user was
 	// enabled.
 	if sess.UserID == "" && userID != "" {
-		s.db.Exec(`UPDATE sessions SET user_id = ? WHERE key = ? AND user_id IS NULL`, userID, key)
+		s.db.Writer().Exec(`UPDATE sessions SET user_id = ? WHERE key = ? AND user_id IS NULL`, userID, key)
 		sess.UserID = userID
 	}
 	return sess, nil
@@ -106,10 +106,10 @@ func (s *Store) GetOrCreate(key, channel, chatID, userID string, private bool) (
 
 func (s *Store) Get(key, userID string) (*Session, error) {
 	if userID == "" {
-		return scanSession(s.db.QueryRow(
+		return scanSession(s.db.Reader().QueryRow(
 			`SELECT `+sessionColumns+` FROM sessions WHERE key = ? AND user_id IS NULL`, key))
 	}
-	return scanSession(s.db.QueryRow(
+	return scanSession(s.db.Reader().QueryRow(
 		`SELECT `+sessionColumns+` FROM sessions WHERE key = ? AND user_id = ?`, key, userID))
 }
 
@@ -117,7 +117,7 @@ func (s *Store) Get(key, userID string) (*Session, error) {
 // This is intended for background workers that need session metadata (e.g.
 // the Private flag) but do not operate on behalf of a specific user.
 func (s *Store) GetByKey(key string) (*Session, error) {
-	return scanSession(s.db.QueryRow(
+	return scanSession(s.db.Reader().QueryRow(
 		`SELECT `+sessionColumns+` FROM sessions WHERE key = ?`, key))
 }
 
@@ -125,10 +125,10 @@ func (s *Store) List(userID string) ([]Session, error) {
 	var rows *sql.Rows
 	var err error
 	if userID == "" {
-		rows, err = s.db.Query(`SELECT `+sessionColumns+`
+		rows, err = s.db.Reader().Query(`SELECT `+sessionColumns+`
 			FROM sessions WHERE user_id IS NULL AND channel NOT IN ('task', 'tasks') ORDER BY last_active DESC`)
 	} else {
-		rows, err = s.db.Query(`SELECT `+sessionColumns+`
+		rows, err = s.db.Reader().Query(`SELECT `+sessionColumns+`
 			FROM sessions WHERE user_id = ? AND channel NOT IN ('task', 'tasks') ORDER BY last_active DESC`, userID)
 	}
 	if err != nil {
@@ -149,10 +149,10 @@ func (s *Store) List(userID string) ([]Session, error) {
 
 func (s *Store) Delete(key, userID string) error {
 	if userID == "" {
-		_, err := s.db.Exec("DELETE FROM sessions WHERE key = ? AND user_id IS NULL", key)
+		_, err := s.db.Writer().Exec("DELETE FROM sessions WHERE key = ? AND user_id IS NULL", key)
 		return err
 	}
-	_, err := s.db.Exec("DELETE FROM sessions WHERE key = ? AND user_id = ?", key, userID)
+	_, err := s.db.Writer().Exec("DELETE FROM sessions WHERE key = ? AND user_id = ?", key, userID)
 	return err
 }
 
@@ -166,14 +166,14 @@ func (s *Store) AddMessage(sessionKey string, msg Message) (int64, error) {
 	if msg.Metadata != "" {
 		meta = msg.Metadata
 	}
-	result, err := s.db.Exec(`INSERT INTO messages (session_key, user_id, role, content, tool_calls, tool_call_id, tools_used, metadata, created_at)
+	result, err := s.db.Writer().Exec(`INSERT INTO messages (session_key, user_id, role, content, tool_calls, tool_call_id, tools_used, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sessionKey, uid, msg.Role, msg.Content, msg.ToolCalls, msg.ToolCallID, msg.ToolsUsed, meta, now)
 	if err != nil {
 		return 0, err
 	}
 
-	s.db.Exec("UPDATE sessions SET updated_at = ?, last_active = ? WHERE key = ?", now, now, sessionKey)
+	s.db.Writer().Exec("UPDATE sessions SET updated_at = ?, last_active = ? WHERE key = ?", now, now, sessionKey)
 
 	return result.LastInsertId()
 }
@@ -192,7 +192,7 @@ func (s *Store) GetMessages(sessionKey string, limit int) ([]Message, error) {
 		args = append(args, limit)
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Reader().Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -217,23 +217,23 @@ func (s *Store) GetMessages(sessionKey string, limit int) ([]Message, error) {
 
 func (s *Store) MessageCount(sessionKey string) (int, error) {
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM messages WHERE session_key = ?", sessionKey).Scan(&count)
+	err := s.db.Reader().QueryRow("SELECT COUNT(*) FROM messages WHERE session_key = ?", sessionKey).Scan(&count)
 	return count, err
 }
 
 func (s *Store) SetSummary(sessionKey, summary string) error {
-	_, err := s.db.Exec("UPDATE sessions SET summary = ?, updated_at = ? WHERE key = ?",
+	_, err := s.db.Writer().Exec("UPDATE sessions SET summary = ?, updated_at = ? WHERE key = ?",
 		summary, time.Now(), sessionKey)
 	return err
 }
 
 func (s *Store) TruncateMessages(sessionKey string, keepLast int) error {
 	if keepLast <= 0 {
-		_, err := s.db.Exec("DELETE FROM messages WHERE session_key = ?", sessionKey)
+		_, err := s.db.Writer().Exec("DELETE FROM messages WHERE session_key = ?", sessionKey)
 		return err
 	}
 
-	_, err := s.db.Exec(`DELETE FROM messages WHERE session_key = ? AND id NOT IN (
+	_, err := s.db.Writer().Exec(`DELETE FROM messages WHERE session_key = ? AND id NOT IN (
 		SELECT id FROM messages WHERE session_key = ? ORDER BY id DESC LIMIT ?
 	)`, sessionKey, sessionKey, keepLast)
 	return err
@@ -241,7 +241,7 @@ func (s *Store) TruncateMessages(sessionKey string, keepLast int) error {
 
 // DeleteMessage removes a single message by ID.
 func (s *Store) DeleteMessage(id int64) error {
-	_, err := s.db.Exec("DELETE FROM messages WHERE id = ?", id)
+	_, err := s.db.Writer().Exec("DELETE FROM messages WHERE id = ?", id)
 	return err
 }
 
@@ -253,14 +253,14 @@ func (s *Store) SetActiveSession(key, userID string) error {
 		return err
 	}
 	if userID == "" {
-		_, err = s.db.Exec("UPDATE sessions SET is_active = 0 WHERE channel = ? AND user_id IS NULL", sess.Channel)
+		_, err = s.db.Writer().Exec("UPDATE sessions SET is_active = 0 WHERE channel = ? AND user_id IS NULL", sess.Channel)
 	} else {
-		_, err = s.db.Exec("UPDATE sessions SET is_active = 0 WHERE channel = ? AND user_id = ?", sess.Channel, userID)
+		_, err = s.db.Writer().Exec("UPDATE sessions SET is_active = 0 WHERE channel = ? AND user_id = ?", sess.Channel, userID)
 	}
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec("UPDATE sessions SET is_active = 1 WHERE key = ?", key)
+	_, err = s.db.Writer().Exec("UPDATE sessions SET is_active = 1 WHERE key = ?", key)
 	return err
 }
 
@@ -270,10 +270,10 @@ func (s *Store) GetActiveSessions(userID string) ([]Session, error) {
 	var rows *sql.Rows
 	var err error
 	if userID == "" {
-		rows, err = s.db.Query(`SELECT `+sessionColumns+`
+		rows, err = s.db.Reader().Query(`SELECT `+sessionColumns+`
 			FROM sessions WHERE is_active = 1 AND user_id IS NULL AND channel NOT IN ('task', 'tasks')`)
 	} else {
-		rows, err = s.db.Query(`SELECT `+sessionColumns+`
+		rows, err = s.db.Reader().Query(`SELECT `+sessionColumns+`
 			FROM sessions WHERE is_active = 1 AND user_id = ? AND channel NOT IN ('task', 'tasks')`, userID)
 	}
 	if err != nil {

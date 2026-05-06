@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.46.0 (2026-05-06)
+
+### Improvements
+
+- Split SQLite into separate reader/writer connection pools, unblocking concurrent reads during writes (ddc03fb)
+- New `database.max_readers` config option to tune reader pool size, default 4 (dae1803)
+
 ## 0.45.0 (2026-05-05)
 
 ### Features

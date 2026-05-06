@@ -9,7 +9,7 @@ import (
 )
 
 func TestMigrateAudit(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,21 +21,21 @@ func TestMigrateAudit(t *testing.T) {
 
 	// Verify the table exists.
 	var name string
-	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'").Scan(&name)
+	err = db.Reader().QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'").Scan(&name)
 	if err != nil {
 		t.Fatalf("audit_log table not found: %v", err)
 	}
 }
 
 func TestMigrateAuditUpgradesLegacySchema(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
 
 	// Simulate a legacy table that only has id, created_at, and a text column.
-	_, err = db.Exec(`CREATE TABLE audit_log (
+	_, err = db.Writer().Exec(`CREATE TABLE audit_log (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`)
@@ -61,7 +61,7 @@ func TestMigrateAuditUpgradesLegacySchema(t *testing.T) {
 }
 
 func TestMigrateAuditIdempotent(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestMigrateAuditIdempotent(t *testing.T) {
 }
 
 func TestLogAuditInsertAndQuery(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestLogAuditInsertAndQuery(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM audit_log").Scan(&count); err != nil {
+	if err := db.Reader().QueryRow("SELECT COUNT(*) FROM audit_log").Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 2 {
@@ -124,7 +124,7 @@ func TestLogAuditInsertAndQuery(t *testing.T) {
 
 	// Verify a blocked event was stored correctly.
 	var action, outcome, reason string
-	err = db.QueryRow(
+	err = db.Reader().QueryRow(
 		"SELECT action, outcome, reason FROM audit_log WHERE outcome = 'blocked'",
 	).Scan(&action, &outcome, &reason)
 	if err != nil {
@@ -140,7 +140,7 @@ func TestLogAuditInsertAndQuery(t *testing.T) {
 
 func setupAuditDB(t *testing.T) *DB {
 	t.Helper()
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

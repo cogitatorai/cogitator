@@ -12,7 +12,7 @@ type DailyStats struct {
 
 // RecordTokenUsage inserts a row into token_usage.
 func (db *DB) RecordTokenUsage(tier, model string, tokensIn, tokensOut int, taskRunID *int64, sessionKey string, userID *string) error {
-	_, err := db.Exec(
+	_, err := db.writer.Exec(
 		`INSERT INTO token_usage (model_tier, model_name, tokens_in, tokens_out, task_run_id, session_key, user_id)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		tier, model, tokensIn, tokensOut, taskRunID, sessionKey, userID,
@@ -30,7 +30,7 @@ func (db *DB) TodayTokenUsage(tier, userID string) (int64, error) {
 		args = append(args, userID)
 	}
 	var total int64
-	err := db.QueryRow(
+	err := db.reader.QueryRow(
 		`SELECT COALESCE(SUM(tokens_in + tokens_out), 0) FROM token_usage `+where, args...,
 	).Scan(&total)
 	return total, err
@@ -50,7 +50,7 @@ func (db *DB) DailyTokenStats(days int, userID string) ([]DailyStats, error) {
 		args = append(args, userID)
 	}
 
-	rows, err := db.Query(
+	rows, err := db.reader.Query(
 		`SELECT date(created_at) AS date, model_tier,
 		        SUM(tokens_in)  AS tokens_in,
 		        SUM(tokens_out) AS tokens_out

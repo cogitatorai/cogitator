@@ -7,7 +7,7 @@ import (
 )
 
 func TestRunNumberedMigrations_AppliesInOrder(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,21 +22,21 @@ func TestRunNumberedMigrations_AppliesInOrder(t *testing.T) {
 		},
 	}
 
-	if err := runNumberedMigrations(db.DB, fs); err != nil {
+	if err := runNumberedMigrations(db.Writer(), fs); err != nil {
 		t.Fatalf("runNumberedMigrations: %v", err)
 	}
 
 	// Verify both tables exist.
 	for _, table := range []string{"foo", "bar"} {
 		var name string
-		if err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
+		if err := db.Reader().QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
 			t.Errorf("table %q not created: %v", table, err)
 		}
 	}
 
 	// Verify both versions recorded.
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
+	if err := db.Reader().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("query schema_migrations: %v", err)
 	}
 	if count != 2 {
@@ -45,7 +45,7 @@ func TestRunNumberedMigrations_AppliesInOrder(t *testing.T) {
 }
 
 func TestRunNumberedMigrations_SkipsApplied(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,17 +61,17 @@ func TestRunNumberedMigrations_SkipsApplied(t *testing.T) {
 	}
 
 	// Run once.
-	if err := runNumberedMigrations(db.DB, fs); err != nil {
+	if err := runNumberedMigrations(db.Writer(), fs); err != nil {
 		t.Fatalf("first run: %v", err)
 	}
 
 	// Run again (should be a no-op, not fail on CREATE TABLE).
-	if err := runNumberedMigrations(db.DB, fs); err != nil {
+	if err := runNumberedMigrations(db.Writer(), fs); err != nil {
 		t.Fatalf("second run: %v", err)
 	}
 
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
+	if err := db.Reader().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("query schema_migrations: %v", err)
 	}
 	if count != 2 {
@@ -80,20 +80,20 @@ func TestRunNumberedMigrations_SkipsApplied(t *testing.T) {
 }
 
 func TestRunNumberedMigrations_NilFS(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
 
 	// nil FS should be a no-op.
-	if err := runNumberedMigrations(db.DB, nil); err != nil {
+	if err := runNumberedMigrations(db.Writer(), nil); err != nil {
 		t.Fatalf("runNumberedMigrations with nil FS: %v", err)
 	}
 }
 
 func TestRunNumberedMigrations_EmptyFS(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,13 +101,13 @@ func TestRunNumberedMigrations_EmptyFS(t *testing.T) {
 
 	fs := fstest.MapFS{}
 
-	if err := runNumberedMigrations(db.DB, fs); err != nil {
+	if err := runNumberedMigrations(db.Writer(), fs); err != nil {
 		t.Fatalf("runNumberedMigrations with empty FS: %v", err)
 	}
 }
 
 func TestRunNumberedMigrations_InvalidFilenameSkipped(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,27 +125,27 @@ func TestRunNumberedMigrations_InvalidFilenameSkipped(t *testing.T) {
 		},
 	}
 
-	if err := runNumberedMigrations(db.DB, fs); err != nil {
+	if err := runNumberedMigrations(db.Writer(), fs); err != nil {
 		t.Fatalf("runNumberedMigrations: %v", err)
 	}
 
 	// Only the valid migration should have run.
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+	db.Reader().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
 	if count != 1 {
 		t.Errorf("expected 1 migration record, got %d", count)
 	}
 
 	// The bad table should not exist.
 	var name string
-	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='bad'").Scan(&name)
+	err = db.Reader().QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='bad'").Scan(&name)
 	if err == nil {
 		t.Error("table 'bad' should not have been created")
 	}
 }
 
 func TestRunNumberedMigrations_RollsBackOnError(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,20 +160,20 @@ func TestRunNumberedMigrations_RollsBackOnError(t *testing.T) {
 		},
 	}
 
-	err = runNumberedMigrations(db.DB, fs)
+	err = runNumberedMigrations(db.Writer(), fs)
 	if err == nil {
 		t.Fatal("expected error from bad migration")
 	}
 
 	// First migration should have succeeded.
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE version = 1").Scan(&count)
+	db.Reader().QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE version = 1").Scan(&count)
 	if count != 1 {
 		t.Errorf("expected migration 0001 to be recorded, got count %d", count)
 	}
 
 	// Second migration should have been rolled back (no version record).
-	db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE version = 2").Scan(&count)
+	db.Reader().QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE version = 2").Scan(&count)
 	if count != 0 {
 		t.Errorf("expected migration 0002 to NOT be recorded, got count %d", count)
 	}

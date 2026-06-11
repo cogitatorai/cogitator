@@ -431,7 +431,7 @@ export default function Chat({ onNotificationsCleared }: { onNotificationsCleare
         // sidebar so newly created sessions appear immediately.
         refreshSessionsRef.current();
 
-        const preview = String(content).replace(/[#*_`>\[\]]/g, '').slice(0, 120);
+        const preview = String(content).replace(/[#*_`>[\]]/g, '').slice(0, 120);
         sendNotification('New response', preview);
       }
     };

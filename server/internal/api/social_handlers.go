@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cogitatorai/cogitator/server/internal/auth"
@@ -33,12 +32,6 @@ type pendingSocialAuth struct {
 	redirectURI    string // OAuth redirect_uri used in the authorization request (reused in token exchange)
 }
 
-// socialOAuthStates stores pending social OAuth state parameters.
-var socialOAuthStates = struct {
-	sync.Mutex
-	m map[string]*pendingSocialAuth
-}{m: make(map[string]*pendingSocialAuth)}
-
 // pendingAuthResult holds tokens waiting to be claimed by the client.
 type pendingAuthResult struct {
 	AccessToken  string `json:"access_token"`
@@ -46,11 +39,22 @@ type pendingAuthResult struct {
 	Error        string `json:"error,omitempty"`
 }
 
-// pendingAuthResults stores auth results keyed by claim ID.
-var pendingAuthResults = struct {
-	sync.Mutex
-	m map[string]*pendingAuthResult
-}{m: make(map[string]*pendingAuthResult)}
+// Bounds for the social OAuth stores. The unauthenticated start endpoint can be
+// hammered to grow these maps; the caps put a hard ceiling on memory, and the
+// TTLs (preserved from the previous per-entry cleanup goroutines) prune stale
+// entries on access.
+const (
+	// socialStateTTL is how long an OAuth state nonce remains valid between the
+	// start redirect and the callback.
+	socialStateTTL = 10 * time.Minute
+	// socialStateMaxEntries caps in-flight OAuth states.
+	socialStateMaxEntries = 1000
+
+	// pendingResultTTL is how long a completed auth result waits to be claimed.
+	pendingResultTTL = 5 * time.Minute
+	// pendingResultMaxEntries caps unclaimed auth results.
+	pendingResultMaxEntries = 1000
+)
 
 // socialAuthRequest is the JSON body for POST /api/auth/social.
 type socialAuthRequest struct {
@@ -403,8 +407,9 @@ func (r *Router) handleGoogleAuthStart(w http.ResponseWriter, req *http.Request)
 
 	redirectURI := r.googleCallbackURI(req)
 
-	socialOAuthStates.Lock()
-	socialOAuthStates.m[state] = &pendingSocialAuth{
+	// Store the pending state. The store prunes expired entries on access and
+	// caps total size, so stale states are bounded without a cleanup goroutine.
+	r.socialOAuthStates.set(state, &pendingSocialAuth{
 		returnTo:       returnTo,
 		purpose:        purpose,
 		token:          token,
@@ -414,16 +419,7 @@ func (r *Router) handleGoogleAuthStart(w http.ResponseWriter, req *http.Request)
 		source:         source,
 		origin:         origin,
 		redirectURI:    redirectURI,
-	}
-	socialOAuthStates.Unlock()
-
-	// Clean up stale states after 10 minutes.
-	go func() {
-		time.Sleep(10 * time.Minute)
-		socialOAuthStates.Lock()
-		delete(socialOAuthStates.m, state)
-		socialOAuthStates.Unlock()
-	}()
+	})
 
 	params := fmt.Sprintf(
 		"client_id=%s&redirect_uri=%s&response_type=code&scope=openid+email+profile&state=%s&access_type=online&prompt=select_account",
@@ -445,13 +441,8 @@ func (r *Router) handleGoogleCallback(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	socialOAuthStates.Lock()
-	pending, ok := socialOAuthStates.m[state]
-	if ok {
-		delete(socialOAuthStates.m, state)
-	}
-	socialOAuthStates.Unlock()
-
+	// Consume the state nonce: single-use, and an expired entry is rejected.
+	pending, ok := r.socialOAuthStates.take(state)
 	if !ok {
 		writeError(w, http.StatusBadRequest, "unknown or expired state")
 		return
@@ -519,17 +510,9 @@ func (r *Router) handleGoogleCallback(w http.ResponseWriter, req *http.Request) 
 	// and store the tokens for the client to claim on redirect.
 	if pending.claimID != "" {
 		result := r.completeSocialLogin(req.Context(), "google", idToken, pending.inviteCode)
-		pendingAuthResults.Lock()
-		pendingAuthResults.m[pending.claimID] = result
-		pendingAuthResults.Unlock()
-
-		// Auto-expire after 5 minutes.
-		go func() {
-			time.Sleep(5 * time.Minute)
-			pendingAuthResults.Lock()
-			delete(pendingAuthResults.m, pending.claimID)
-			pendingAuthResults.Unlock()
-		}()
+		// Store the result for the client to claim. The store auto-expires the
+		// entry on access after its TTL and is size-capped; no cleanup goroutine.
+		r.pendingAuthResults.set(pending.claimID, result)
 
 		// Mobile app: redirect to the custom URL scheme so the in-app browser
 		// closes automatically and the app can claim the tokens.
@@ -798,13 +781,7 @@ func (r *Router) handleAuthClaim(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pendingAuthResults.Lock()
-	result, ok := pendingAuthResults.m[id]
-	if ok {
-		delete(pendingAuthResults.m, id)
-	}
-	pendingAuthResults.Unlock()
-
+	result, ok := r.pendingAuthResults.take(id)
 	if !ok {
 		w.WriteHeader(http.StatusAccepted)
 		return

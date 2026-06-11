@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -346,5 +347,118 @@ func TestListOAuthLinks_Empty(t *testing.T) {
 	}
 	if len(links) != 0 {
 		t.Errorf("expected 0 links, got %d", len(links))
+	}
+}
+
+// --- OAuth state / pending-result store behavior (bounded TTL stores) ---
+
+// TestAuthClaim_StoredResultClaimedOnce verifies the pending-result store's
+// single-use semantics through the HTTP claim endpoint: the stored tokens are
+// returned exactly once, and a second poll for the same id returns 202.
+func TestAuthClaim_StoredResultClaimedOnce(t *testing.T) {
+	router, _ := setupSocialRouter(t, &mockSocialVerifier{})
+
+	router.pendingAuthResults.set("claim-1", &pendingAuthResult{
+		AccessToken:  "access-abc",
+		RefreshToken: "refresh-def",
+	})
+
+	rec := doRequest(t, router, "GET", "/api/auth/claim/claim-1", "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on first claim, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var got pendingAuthResult
+	decodeJSON(t, rec, &got)
+	if got.AccessToken != "access-abc" || got.RefreshToken != "refresh-def" {
+		t.Fatalf("unexpected tokens: %+v", got)
+	}
+
+	// Single-use: the second poll finds nothing and returns 202.
+	rec2 := doRequest(t, router, "GET", "/api/auth/claim/claim-1", "", nil)
+	if rec2.Code != http.StatusAccepted {
+		t.Fatalf("expected 202 after result already claimed, got %d", rec2.Code)
+	}
+}
+
+// TestAuthClaim_ExpiredResultNotReturned verifies that a result past its TTL is
+// treated as absent (202), exercising on-access expiry in the live flow.
+func TestAuthClaim_ExpiredResultNotReturned(t *testing.T) {
+	router, _ := setupSocialRouter(t, &mockSocialVerifier{})
+
+	now := time.Unix(1000, 0)
+	router.pendingAuthResults.now = func() time.Time { return now }
+
+	router.pendingAuthResults.set("claim-exp", &pendingAuthResult{AccessToken: "tok"})
+
+	// Advance past the result TTL: the entry must be rejected as expired.
+	now = now.Add(pendingResultTTL + time.Second)
+
+	rec := doRequest(t, router, "GET", "/api/auth/claim/claim-exp", "", nil)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202 for expired result, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestSocialState_ExpiredRejected verifies state expiry semantics: once a state
+// nonce is past its TTL it is no longer retrievable, so the callback would
+// reject it as "unknown or expired state".
+func TestSocialState_ExpiredRejected(t *testing.T) {
+	router, _ := setupSocialRouter(t, &mockSocialVerifier{})
+
+	now := time.Unix(2000, 0)
+	router.socialOAuthStates.now = func() time.Time { return now }
+
+	router.socialOAuthStates.set("state-x", &pendingSocialAuth{purpose: "login"})
+
+	now = now.Add(socialStateTTL + time.Second)
+	if _, ok := router.socialOAuthStates.take("state-x"); ok {
+		t.Fatal("expired state must be rejected (auth denied)")
+	}
+}
+
+// TestSocialState_SingleUse verifies a state nonce is consumed on first take, so
+// a replayed callback with the same state is rejected.
+func TestSocialState_SingleUse(t *testing.T) {
+	router, _ := setupSocialRouter(t, &mockSocialVerifier{})
+
+	router.socialOAuthStates.set("state-once", &pendingSocialAuth{purpose: "login"})
+
+	if _, ok := router.socialOAuthStates.take("state-once"); !ok {
+		t.Fatal("first take of a valid state should succeed")
+	}
+	if _, ok := router.socialOAuthStates.take("state-once"); ok {
+		t.Fatal("state nonce must be single-use; replay must be rejected")
+	}
+}
+
+// TestSocialState_CapEvictsOldestNewestUsable verifies the hard cap: once the
+// store is full, the oldest state is evicted while the newest remains fully
+// usable (the common live flow for a recent user is unaffected).
+func TestSocialState_CapEvictsOldestNewestUsable(t *testing.T) {
+	router, _ := setupSocialRouter(t, &mockSocialVerifier{})
+
+	base := time.Unix(3000, 0)
+	cur := base
+	router.socialOAuthStates.now = func() time.Time { return cur }
+
+	max := router.socialOAuthStates.max
+	// Fill to capacity; "s0" is the oldest.
+	for i := 0; i < max; i++ {
+		cur = base.Add(time.Duration(i) * time.Millisecond)
+		router.socialOAuthStates.set("s"+strconv.Itoa(i), &pendingSocialAuth{purpose: "login"})
+	}
+	// One more distinct state evicts the oldest.
+	cur = base.Add(time.Duration(max) * time.Millisecond)
+	router.socialOAuthStates.set("newest", &pendingSocialAuth{purpose: "link"})
+
+	if _, ok := router.socialOAuthStates.take("s0"); ok {
+		t.Fatal("oldest state should have been evicted at cap")
+	}
+	got, ok := router.socialOAuthStates.take("newest")
+	if !ok {
+		t.Fatal("newest state must remain usable after eviction")
+	}
+	if got.purpose != "link" {
+		t.Fatalf("expected newest state preserved, got purpose %q", got.purpose)
 	}
 }

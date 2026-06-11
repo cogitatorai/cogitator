@@ -118,6 +118,13 @@ type Router struct {
 
 	authFailures *failTracker // brute-force protection for auth endpoints
 
+	// Bounded, TTL-pruned stores for the social OAuth flow. They replace
+	// unbounded package-level maps (memory DoS) and per-entry cleanup
+	// goroutines (leak). State nonces are consumed on the OAuth callback;
+	// auth results are consumed on claim polling.
+	socialOAuthStates  *ttlStore[*pendingSocialAuth]
+	pendingAuthResults *ttlStore[*pendingAuthResult]
+
 	usageWarningMu         sync.RWMutex
 	usageWarningLevel      string
 	usageWarningPct        float64
@@ -224,6 +231,8 @@ func NewRouter(cfg RouterConfig) *Router {
 		orchestratorURL:      cfg.OrchestratorURL,
 		tenantID:             cfg.TenantID,
 		authFailures:         newFailTracker(),
+		socialOAuthStates:    newTTLStore[*pendingSocialAuth](socialStateTTL, socialStateMaxEntries),
+		pendingAuthResults:   newTTLStore[*pendingAuthResult](pendingResultTTL, pendingResultMaxEntries),
 	}
 	r.registerRoutes()
 

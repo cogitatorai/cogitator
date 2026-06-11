@@ -489,3 +489,44 @@ func TestLogout_HappyPath(t *testing.T) {
 		t.Errorf("expected 401 after logout, got %d", refreshW.Code)
 	}
 }
+
+// TestSetup_SecondCallRejected verifies the first-run setup flow: the first
+// setup creates the admin (201), and a second setup is rejected with 409
+// "setup already completed", preserving the existing already-set-up contract.
+func TestSetup_SecondCallRejected(t *testing.T) {
+	router, _ := setupAuthRouter(t)
+
+	doSetup := func(email string) *httptest.ResponseRecorder {
+		payload, _ := json.Marshal(setupRequest{
+			Email:    email,
+			Name:     "Owner",
+			Password: "secret123",
+		})
+		req := httptest.NewRequest("POST", "/api/auth/setup", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		return w
+	}
+
+	first := doSetup("owner@test.com")
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first setup: expected 201, got %d: %s", first.Code, first.Body.String())
+	}
+	var resp authResponse
+	json.NewDecoder(first.Body).Decode(&resp)
+	if resp.User == nil || resp.User.Role != user.RoleAdmin {
+		t.Fatalf("first setup: expected admin user in response, got %+v", resp.User)
+	}
+	if resp.AccessToken == "" || resp.RefreshToken == "" {
+		t.Error("first setup: expected non-empty tokens")
+	}
+
+	second := doSetup("attacker@test.com")
+	if second.Code != http.StatusConflict {
+		t.Fatalf("second setup: expected 409, got %d: %s", second.Code, second.Body.String())
+	}
+	if !bytes.Contains(second.Body.Bytes(), []byte("setup already completed")) {
+		t.Errorf("second setup: expected 'setup already completed' message, got %s", second.Body.String())
+	}
+}

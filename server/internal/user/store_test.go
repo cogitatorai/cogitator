@@ -1,8 +1,11 @@
 package user
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -74,6 +77,121 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for duplicate email, got nil")
+	}
+}
+
+func TestCreateFirstAdmin_EmptyDB(t *testing.T) {
+	s := setupTestDB(t)
+
+	u, err := s.CreateFirstAdmin(CreateUserInput{
+		Email:    "owner@test.com",
+		Name:     "Owner",
+		Password: "secret123",
+	})
+	if err != nil {
+		t.Fatalf("CreateFirstAdmin() on empty DB error: %v", err)
+	}
+	if u.Role != RoleAdmin {
+		t.Errorf("role = %q, want %q", u.Role, RoleAdmin)
+	}
+	if u.PasswordHash == "" || u.PasswordHash == "secret123" {
+		t.Error("expected a hashed (non-raw, non-empty) password")
+	}
+
+	count, err := s.Count()
+	if err != nil {
+		t.Fatalf("Count() error: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("user count = %d, want 1", count)
+	}
+}
+
+func TestCreateFirstAdmin_AlreadySetUp(t *testing.T) {
+	s := setupTestDB(t)
+
+	// Any pre-existing user (created via the normal path) must block setup.
+	if _, err := s.Create(CreateUserInput{
+		Email:    "existing@test.com",
+		Password: "pass",
+		Role:     RoleUser,
+	}); err != nil {
+		t.Fatalf("seed Create() error: %v", err)
+	}
+
+	_, err := s.CreateFirstAdmin(CreateUserInput{
+		Email:    "owner@test.com",
+		Name:     "Owner",
+		Password: "secret123",
+	})
+	if !errors.Is(err, ErrSetupComplete) {
+		t.Fatalf("CreateFirstAdmin() error = %v, want ErrSetupComplete", err)
+	}
+
+	count, err := s.Count()
+	if err != nil {
+		t.Fatalf("Count() error: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("user count = %d, want 1 (no second admin created)", count)
+	}
+}
+
+// TestCreateFirstAdmin_Concurrent launches many goroutines racing to create the
+// first admin on a single shared DB. Exactly one must succeed; the rest must see
+// ErrSetupComplete. This is the regression guard for the TOCTOU race. Run under
+// -race to also catch data races.
+func TestCreateFirstAdmin_Concurrent(t *testing.T) {
+	s := setupTestDB(t)
+
+	const n = 20
+	var wg sync.WaitGroup
+	var successes int64
+	var setupComplete int64
+	errCh := make(chan error, n)
+
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			_, err := s.CreateFirstAdmin(CreateUserInput{
+				Email:    "owner@test.com",
+				Name:     "Owner",
+				Password: "secret123",
+			})
+			switch {
+			case err == nil:
+				atomic.AddInt64(&successes, 1)
+			case errors.Is(err, ErrSetupComplete):
+				atomic.AddInt64(&setupComplete, 1)
+			default:
+				errCh <- err
+			}
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		t.Errorf("unexpected error from CreateFirstAdmin(): %v", err)
+	}
+
+	if got := atomic.LoadInt64(&successes); got != 1 {
+		t.Errorf("successful creations = %d, want exactly 1", got)
+	}
+	if got := atomic.LoadInt64(&setupComplete); got != n-1 {
+		t.Errorf("ErrSetupComplete count = %d, want %d", got, n-1)
+	}
+
+	count, err := s.Count()
+	if err != nil {
+		t.Fatalf("Count() error: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("final user count = %d, want exactly 1", count)
 	}
 }
 

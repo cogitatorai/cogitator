@@ -287,13 +287,20 @@ func (r *Router) handleSetup(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	u, err := r.users.Create(user.CreateUserInput{
+	// CreateFirstAdmin atomically inserts the admin only if no user exists,
+	// closing the TOCTOU race where two concurrent setup requests both observe
+	// an empty users table. The count check above is a fast-path courtesy; this
+	// call is the authoritative guard.
+	u, err := r.users.CreateFirstAdmin(user.CreateUserInput{
 		Email:    body.Email,
 		Name:     body.Name,
 		Password: body.Password,
-		Role:     user.RoleAdmin,
 	})
 	if err != nil {
+		if errors.Is(err, user.ErrSetupComplete) {
+			writeError(w, http.StatusConflict, "setup already completed")
+			return
+		}
 		if errors.Is(err, user.ErrDuplicateUser) {
 			writeError(w, http.StatusConflict, "an account with this email already exists")
 			return

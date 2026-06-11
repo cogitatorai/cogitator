@@ -1,0 +1,15 @@
+# Keep secrets and local artifacts out of the Docker build context.
+# The build needs: .git (version via git describe), dashboard/, server/.
+.env
+secrets.yaml
+cogitator
+bin/
+*.db
+*.db-shm
+*.db-wal
+dashboard/node_modules/
+dashboard/dist/
+server/bin/
+server/eval/testdata/cache/
+docs/
+IMPROVEMENTS.md

@@ -116,6 +116,8 @@ type Router struct {
 	orchestratorURL      string
 	tenantID             string
 
+	authFailures *failTracker // brute-force protection for auth endpoints
+
 	usageWarningMu         sync.RWMutex
 	usageWarningLevel      string
 	usageWarningPct        float64
@@ -221,6 +223,7 @@ func NewRouter(cfg RouterConfig) *Router {
 		isSaaS:               cfg.IsSaaS,
 		orchestratorURL:      cfg.OrchestratorURL,
 		tenantID:             cfg.TenantID,
+		authFailures:         newFailTracker(),
 	}
 	r.registerRoutes()
 

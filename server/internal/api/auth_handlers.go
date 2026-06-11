@@ -82,6 +82,14 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Brute-force protection: per-IP only. A flood of registration attempts
+	// (e.g. invite-code guessing) from one source is throttled.
+	ipKey := "register:ip:" + clientIP(req, r.isSaaS)
+	if blocked, retry := r.authFailures.blocked(ipKey, registerIPMaxFailures, registerIPWindow); blocked {
+		writeAuthThrottled(w, retry)
+		return
+	}
+
 	// Step 1: Create the user with a temporary "user" role.
 	u, err := r.users.Create(user.CreateUserInput{
 		Email:    body.Email,
@@ -91,6 +99,7 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, user.ErrDuplicateUser) {
+			r.authFailures.fail(ipKey, registerIPWindow)
 			writeError(w, http.StatusConflict, "an account with this email already exists")
 			return
 		}
@@ -103,6 +112,7 @@ func (r *Router) handleRegister(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		// Cleanup the user we just created.
 		_ = r.users.Delete(u.ID)
+		r.authFailures.fail(ipKey, registerIPWindow)
 		switch {
 		case errors.Is(err, user.ErrCodeNotFound):
 			writeError(w, http.StatusBadRequest, "invalid invite code")
@@ -142,11 +152,32 @@ func (r *Router) handleLogin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Brute-force protection: reject if either this account or this source IP
+	// has crossed the failure threshold. The 429 message is generic and
+	// identical for both cases so it never reveals whether the account exists.
+	accountKey := "login:account:" + strings.ToLower(strings.TrimSpace(body.Email))
+	ipKey := "login:ip:" + clientIP(req, r.isSaaS)
+	if blocked, retry := r.authFailures.blocked(accountKey, loginAccountMaxFailures, loginAccountWindow); blocked {
+		writeAuthThrottled(w, retry)
+		return
+	}
+	if blocked, retry := r.authFailures.blocked(ipKey, loginIPMaxFailures, loginIPWindow); blocked {
+		writeAuthThrottled(w, retry)
+		return
+	}
+
 	u, err := r.users.Authenticate(body.Email, body.Password)
 	if err != nil {
+		// Failed attempt increments both the per-account and per-IP counters.
+		r.authFailures.fail(accountKey, loginAccountWindow)
+		r.authFailures.fail(ipKey, loginIPWindow)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+
+	// Successful login resets the per-account counter (NOT the per-IP counter,
+	// so credential stuffing across many accounts from one IP is still bounded).
+	r.authFailures.reset(accountKey)
 
 	r.issueTokens(w, u, http.StatusOK)
 }
@@ -164,10 +195,19 @@ func (r *Router) handleRefresh(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Brute-force protection: per-IP only. Guards against refresh-token
+	// guessing from a single source.
+	ipKey := "refresh:ip:" + clientIP(req, r.isSaaS)
+	if blocked, retry := r.authFailures.blocked(ipKey, refreshIPMaxFailures, refreshIPWindow); blocked {
+		writeAuthThrottled(w, retry)
+		return
+	}
+
 	tokenHash := r.jwtSvc.HashToken(body.RefreshToken)
 
 	userID, err := r.users.ValidateRefreshToken(tokenHash)
 	if err != nil {
+		r.authFailures.fail(ipKey, refreshIPWindow)
 		writeError(w, http.StatusUnauthorized, "invalid or expired refresh token")
 		return
 	}

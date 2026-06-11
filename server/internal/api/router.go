@@ -224,7 +224,9 @@ func NewRouter(cfg RouterConfig) *Router {
 	}
 	r.registerRoutes()
 
-	// Compose middleware chain: CORS (outermost) -> auth -> mux (innermost).
+	// Compose middleware chain: recover (outermost) -> drain -> metrics ->
+	// CORS -> auth -> mux (innermost). Recover wraps everything so it catches
+	// panics from the other middleware as well as the handlers.
 	var handler http.Handler = r.mux
 	if cfg.JWTService != nil {
 		handler = jwtAuthMiddleware(cfg.JWTService, r.internalSecret != "", handler)
@@ -236,6 +238,7 @@ func NewRouter(cfg RouterConfig) *Router {
 	if cfg.DrainManager != nil {
 		handler = cfg.DrainManager.Middleware()(handler)
 	}
+	handler = recoverMiddleware(handler)
 	r.handler = handler
 
 	return r

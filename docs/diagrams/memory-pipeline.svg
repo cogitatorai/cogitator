@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 760" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="12">
+  <defs>
+    <marker id="mp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="mpO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ea580c"/>
+    </marker>
+    <marker id="mpG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#16a34a"/>
+    </marker>
+    <marker id="mpB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2563eb"/>
+    </marker>
+  </defs>
+  <rect width="1040" height="760" rx="8" fill="#f8fafc"/>
+  <style>
+    .band { fill: #f8fafc; stroke: #cbd5e1; }
+    .bandlabel { fill: #64748b; font-size: 11px; letter-spacing: 2px; font-weight: 600; }
+    .box { fill: #ffffff; stroke: #334155; stroke-width: 1.2; }
+    .boxHot { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.6; }
+    .boxLLM { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.2; }
+    .boxStore { fill: #ecfdf5; stroke: #16a34a; stroke-width: 1.2; }
+    .boxRetr { fill: #faf5ff; stroke: #7c3aed; stroke-width: 1.4; }
+    .title { fill: #0f172a; font-weight: 600; font-size: 12.5px; }
+    .sub { fill: #475569; font-size: 11px; }
+    .detail { fill: #64748b; font-size: 10px; }
+    .flow { stroke: #334155; stroke-width: 1.3; fill: none; }
+    .flowO { stroke: #ea580c; stroke-width: 1.4; fill: none; }
+    .flowG { stroke: #16a34a; stroke-width: 1.3; fill: none; }
+    .flowB { stroke: #2563eb; stroke-width: 1.3; fill: none; }
+    .flowDash { stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4 3; fill: none; }
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+    .sectionLabel { fill: #0f172a; font-weight: 700; font-size: 13px; }
+    .note { fill: #64748b; font-size: 10px; font-style: italic; }
+  </style>
+
+  <text x="18" y="26" class="header">Memory Pipeline — Intake and Retrieval</text>
+  <text x="18" y="44" class="sub">Two paths: intake (save -> enrich -> dedup -> consolidate -> reflect -> profile) and retrieval (embed -> score -> budget -> edges -> prompt)</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- INTAKE PIPELINE                             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <rect x="14" y="60" width="1012" height="400" class="band" rx="6"/>
+  <text x="26" y="78" class="bandlabel">INTAKE PIPELINE</text>
+
+  <!-- Row 1: Ingestion -->
+  <text x="30" y="100" class="sectionLabel">Ingestion</text>
+
+  <rect x="30" y="108" width="140" height="50" class="box" rx="5"/>
+  <text x="100" y="128" text-anchor="middle" class="title">User message</text>
+  <text x="100" y="144" text-anchor="middle" class="sub">via chat</text>
+
+  <path class="flow" d="M170,133 L195,133" marker-end="url(#mp)"/>
+
+  <rect x="200" y="108" width="140" height="50" class="boxHot" rx="5"/>
+  <text x="270" y="128" text-anchor="middle" class="title" fill="#9a3412">save_memory</text>
+  <text x="270" y="144" text-anchor="middle" class="sub">LLM tool call</text>
+
+  <path class="flow" d="M340,133 L365,133" marker-end="url(#mp)"/>
+
+  <rect x="370" y="108" width="170" height="50" class="boxStore" rx="5"/>
+  <text x="455" y="128" text-anchor="middle" class="title" fill="#14532d">Create node</text>
+  <text x="455" y="144" text-anchor="middle" class="sub">status=pending · content to disk</text>
+
+  <path class="flow" d="M540,133 L565,133" marker-end="url(#mp)"/>
+
+  <rect x="570" y="108" width="180" height="50" class="boxHot" rx="5"/>
+  <text x="660" y="128" text-anchor="middle" class="title" fill="#9a3412">Event Bus</text>
+  <text x="660" y="144" text-anchor="middle" class="sub">publish EnrichmentQueued</text>
+
+  <!-- Row 2: Enrichment -->
+  <text x="30" y="190" class="sectionLabel">Enrichment (3 concurrent workers, cheap model)</text>
+
+  <path class="flowO" d="M660,158 L660,210 L75,210 L75,220" marker-end="url(#mpO)"/>
+
+  <rect x="30" y="224" width="170" height="70" class="boxLLM" rx="5"/>
+  <text x="115" y="244" text-anchor="middle" class="title" fill="#1e3a8a">LLM classify</text>
+  <text x="115" y="260" text-anchor="middle" class="sub">type · summary · tags</text>
+  <text x="115" y="276" text-anchor="middle" class="sub">triggers · related nodes</text>
+
+  <path class="flow" d="M200,259 L225,259" marker-end="url(#mp)"/>
+
+  <rect x="230" y="224" width="150" height="70" class="boxStore" rx="5"/>
+  <text x="305" y="244" text-anchor="middle" class="title" fill="#14532d">Mark complete</text>
+  <text x="305" y="260" text-anchor="middle" class="sub">status=complete</text>
+  <text x="305" y="276" text-anchor="middle" class="sub">UpdateNode</text>
+
+  <path class="flow" d="M380,259 L405,259" marker-end="url(#mp)"/>
+
+  <rect x="410" y="224" width="140" height="70" class="boxLLM" rx="5"/>
+  <text x="480" y="244" text-anchor="middle" class="title" fill="#1e3a8a">Embed node</text>
+  <text x="480" y="260" text-anchor="middle" class="sub">text-embedding-3-small</text>
+  <text x="480" y="276" text-anchor="middle" class="sub">1536 dims -> BLOB</text>
+
+  <path class="flow" d="M550,259 L575,259" marker-end="url(#mp)"/>
+
+  <rect x="580" y="224" width="160" height="80" class="box" rx="5"/>
+  <text x="660" y="244" text-anchor="middle" class="title">Dedup check</text>
+  <text x="660" y="260" text-anchor="middle" class="sub">cosine >= 0.90 AND</text>
+  <text x="660" y="276" text-anchor="middle" class="sub">Jaccard(title) >= 0.50</text>
+  <text x="660" y="292" text-anchor="middle" class="sub">(merge + delete new)</text>
+
+  <path class="flow" d="M740,259 L765,259" marker-end="url(#mp)"/>
+
+  <rect x="770" y="224" width="140" height="70" class="boxStore" rx="5"/>
+  <text x="840" y="244" text-anchor="middle" class="title" fill="#14532d">Create edges</text>
+  <text x="840" y="260" text-anchor="middle" class="sub">related_to · contradicts</text>
+  <text x="840" y="276" text-anchor="middle" class="sub">weights from cosine sim</text>
+
+  <!-- Row 3: Background workers (event-driven) -->
+  <text x="30" y="345" class="sectionLabel">Background workers (event-driven, operate on complete nodes only)</text>
+
+  <rect x="30" y="356" width="300" height="86" class="boxHot" rx="5"/>
+  <text x="180" y="376" text-anchor="middle" class="title" fill="#9a3412">Consolidator</text>
+  <text x="180" y="392" text-anchor="middle" class="sub">adaptive threshold: min(5 + nodes/20, 50)</text>
+  <text x="180" y="408" text-anchor="middle" class="sub">cluster by cosine >= 0.7 (greedy single-linkage)</text>
+  <text x="180" y="424" text-anchor="middle" class="sub">synthesize pattern nodes (no LLM) -> re-enrich</text>
+
+  <rect x="350" y="356" width="300" height="86" class="boxHot" rx="5"/>
+  <text x="500" y="376" text-anchor="middle" class="title" fill="#9a3412">Reflector</text>
+  <text x="500" y="392" text-anchor="middle" class="sub">English: regex (corrections, acks, refinements)</text>
+  <text x="500" y="408" text-anchor="middle" class="sub">Other: LLM fallback for signal detection</text>
+  <text x="500" y="424" text-anchor="middle" class="sub">create episodes · adjust confidence (+0.05 / -0.2)</text>
+
+  <rect x="670" y="356" width="250" height="86" class="boxHot" rx="5"/>
+  <text x="795" y="376" text-anchor="middle" class="title" fill="#9a3412">Profiler</text>
+  <text x="795" y="392" text-anchor="middle" class="sub">triggers every 5 enrichments</text>
+  <text x="795" y="408" text-anchor="middle" class="sub">reads all nodes, generates profile.md</text>
+  <text x="795" y="424" text-anchor="middle" class="sub">~2000 tokens -> injected in system prompt</text>
+
+  <!-- Consolidator + Profiler: EnrichmentQueued as wake-up signal from Event Bus -->
+  <path class="flowO" d="M660,158 L960,158 L960,340 L180,340 L180,356" marker-end="url(#mpO)"/>
+  <text x="964" y="250" class="note">EnrichmentQueued (wake-up signal)</text>
+  <path class="flowO" d="M795,340 L795,356" marker-end="url(#mpO)"/>
+  <!-- Reflector: separate trigger based on session activity -->
+  <path class="flowDash" d="M500,340 L500,356"/>
+  <text x="510" y="350" class="note">ReflectionTriggered (session idle)</text>
+
+  <!-- Consolidator re-enrich arrow -->
+  <path class="flowDash" d="M30,420 L20,420 L20,210 L75,210" />
+  <text x="24" y="310" class="note" transform="rotate(-90, 24, 310)">patterns re-enter enrichment</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- RETRIEVAL PIPELINE                          -->
+  <!-- ═══════════════════════════════════════════ -->
+  <rect x="14" y="476" width="1012" height="270" class="band" rx="6"/>
+  <text x="26" y="494" class="bandlabel">RETRIEVAL PIPELINE (on every chat message)</text>
+
+  <!-- Row 1: Query construction + scoring -->
+  <rect x="30" y="508" width="150" height="56" class="box" rx="5"/>
+  <text x="105" y="528" text-anchor="middle" class="title">Build query</text>
+  <text x="105" y="544" text-anchor="middle" class="sub">last 5 msgs + current</text>
+  <text x="105" y="556" text-anchor="middle" class="sub">single string</text>
+
+  <path class="flowB" d="M180,536 L205,536" marker-end="url(#mpB)"/>
+
+  <rect x="210" y="508" width="140" height="56" class="boxLLM" rx="5"/>
+  <text x="280" y="528" text-anchor="middle" class="title" fill="#1e3a8a">Embed query</text>
+  <text x="280" y="544" text-anchor="middle" class="sub">embedding API call</text>
+  <text x="280" y="556" text-anchor="middle" class="sub">-> query vector</text>
+
+  <path class="flowB" d="M350,536 L375,536" marker-end="url(#mpB)"/>
+
+  <rect x="380" y="508" width="130" height="56" class="box" rx="5"/>
+  <text x="445" y="528" text-anchor="middle" class="title">Add pinned</text>
+  <text x="445" y="544" text-anchor="middle" class="sub">always included</text>
+  <text x="445" y="556" text-anchor="middle" class="sub">bypass scoring + budget</text>
+
+  <path class="flowB" d="M510,536 L535,536" marker-end="url(#mpB)"/>
+
+  <rect x="540" y="508" width="180" height="56" class="boxRetr" rx="5"/>
+  <text x="630" y="524" text-anchor="middle" class="title" fill="#5b21b6">Score + filter</text>
+  <text x="630" y="540" text-anchor="middle" class="sub">discard cosine &lt; 0.3 (raw)</text>
+  <text x="630" y="556" text-anchor="middle" class="sub">rank by cosine * conf * boost</text>
+
+  <path class="flowB" d="M720,536 L745,536" marker-end="url(#mpB)"/>
+
+  <rect x="750" y="508" width="160" height="56" class="box" rx="5"/>
+  <text x="830" y="528" text-anchor="middle" class="title">Sort + select</text>
+  <text x="830" y="544" text-anchor="middle" class="sub">descending by score</text>
+  <text x="830" y="556" text-anchor="middle" class="sub">in-memory cache (per user)</text>
+
+  <!-- Row 2: Budget + edges + output -->
+  <rect x="30" y="588" width="170" height="56" class="boxRetr" rx="5"/>
+  <text x="115" y="608" text-anchor="middle" class="title" fill="#5b21b6">Fill token budget</text>
+  <text x="115" y="624" text-anchor="middle" class="sub">2000 tokens (greedy by score)</text>
+  <text x="115" y="636" text-anchor="middle" class="sub">est = content_length/4 + 30</text>
+
+  <path class="flowB" d="M830,564 L830,576 L20,576 L20,616 L25,616" marker-end="url(#mpB)"/>
+
+  <path class="flowB" d="M200,616 L225,616" marker-end="url(#mpB)"/>
+
+  <rect x="230" y="588" width="170" height="56" class="box" rx="5"/>
+  <text x="315" y="608" text-anchor="middle" class="title">1-hop edges</text>
+  <text x="315" y="624" text-anchor="middle" class="sub">weight >= 0.5</text>
+  <text x="315" y="636" text-anchor="middle" class="sub">summaries only (no budget)</text>
+
+  <path class="flowB" d="M400,616 L425,616" marker-end="url(#mpB)"/>
+
+  <rect x="430" y="588" width="170" height="56" class="box" rx="5"/>
+  <text x="515" y="608" text-anchor="middle" class="title">Boost confidence</text>
+  <text x="515" y="624" text-anchor="middle" class="sub">+0.02 per retrieval</text>
+  <text x="515" y="636" text-anchor="middle" class="sub">capped at 0.95</text>
+
+  <path class="flowB" d="M600,616 L625,616" marker-end="url(#mpB)"/>
+
+  <rect x="630" y="588" width="160" height="56" class="box" rx="5"/>
+  <text x="710" y="608" text-anchor="middle" class="title">Format markdown</text>
+  <text x="710" y="624" text-anchor="middle" class="sub">pinned -> retrieved -> related</text>
+  <text x="710" y="636" text-anchor="middle" class="sub">with type + owner annotations</text>
+
+  <path class="flowB" d="M790,616 L815,616" marker-end="url(#mpB)"/>
+
+  <rect x="820" y="588" width="190" height="56" class="boxRetr" rx="5"/>
+  <text x="915" y="608" text-anchor="middle" class="title" fill="#5b21b6">System prompt</text>
+  <text x="915" y="624" text-anchor="middle" class="sub">profile.md + retrieved memories</text>
+  <text x="915" y="636" text-anchor="middle" class="sub">+ skills + MCP + user context</text>
+
+  <!-- Scoring formula callout -->
+  <rect x="30" y="660" width="496" height="76" rx="5" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+  <text x="46" y="680" class="title">Scoring formula</text>
+  <text x="46" y="698" class="sub">score = cosine_similarity(query, node) * confidence * type_boost</text>
+  <text x="46" y="714" class="sub">type_boost: 1.1 for fact/preference, 1.0 for pattern/skill</text>
+  <text x="46" y="728" class="sub">confidence: starts 0.5, +0.02/retrieval (cap 0.95), -0.1/contradiction</text>
+
+  <!-- Triggers callout -->
+  <rect x="544" y="660" width="480" height="76" rx="5" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+  <text x="560" y="680" class="title">Worker triggers (event = wake-up, not readiness)</text>
+  <text x="560" y="698" class="sub">Enricher: EnrichmentQueued + 5-min ticker (startup recovery)</text>
+  <text x="560" y="714" class="sub">Consolidator: EnrichmentQueued -> query only status=complete nodes</text>
+  <text x="560" y="728" class="sub">Profiler: counts events, regenerates every N; Reflector: session idle</text>
+
+</svg>

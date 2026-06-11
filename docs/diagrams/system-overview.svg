@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 700" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="13">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="1020" height="700" rx="8" fill="#f8fafc"/>
+  <style>
+    .band { fill: #f8fafc; stroke: #cbd5e1; }
+    .bandlabel { fill: #64748b; font-size: 11px; letter-spacing: 2px; font-weight: 600; }
+    .box { fill: #ffffff; stroke: #334155; stroke-width: 1.2; }
+    .boxcore { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.6; }
+    .boxdata { fill: #ecfdf5; stroke: #16a34a; stroke-width: 1.2; }
+    .boxext { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.2; }
+    .title { font-weight: 600; fill: #0f172a; }
+    .sub { font-size: 11px; fill: #475569; }
+    .edge { stroke: #334155; stroke-width: 1.2; fill: none; }
+    .edgeOrange { stroke: #ea580c; stroke-width: 1.6; fill: none; }
+    .edgeDashed { stroke: #94a3b8; stroke-width: 1; stroke-dasharray: 4 3; fill: none; }
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+  </style>
+
+  <text x="18" y="26" class="header">Cogitator — System Overview</text>
+  <text x="18" y="44" class="sub">Packaged as a single Go binary with SQLite (WAL)</text>
+
+  <!-- ═══ CLIENTS ═══ -->
+  <rect x="14" y="60" width="992" height="80" class="band" rx="6"/>
+  <text x="26" y="78" class="bandlabel">CLIENTS</text>
+  <rect x="40"  y="86" width="225" height="44" class="box" rx="5"/>
+  <text x="152" y="108" text-anchor="middle" class="title">Dashboard</text>
+  <text x="152" y="122" text-anchor="middle" class="sub">React · Vite</text>
+  <rect x="285" y="86" width="195" height="44" class="box" rx="5"/>
+  <text x="382" y="108" text-anchor="middle" class="title">Mobile</text>
+  <text x="382" y="122" text-anchor="middle" class="sub">Android · iOS</text>
+  <rect x="500" y="86" width="240" height="44" class="box" rx="5"/>
+  <text x="620" y="108" text-anchor="middle" class="title">macOS Wrapper</text>
+  <text x="620" y="122" text-anchor="middle" class="sub">Swift · WKWebView</text>
+  <rect x="760" y="86" width="230" height="44" class="box" rx="5"/>
+  <text x="875" y="108" text-anchor="middle" class="title">CLI / MCP</text>
+  <text x="875" y="122" text-anchor="middle" class="sub">raw HTTP · WS</text>
+
+  <!-- Clients -> Ingress -->
+  <path class="edge" d="M152,130 L152,150" marker-end="url(#arr)"/>
+  <path class="edge" d="M382,130 L382,150" marker-end="url(#arr)"/>
+  <path class="edge" d="M620,130 L620,150" marker-end="url(#arr)"/>
+  <path class="edge" d="M875,130 L875,150" marker-end="url(#arr)"/>
+
+  <!-- ═══ INGRESS ═══ -->
+  <rect x="14" y="150" width="992" height="52" class="band" rx="6"/>
+  <text x="26" y="168" class="bandlabel">INGRESS</text>
+  <rect x="40"  y="170" width="540" height="24" class="box" rx="4"/>
+  <text x="310" y="186" text-anchor="middle" class="title">HTTP API · JWT · CORS</text>
+  <rect x="600" y="170" width="390" height="24" class="box" rx="4"/>
+  <text x="795" y="186" text-anchor="middle" class="title">WebSocket (chat streaming · voice)</text>
+
+  <!-- ═══ CORE ═══ -->
+  <rect x="14" y="218" width="992" height="100" class="band" rx="6"/>
+  <text x="26" y="236" class="bandlabel">CORE</text>
+
+  <!-- Agent: left half -->
+  <rect x="40" y="240" width="440" height="66" class="boxcore" rx="6"/>
+  <text x="260" y="262" text-anchor="middle" class="title" fill="#9a3412">Agent</text>
+  <text x="260" y="278" text-anchor="middle" class="sub">Chat() · RunTask() · 25-round tool loop</text>
+  <text x="260" y="294" text-anchor="middle" class="sub">context builder · budget guard · memory intake/retrieval</text>
+
+  <!-- Event Bus: right half -->
+  <rect x="500" y="240" width="490" height="66" class="boxcore" rx="6"/>
+  <text x="745" y="262" text-anchor="middle" class="title" fill="#9a3412">Event Bus</text>
+  <text x="745" y="278" text-anchor="middle" class="sub">in-process non-blocking pub/sub · 64-event buffer</text>
+  <text x="745" y="294" text-anchor="middle" class="sub">subscribers: workers · tasks · channels · push</text>
+
+  <!-- Agent <-> Bus -->
+  <path class="edgeOrange" d="M480,265 L500,265" marker-end="url(#arrOrange)"/>
+  <path class="edgeOrange" d="M500,280 L480,280" marker-end="url(#arrOrange)"/>
+
+  <!-- Ingress -> Agent (both HTTP and WS call agent.Chat directly) -->
+  <path class="edge" d="M310,194 L260,240" marker-end="url(#arr)"/>
+  <path class="edge" d="M795,194 L400,240" marker-end="url(#arr)"/>
+
+  <!-- Bus -> Ingress (streaming events pushed back to channels) -->
+  <path class="edgeDashed" d="M780,240 L790,194" marker-end="url(#arr)"/>
+  <text x="800" y="222" class="sub" font-size="9">push</text>
+
+  <!-- ═══ SUBSYSTEMS ═══ -->
+  <rect x="14" y="332" width="992" height="68" class="band" rx="6"/>
+  <text x="26" y="350" class="bandlabel">SUBSYSTEMS</text>
+
+  <!-- 4 evenly spaced boxes: 230px each, 10px gaps -->
+  <rect x="40"  y="354" width="225" height="38" class="box" rx="5"/>
+  <text x="152" y="370" text-anchor="middle" class="title">Memory</text>
+  <text x="152" y="384" text-anchor="middle" class="sub">shared graph · public/private · vectors</text>
+
+  <rect x="280" y="354" width="225" height="38" class="box" rx="5"/>
+  <text x="392" y="370" text-anchor="middle" class="title">Tools + Skills + Security</text>
+  <text x="392" y="384" text-anchor="middle" class="sub">builtin · ClawHub · MCP · sandbox</text>
+
+  <rect x="520" y="354" width="225" height="38" class="box" rx="5"/>
+  <text x="632" y="370" text-anchor="middle" class="title">Workers</text>
+  <text x="632" y="384" text-anchor="middle" class="sub">enrich · consolidate · profile · reflect</text>
+
+  <rect x="760" y="354" width="230" height="38" class="box" rx="5"/>
+  <text x="875" y="370" text-anchor="middle" class="title">Tasks</text>
+  <text x="875" y="384" text-anchor="middle" class="sub">cron · heal · model tiering</text>
+
+  <!-- Agent -> Memory, Tools (straight down) -->
+  <path class="edge" d="M152,306 L152,354" marker-end="url(#arr)"/>
+  <path class="edge" d="M370,306 L392,354" marker-end="url(#arr)"/>
+
+  <!-- Bus -> Workers, Tasks (straight down) -->
+  <path class="edge" d="M650,306 L632,354" marker-end="url(#arr)"/>
+  <path class="edge" d="M870,306 L875,354" marker-end="url(#arr)"/>
+
+  <!-- ═══ STORAGE & EXTERNAL ═══ -->
+  <rect x="14" y="416" width="992" height="270" class="band" rx="6"/>
+  <text x="26" y="434" class="bandlabel">STORAGE &amp; EXTERNAL</text>
+
+  <!-- Local state -->
+  <rect x="40" y="446" width="280" height="220" class="boxdata" rx="6"/>
+  <text x="180" y="466" text-anchor="middle" class="title" fill="#14532d">Local state</text>
+  <text x="60"  y="488" class="sub">• SQLite (WAL) — users, sessions,</text>
+  <text x="72"  y="504" class="sub">messages, node metadata + embeddings,</text>
+  <text x="72"  y="520" class="sub">edges, tasks, tokens, oauth</text>
+  <text x="60"  y="544" class="sub">• Content store — full node bodies on disk</text>
+  <text x="60"  y="562" class="sub">• OS Keychain — secrets (mac)</text>
+  <text x="60"  y="580" class="sub">• YAML fallback — secrets (other)</text>
+  <text x="60"  y="604" class="sub">• Workspace — sandbox root, skills,</text>
+  <text x="72"  y="620" class="sub">custom tools, transcripts</text>
+  <text x="60"  y="644" class="sub">• Dashboard — static assets</text>
+
+  <!-- LLM providers -->
+  <rect x="340" y="446" width="310" height="220" class="boxext" rx="6"/>
+  <text x="495" y="466" text-anchor="middle" class="title" fill="#1e3a8a">LLM &amp; embeddings</text>
+  <text x="360" y="488" class="sub">OpenAI-compatible client:</text>
+  <text x="370" y="504" class="sub">• OpenAI · Anthropic · Groq</text>
+  <text x="370" y="520" class="sub">• Together · OpenRouter · Ollama</text>
+  <text x="370" y="536" class="sub">• Any custom base URL</text>
+  <text x="360" y="560" class="sub">Tiered routing:</text>
+  <text x="370" y="576" class="sub">• <tspan font-weight="600">standard</tspan> — agent chat</text>
+  <text x="370" y="592" class="sub">• <tspan font-weight="600">cheap</tspan> — workers, titles</text>
+  <text x="360" y="616" class="sub">Embeddings (OpenAI or local)</text>
+  <text x="360" y="636" class="sub">Retry: 3× expo · 429/5xx</text>
+
+  <!-- Integrations -->
+  <rect x="670" y="446" width="320" height="220" class="boxext" rx="6"/>
+  <text x="830" y="466" text-anchor="middle" class="title" fill="#1e3a8a">Integrations</text>
+  <text x="690" y="488" class="sub">• MCP servers (stdio · SSE · HTTP)</text>
+  <text x="690" y="504" class="sub">• Connectors (Google OAuth)</text>
+  <text x="690" y="520" class="sub">• Browser (Chrome DevTools)</text>
+  <text x="690" y="544" class="sub">• Voice (STT/TTS via OpenAI)</text>
+  <text x="690" y="562" class="sub">• Social sign-in (Apple/Google)</text>
+  <text x="690" y="580" class="sub">• Orchestrator (SaaS only):</text>
+  <text x="702" y="596" class="sub">LLM proxy · metering · heartbeat</text>
+
+  <!-- Subsystems -> Storage (straight vertical dashed lines) -->
+  <path class="edgeDashed" d="M152,392 L152,446"/>
+  <path class="edgeDashed" d="M392,392 L830,446"/>
+  <path class="edgeDashed" d="M632,392 L495,446"/>
+  <path class="edgeDashed" d="M875,392 L495,446"/>
+
+</svg>

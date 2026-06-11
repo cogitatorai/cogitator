@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 620" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="12">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#0f172a"/>
+    </marker>
+    <marker id="a4o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="1040" height="620" rx="8" fill="#f8fafc"/>
+  <style>
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+    .sub { fill: #475569; font-size: 11px; }
+    .title { fill: #0f172a; font-weight: 600; font-size: 12.5px; }
+    .small { fill: #475569; font-size: 11px; }
+    .tiny { fill: #64748b; font-size: 10.5px; }
+    .step { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.5; }
+    .decide { fill: #fef9c3; stroke: #b45309; stroke-width: 1.2; }
+    .route { fill: #ffffff; stroke: #334155; stroke-width: 1.2; }
+    .guard { fill: #fee2e2; stroke: #b91c1c; stroke-width: 1.2; }
+    .flow { stroke: #334155; stroke-width: 1.3; fill: none; }
+    .flowO { stroke: #ea580c; stroke-width: 1.4; fill: none; }
+    .result { fill: #ecfdf5; stroke: #16a34a; stroke-width: 1.3; }
+  </style>
+
+  <text x="18" y="26" class="header">Tool Dispatch — Executor.Execute()</text>
+  <text x="18" y="44" class="sub">One executor, four backends. Security enforced at call time. Result truncated to 32 KB before returning to the agent.</text>
+
+  <!-- Input -->
+  <rect x="20"  y="80" width="220" height="60" class="step" rx="6"/>
+  <text x="130" y="102" text-anchor="middle" class="title" fill="#9a3412">Agent loop emits tool_call</text>
+  <text x="130" y="122" text-anchor="middle" class="small">{ id, name, json_args }</text>
+
+  <path class="flowO" d="M240,110 L300,110" marker-end="url(#a4o)"/>
+
+  <!-- Registry lookup -->
+  <rect x="300" y="80" width="220" height="60" class="route" rx="6"/>
+  <text x="410" y="102" text-anchor="middle" class="title">Registry.Lookup(name)</text>
+  <text x="410" y="122" text-anchor="middle" class="small">resolves ToolDef → backend + schema</text>
+
+  <path class="flow" d="M520,110 L580,110" marker-end="url(#a4)"/>
+
+  <!-- Guard -->
+  <rect x="580" y="80" width="220" height="60" class="guard" rx="6"/>
+  <text x="690" y="102" text-anchor="middle" class="title" fill="#7f1d1d">Security guards</text>
+  <text x="690" y="122" text-anchor="middle" class="small">paths · commands · domains · roles</text>
+
+  <path class="flow" d="M800,110 L860,110" marker-end="url(#a4)"/>
+
+  <!-- Audit -->
+  <rect x="860" y="80" width="160" height="60" class="route" rx="6"/>
+  <text x="940" y="102" text-anchor="middle" class="title">Audit log</text>
+  <text x="940" y="122" text-anchor="middle" class="small">args + caller ctx</text>
+
+  <!-- Branch -->
+  <path class="flowO" d="M940,140 L940,170 L520,170 L520,200" marker-end="url(#a4o)"/>
+  <rect x="380" y="200" width="280" height="54" class="decide" rx="6"/>
+  <text x="520" y="222" text-anchor="middle" class="title" fill="#7c2d12">Route by backend</text>
+  <text x="520" y="240" text-anchor="middle" class="small">builtin · mcp · connector · browser · shell</text>
+
+  <!-- Backend rails -->
+  <g transform="translate(0,276)">
+    <!-- Built-in -->
+    <rect x="20"  y="0" width="180" height="130" class="route" rx="6"/>
+    <text x="110" y="20" text-anchor="middle" class="title">Built-in (23 tools)</text>
+    <text x="110" y="38" text-anchor="middle" class="tiny">handler map in tools/builtin.go</text>
+    <text x="30"  y="58" class="small">• read_file, write_file, list_dir</text>
+    <text x="30"  y="74" class="small">• run_command (sandbox)</text>
+    <text x="30"  y="90" class="small">• save/get/list_memory</text>
+    <text x="30"  y="106" class="small">• create/run/heal_task</text>
+    <text x="30"  y="122" class="small">• skills: search/install/create</text>
+
+    <!-- MCP -->
+    <rect x="210" y="0" width="180" height="130" class="route" rx="6"/>
+    <text x="300" y="20" text-anchor="middle" class="title">MCP</text>
+    <text x="300" y="38" text-anchor="middle" class="tiny">late-bound via MCPManager</text>
+    <text x="220" y="58" class="small">• stdio · SSE · streamable HTTP</text>
+    <text x="220" y="74" class="small">• tools discovered on connect</text>
+    <text x="220" y="90" class="small">• server-qualified names</text>
+    <text x="220" y="106" class="small">• auto-reconnect (5 attempts)</text>
+    <text x="220" y="122" class="small">• server instructions → sys prompt</text>
+
+    <!-- Connector -->
+    <rect x="400" y="0" width="180" height="130" class="route" rx="6"/>
+    <text x="490" y="20" text-anchor="middle" class="title">Connectors (OAuth)</text>
+    <text x="490" y="38" text-anchor="middle" class="tiny">connector/</text>
+    <text x="410" y="58" class="small">• Google: Gmail, Calendar, Drive</text>
+    <text x="410" y="74" class="small">• token refresh pre-call</text>
+    <text x="410" y="90" class="small">• per-user scope</text>
+    <text x="410" y="106" class="small">• generic HTTP connector</text>
+    <text x="410" y="122" class="small">• domain allowlist enforced</text>
+
+    <!-- Browser -->
+    <rect x="590" y="0" width="180" height="130" class="route" rx="6"/>
+    <text x="680" y="20" text-anchor="middle" class="title">Browser (CDP)</text>
+    <text x="680" y="38" text-anchor="middle" class="tiny">connector/browser</text>
+    <text x="600" y="58" class="small">• Chrome DevTools Protocol</text>
+    <text x="600" y="74" class="small">• spawn / attach</text>
+    <text x="600" y="90" class="small">• navigate · screenshot · click</text>
+    <text x="600" y="106" class="small">• extract · eval (guarded)</text>
+    <text x="600" y="122" class="small">• survives across tool rounds</text>
+
+    <!-- Shell / Custom -->
+    <rect x="780" y="0" width="240" height="130" class="route" rx="6"/>
+    <text x="900" y="20" text-anchor="middle" class="title">Custom shell (YAML)</text>
+    <text x="900" y="38" text-anchor="middle" class="tiny">customDir scanned at boot</text>
+    <text x="790" y="58" class="small">• user-authored tool.yaml</text>
+    <text x="790" y="74" class="small">• OpenAI-compatible schema</text>
+    <text x="790" y="90" class="small">• executed via sandbox (host or</text>
+    <text x="802" y="104" class="small">Docker mode)</text>
+    <text x="790" y="120" class="small">• blacklisted commands blocked</text>
+  </g>
+
+  <!-- Branch lines -->
+  <path class="flow" d="M380,254 L110,276" marker-end="url(#a4)"/>
+  <path class="flow" d="M440,254 L300,276" marker-end="url(#a4)"/>
+  <path class="flow" d="M520,254 L490,276" marker-end="url(#a4)"/>
+  <path class="flow" d="M600,254 L680,276" marker-end="url(#a4)"/>
+  <path class="flow" d="M660,254 L900,276" marker-end="url(#a4)"/>
+
+  <!-- Post-execution -->
+  <g transform="translate(0,438)">
+    <rect x="20"  y="0" width="300" height="60" class="guard" rx="6"/>
+    <text x="170" y="22" text-anchor="middle" class="title" fill="#7f1d1d">Timeout / cancel guard</text>
+    <text x="170" y="40" text-anchor="middle" class="small">context.CancelFunc wraps every call; per-tool deadline</text>
+
+    <path class="flow" d="M320,30 L380,30" marker-end="url(#a4)"/>
+    <rect x="380" y="0" width="300" height="60" class="step" rx="6"/>
+    <text x="530" y="22" text-anchor="middle" class="title" fill="#9a3412">Truncate · 32 KB cap</text>
+    <text x="530" y="40" text-anchor="middle" class="small">notice appended so model knows to retry narrower</text>
+
+    <path class="flow" d="M680,30 L740,30" marker-end="url(#a4)"/>
+    <rect x="740" y="0" width="280" height="60" class="result" rx="6"/>
+    <text x="880" y="22" text-anchor="middle" class="title" fill="#14532d">Return to agent loop</text>
+    <text x="880" y="40" text-anchor="middle" class="small">tool_result message appended; loop continues</text>
+  </g>
+
+  <!-- Notes -->
+  <g transform="translate(0,518)">
+    <rect x="20"  y="0" width="1000" height="80" fill="#f8fafc" stroke="#cbd5e1" rx="6"/>
+    <text x="36"  y="22" class="title">Design notes</text>
+    <text x="36"  y="42" class="small">• One registry, late binding: MCP servers can come and go without an agent restart. Tool names are the only shared namespace.</text>
+    <text x="36"  y="58" class="small">• Security is enforced at execution, not schema. This lets model-authored args be fuzzed against live blacklists (paths, commands, domains).</text>
+    <text x="36"  y="74" class="small">• Chat scope (user id, session, private flag) rides in ctx so ownership-sensitive tools (memory, tasks, connectors) reach the right tenant.</text>
+  </g>
+
+  <text x="1020" y="610" text-anchor="end" class="sub">cogitator/docs/diagrams/tool-dispatch.svg</text>
+</svg>

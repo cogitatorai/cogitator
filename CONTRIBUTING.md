@@ -54,6 +54,11 @@ Bug fixes, documentation improvements, and small quality-of-life changes can go 
 This is a solo project. Expect 1 to 2 weeks for PR review. Complex changes may take longer. If your PR has been open for more than 2 weeks without a response, leave a comment and I'll prioritize it.
 
 
+## Security issues
+
+Do not open public issues for vulnerabilities. See [SECURITY.md](SECURITY.md) for how to report privately.
+
+
 ## Code of conduct
 
 Be respectful. Be constructive. Assume good intent. That covers it.

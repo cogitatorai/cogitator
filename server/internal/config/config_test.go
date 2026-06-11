@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestDefaults(t *testing.T) {
@@ -336,6 +337,85 @@ func TestApplyEnvNewMemoryFields(t *testing.T) {
 	}
 	if cfg.Memory.EnrichmentVersion != 2 {
 		t.Errorf("EnrichmentVersion = %d, want 2", cfg.Memory.EnrichmentVersion)
+	}
+}
+
+func TestAuthTokenTTLDefaults(t *testing.T) {
+	cfg := Default()
+	access, refresh := cfg.Auth.TokenTTLs()
+	if access != 30*time.Minute {
+		t.Errorf("default access TTL = %v, want 30m", access)
+	}
+	if refresh != 30*24*time.Hour {
+		t.Errorf("default refresh TTL = %v, want 720h", refresh)
+	}
+}
+
+func TestAuthTokenTTLValid(t *testing.T) {
+	cfg := AuthConfig{AccessTokenTTL: "15m", RefreshTokenTTL: "168h"}
+	access, refresh := cfg.TokenTTLs()
+	if access != 15*time.Minute {
+		t.Errorf("access TTL = %v, want 15m", access)
+	}
+	if refresh != 168*time.Hour {
+		t.Errorf("refresh TTL = %v, want 168h", refresh)
+	}
+}
+
+func TestAuthTokenTTLInvalidStringFallsBack(t *testing.T) {
+	cfg := AuthConfig{AccessTokenTTL: "not-a-duration", RefreshTokenTTL: "720h"}
+	access, refresh := cfg.TokenTTLs()
+	if access != defaultAccessTokenTTL {
+		t.Errorf("invalid access string: access TTL = %v, want default %v", access, defaultAccessTokenTTL)
+	}
+	if refresh != 720*time.Hour {
+		t.Errorf("refresh TTL = %v, want 720h", refresh)
+	}
+}
+
+func TestAuthTokenTTLNonPositiveFallsBack(t *testing.T) {
+	cfg := AuthConfig{AccessTokenTTL: "0s", RefreshTokenTTL: "-1h"}
+	access, refresh := cfg.TokenTTLs()
+	if access != defaultAccessTokenTTL {
+		t.Errorf("zero access TTL = %v, want default %v", access, defaultAccessTokenTTL)
+	}
+	if refresh != defaultRefreshTokenTTL {
+		t.Errorf("negative refresh TTL = %v, want default %v", refresh, defaultRefreshTokenTTL)
+	}
+}
+
+func TestAuthTokenTTLAccessNotShorterThanRefreshFallsBack(t *testing.T) {
+	// Access >= refresh is rejected; both fall back to defaults.
+	cfg := AuthConfig{AccessTokenTTL: "48h", RefreshTokenTTL: "24h"}
+	access, refresh := cfg.TokenTTLs()
+	if access != defaultAccessTokenTTL || refresh != defaultRefreshTokenTTL {
+		t.Errorf("access>=refresh should fall back to defaults, got access=%v refresh=%v", access, refresh)
+	}
+
+	// Equal values also rejected.
+	eq := AuthConfig{AccessTokenTTL: "24h", RefreshTokenTTL: "24h"}
+	access, refresh = eq.TokenTTLs()
+	if access != defaultAccessTokenTTL || refresh != defaultRefreshTokenTTL {
+		t.Errorf("access==refresh should fall back to defaults, got access=%v refresh=%v", access, refresh)
+	}
+}
+
+func TestApplyEnvAuthTokenTTLs(t *testing.T) {
+	t.Setenv("COGITATOR_AUTH_ACCESS_TOKEN_TTL", "10m")
+	t.Setenv("COGITATOR_AUTH_REFRESH_TOKEN_TTL", "240h")
+
+	cfg := Default()
+	cfg.ApplyEnv()
+
+	if cfg.Auth.AccessTokenTTL != "10m" {
+		t.Errorf("access TTL env = %q, want 10m", cfg.Auth.AccessTokenTTL)
+	}
+	if cfg.Auth.RefreshTokenTTL != "240h" {
+		t.Errorf("refresh TTL env = %q, want 240h", cfg.Auth.RefreshTokenTTL)
+	}
+	access, refresh := cfg.Auth.TokenTTLs()
+	if access != 10*time.Minute || refresh != 240*time.Hour {
+		t.Errorf("parsed env TTLs = %v/%v, want 10m/240h", access, refresh)
 	}
 }
 

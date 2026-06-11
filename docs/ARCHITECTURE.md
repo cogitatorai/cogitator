@@ -442,10 +442,16 @@ it, it has been failing silently for a week."
 
 **Tokens.** HS256 JWTs, two kinds:
 
-- **Access** — short-lived (minutes). `Claims{UserID, Role, exp, ...}`.
+- **Access** — short-lived; default **30 minutes**. `Claims{UserID, Role, exp, ...}`.
   Sent as `Authorization: Bearer <token>` or `?token=<JWT>` for WebSocket.
-- **Refresh** — long-lived (days). Opaque hex string; only a **SHA-256 hash**
-  is stored server-side. A database dump alone cannot restore session access.
+  TTL configurable via `auth.access_token_ttl` (env `COGITATOR_AUTH_ACCESS_TOKEN_TTL`).
+- **Refresh** — long-lived; default **30 days**. Opaque hex string; only a
+  **SHA-256 hash** is stored server-side (with its own `expires_at`), so a
+  database dump alone cannot restore session access and changing the configured
+  TTL never invalidates already-issued refresh tokens. TTL configurable via
+  `auth.refresh_token_ttl` (env `COGITATOR_AUTH_REFRESH_TOKEN_TTL`). Both TTLs
+  accept Go duration strings ("30m", "720h"); invalid values or `access >=
+  refresh` fall back to the defaults with a warning.
 
 **Refresh rotation.** Single-use. Each refresh call rotates the pair and
 invalidates the old refresh token. The dashboard deduplicates concurrent

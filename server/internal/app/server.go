@@ -169,7 +169,8 @@ func New(opts Options) (*Server, error) {
 		jwtSecret = hex.EncodeToString(b)
 		slog.Warn("no COGITATOR_JWT_SECRET set, generated random secret (tokens will not survive restarts)")
 	}
-	jwtSvc := auth.NewJWTService(jwtSecret, 24*time.Hour, 30*24*time.Hour)
+	accessTTL, refreshTTL := cfg.Auth.TokenTTLs()
+	jwtSvc := auth.NewJWTService(jwtSecret, accessTTL, refreshTTL)
 
 	eventBus := bus.New()
 

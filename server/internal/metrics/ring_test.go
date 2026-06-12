@@ -22,7 +22,7 @@ func TestRingBuffer(t *testing.T) {
 			if i >= 95 {
 				status = 500
 			}
-			r.Record(time.Duration(i+1)*time.Millisecond, status)
+			r.Record(time.Duration(i+1)*time.Millisecond, status, "GET /test")
 		}
 		snap := r.Snapshot()
 		if snap.RequestCount != 100 {
@@ -40,7 +40,7 @@ func TestRingBuffer(t *testing.T) {
 	t.Run("wraps around when full", func(t *testing.T) {
 		r2 := NewRing(10)
 		for i := 0; i < 20; i++ {
-			r2.Record(time.Millisecond, 200)
+			r2.Record(time.Millisecond, 200, "GET /test")
 		}
 		snap := r2.Snapshot()
 		if snap.RequestCount != 10 {
@@ -56,7 +56,7 @@ func TestRingBuffer(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				for i := 0; i < 100; i++ {
-					r3.Record(time.Millisecond, 200)
+					r3.Record(time.Millisecond, 200, "GET /test")
 				}
 			}()
 		}
@@ -74,4 +74,56 @@ func TestRingBuffer(t *testing.T) {
 			t.Fatalf("expected 1000 requests, got %d", snap.RequestCount)
 		}
 	})
+}
+
+func TestSnapshotPerRoute(t *testing.T) {
+	r := NewRing(10)
+	r.Record(10*time.Millisecond, 200, "GET /api/health")
+	r.Record(20*time.Millisecond, 200, "GET /api/health")
+	r.Record(30*time.Millisecond, 500, "POST /api/chat")
+
+	snap := r.Snapshot()
+
+	if len(snap.Routes) != 2 {
+		t.Fatalf("got %d routes, want 2: %v", len(snap.Routes), snap.Routes)
+	}
+	health := snap.Routes["GET /api/health"]
+	if health.RequestCount != 2 || health.Count5xx != 0 {
+		t.Errorf("health route stats = %+v", health)
+	}
+	if health.P95LatencyMs < 19 || health.P95LatencyMs > 21 {
+		t.Errorf("health p95 = %v, want ~20", health.P95LatencyMs)
+	}
+	chat := snap.Routes["POST /api/chat"]
+	if chat.RequestCount != 1 || chat.Count5xx != 1 {
+		t.Errorf("chat route stats = %+v", chat)
+	}
+}
+
+func TestRecordEmptyRouteLabeledUnmatched(t *testing.T) {
+	r := NewRing(4)
+	r.Record(time.Millisecond, 404, "")
+	snap := r.Snapshot()
+	if _, ok := snap.Routes["unmatched"]; !ok {
+		t.Errorf("empty route not bucketed as unmatched: %v", snap.Routes)
+	}
+}
+
+func TestSnapshotRoutesAgeOutOnWrap(t *testing.T) {
+	r := NewRing(10)
+	// Fill the ring with one route, then overwrite every slot with another.
+	for i := 0; i < 10; i++ {
+		r.Record(time.Millisecond, 200, "GET /old")
+	}
+	for i := 0; i < 10; i++ {
+		r.Record(time.Millisecond, 200, "GET /new")
+	}
+
+	snap := r.Snapshot()
+	if _, ok := snap.Routes["GET /old"]; ok {
+		t.Errorf("overwritten route still present: %v", snap.Routes)
+	}
+	if got := snap.Routes["GET /new"].RequestCount; got != 10 {
+		t.Errorf("surviving route count = %d, want 10", got)
+	}
 }

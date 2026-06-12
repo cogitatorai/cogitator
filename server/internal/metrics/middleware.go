@@ -36,7 +36,7 @@ func Middleware(ring *Ring) func(http.Handler) http.Handler {
 			start := time.Now()
 			rec := &statusRecorder{ResponseWriter: w, status: 200}
 			next.ServeHTTP(rec, r)
-			ring.Record(time.Since(start), rec.status)
+			ring.Record(time.Since(start), rec.status, "")
 		})
 	}
 }

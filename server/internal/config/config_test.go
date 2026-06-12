@@ -434,3 +434,18 @@ func TestApplyEnvDedupThreshold(t *testing.T) {
 		t.Errorf("DedupSimilarityThreshold = %f, want 0.95", cfg.Memory.DedupSimilarityThreshold)
 	}
 }
+
+func TestLogConfigEnvOverride(t *testing.T) {
+	t.Setenv("COGITATOR_LOG_LEVEL", "debug")
+	t.Setenv("COGITATOR_LOG_FORMAT", "json")
+
+	cfg := Default()
+	cfg.ApplyEnv()
+
+	if cfg.Log.Level != "debug" {
+		t.Errorf("Log.Level = %q, want debug", cfg.Log.Level)
+	}
+	if cfg.Log.Format != "json" {
+		t.Errorf("Log.Format = %q, want json", cfg.Log.Format)
+	}
+}

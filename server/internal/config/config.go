@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"log/slog"
 	"os"
 	"strconv"
@@ -50,6 +49,7 @@ type Config struct {
 	Optimization OptimizationConfig        `yaml:"optimization"`
 	Database     DatabaseConfig            `yaml:"database"`
 	Auth         AuthConfig                `yaml:"auth"`
+	Log          LogConfig                 `yaml:"log"`
 }
 
 // AuthConfig holds authentication token lifetimes. TTLs are Go duration strings
@@ -92,6 +92,13 @@ func parseTTL(v string, def time.Duration, name string) time.Duration {
 		return def
 	}
 	return d
+}
+
+// LogConfig controls the global slog output. Level: debug|info|warn|error
+// (default info). Format: text|json (default text).
+type LogConfig struct {
+	Level  string `yaml:"level" json:"level"`
+	Format string `yaml:"format" json:"format"`
 }
 
 type UpdateConfig struct {
@@ -301,7 +308,7 @@ var providerEnvKeys = map[string]string{
 func LoadDotEnv() {
 	if err := godotenv.Load(); err != nil {
 		if !os.IsNotExist(err) {
-			log.Printf("warning: failed to load .env file: %v", err)
+			slog.Warn("failed to load .env file", "error", err)
 		}
 	}
 }
@@ -407,6 +414,14 @@ func (c *Config) ApplyEnv() {
 	}
 	if v := os.Getenv("COGITATOR_AUTH_REFRESH_TOKEN_TTL"); v != "" {
 		c.Auth.RefreshTokenTTL = v
+	}
+
+	// Log level and format.
+	if v := os.Getenv("COGITATOR_LOG_LEVEL"); v != "" {
+		c.Log.Level = v
+	}
+	if v := os.Getenv("COGITATOR_LOG_FORMAT"); v != "" {
+		c.Log.Format = v
 	}
 
 	// Optimization toggles.

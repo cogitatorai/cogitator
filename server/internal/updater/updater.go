@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -92,7 +92,7 @@ func New(cfg Config) *Updater {
 func (u *Updater) Start(ctx context.Context) {
 	go func() {
 		if u.cfg.Current == "dev" {
-			log.Printf("updater: skipping checks (dev build)")
+			slog.Info("updater: skipping checks (dev build)")
 			return
 		}
 		timer := time.NewTimer(5 * time.Second)
@@ -173,7 +173,7 @@ func (u *Updater) CheckNow() {
 		hadRelease := u.status.Latest != nil
 		u.mu.RUnlock()
 		if hadRelease {
-			log.Printf("updater: GitHub returned 404 for releases (previously saw releases); verify the release exists on cogitatorai/cogitator")
+			slog.Warn("updater: GitHub returned 404 for releases (previously saw releases); verify the release exists on cogitatorai/cogitator")
 		}
 		return
 	}
@@ -227,7 +227,7 @@ func (u *Updater) CheckNow() {
 	u.saveCache()
 
 	if u.status.UpdateAvailable {
-		log.Printf("updater: new version available: %s (current: %s)", rel.TagName, u.cfg.Current)
+		slog.Info("updater: new version available", "latest", rel.TagName, "current", u.cfg.Current)
 	}
 }
 
@@ -261,7 +261,7 @@ func (u *Updater) setError(msg string) {
 	u.mu.Lock()
 	u.status.Error = msg
 	u.mu.Unlock()
-	log.Printf("updater: %s", msg)
+	slog.Info("updater", "msg", msg)
 }
 
 // loadCache reads cached release info from disk. Missing or corrupt files
@@ -390,7 +390,7 @@ func (u *Updater) Download() error {
 	u.status.Ready = true
 	u.mu.Unlock()
 
-	log.Printf("updater: %s downloaded and ready to install", st.Latest.Tag)
+	slog.Info("updater: downloaded and ready to install", "tag", st.Latest.Tag)
 	return nil
 }
 
@@ -452,7 +452,7 @@ rm -f "$0"
 		return fmt.Errorf("launch update script: %w", err)
 	}
 
-	log.Printf("updater: restarting for update to %s", tag)
+	slog.Info("updater: restarting for update", "tag", tag)
 	go func() {
 		shutdownFn()
 		os.Exit(0)

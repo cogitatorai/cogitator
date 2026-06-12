@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -52,6 +51,7 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/worker"
 	"github.com/cogitatorai/cogitator/server/internal/voice"
 	voiceopenai "github.com/cogitatorai/cogitator/server/internal/voice/openai"
+	"github.com/cogitatorai/cogitator/server/internal/logging"
 	"github.com/cogitatorai/cogitator/server/internal/workspace"
 
 	"gopkg.in/yaml.v3"
@@ -134,6 +134,9 @@ func New(opts Options) (*Server, error) {
 			cfg.ResolveDefaults()
 		}
 	}
+	// Configure logging only after the final config is known: the workspace
+	// config reload above can change log settings.
+	logging.Setup(cfg.Log.Level, cfg.Log.Format)
 
 	migrationsFS, _ := fs.Sub(database.EmbeddedMigrations, "migrations")
 	db, err := database.Open(ws.DBPath(), database.Options{
@@ -201,15 +204,15 @@ func New(opts Options) (*Server, error) {
 	contextBuilder := agent.NewContextBuilder(ws.ProfilePath())
 	taskStore := task.NewStore(db)
 	if n, err := taskStore.CleanupStaleRuns(); err != nil {
-		log.Printf("warning: failed to clean stale runs: %v", err)
+		slog.Warn("failed to clean stale runs", "error", err)
 	} else if n > 0 {
-		log.Printf("cleaned up %d stale task run(s) from previous session", n)
+		slog.Info("cleaned up stale task runs from previous session", "count", n)
 	}
 	// Backfill tasks with no user_id when there is exactly one user.
 	if count, err := userStore.Count(); err == nil && count == 1 {
 		if users, err := userStore.List(); err == nil && len(users) == 1 {
 			if n, err := taskStore.BackfillUserID(users[0].ID); err != nil {
-				log.Printf("warning: failed to backfill task user_id: %v", err)
+				slog.Warn("failed to backfill task user_id", "error", err)
 			} else if n > 0 {
 				slog.Info("backfilled task user_id", "count", n, "user", users[0].Email)
 			}
@@ -550,7 +553,7 @@ func New(opts Options) (*Server, error) {
 		}
 	}, eventBus, slog.Default())
 	if err := taskScheduler.Start(); err != nil {
-		log.Printf("warning: task scheduler start failed: %v", err)
+		slog.Warn("task scheduler start failed", "error", err)
 	}
 	taskAdapter.Scheduler = taskScheduler
 
@@ -726,7 +729,7 @@ func New(opts Options) (*Server, error) {
 		slog.Default(),
 	)
 	if err := telegramChannel.Start(context.Background()); err != nil {
-		log.Printf("warning: telegram channel start failed: %v", err)
+		slog.Warn("telegram channel start failed", "error", err)
 	}
 
 	ollamaClient := ollama.New("")
@@ -931,16 +934,17 @@ func (s *Server) Start() error {
 			cfg := s.configStore.Get()
 			cfg.Server.Port = actual
 			if saveErr := s.configStore.Save(cfg); saveErr != nil {
-				log.Printf("warning: could not persist fallback port %d: %v", actual, saveErr)
+				slog.Warn("could not persist fallback port", "port", actual, "error", saveErr)
 			}
 		}
-		log.Printf("configured port in use; fell back to %s", s.addr)
+		slog.Warn("configured port in use; fell back", "addr", s.addr)
 	}
-	log.Printf("cogitator %s listening on %s (workspace: %s)", version.Version, s.addr, s.wsRoot)
+	slog.Info("cogitator listening", "version", version.Version, "addr", s.addr, "workspace", s.wsRoot)
 	s.updater.Start(context.Background())
 	go func() {
 		if err := s.httpServer.Serve(ln); err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			slog.Error("server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 	return nil

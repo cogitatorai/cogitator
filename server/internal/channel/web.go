@@ -54,6 +54,7 @@ type WebChannel struct {
 	conns         map[*websocket.Conn]connInfo
 	activeReqs    map[string]context.CancelFunc // keyed by session key
 	stopNotify    chan struct{}
+	stopped       bool
 }
 
 func NewWebChannel(handler MessageHandler, eventBus *bus.Bus, sessions *session.Store, notifications *notification.Store, taskNameFunc func(int64) string, logger *slog.Logger) *WebChannel {
@@ -272,15 +273,25 @@ func (wc *WebChannel) Start(ctx context.Context) error {
 }
 
 func (wc *WebChannel) Stop() error {
+	wc.mu.Lock()
+	if wc.stopped {
+		wc.mu.Unlock()
+		return nil
+	}
+	wc.stopped = true
 	if wc.stopNotify != nil {
 		close(wc.stopNotify)
 	}
-	wc.mu.Lock()
-	defer wc.mu.Unlock()
-	for conn := range wc.conns {
+	conns := wc.conns
+	wc.conns = make(map[*websocket.Conn]connInfo)
+	wc.mu.Unlock()
+
+	// Close outside the lock: each Close performs a close handshake that can
+	// block for seconds, and holding wc.mu here would stall broadcasts and
+	// connection registration for the whole duration.
+	for conn := range conns {
 		conn.Close(websocket.StatusGoingAway, "server shutting down")
 	}
-	wc.conns = make(map[*websocket.Conn]connInfo)
 	return nil
 }
 
@@ -301,7 +312,15 @@ func (wc *WebChannel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		userID = u.ID
 	}
 
+	// Registration is serialized with Stop: a handshake can complete before
+	// this point, so a connection arriving after Stop must be closed here
+	// rather than served indefinitely.
 	wc.mu.Lock()
+	if wc.stopped {
+		wc.mu.Unlock()
+		conn.Close(websocket.StatusGoingAway, "server shutting down")
+		return
+	}
 	wc.conns[conn] = connInfo{userID: userID}
 	wc.mu.Unlock()
 

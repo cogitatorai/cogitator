@@ -225,6 +225,48 @@ func TestWebChannelStop(t *testing.T) {
 	}
 }
 
+func TestWebChannelStopBeforeRegistration(t *testing.T) {
+	// A client can complete the websocket handshake before ServeHTTP registers
+	// the connection. If Stop runs in that window, the late registration must
+	// still be closed instead of being served forever.
+	wc := NewWebChannel(echoHandler, nil, nil, nil, nil, nil)
+	server := httptest.NewServer(wc)
+	defer server.Close()
+
+	wc.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, "ws"+server.URL[4:], nil)
+	if err != nil {
+		// Rejecting the handshake outright is also a valid stopped behavior.
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	_, _, err = conn.Read(ctx)
+	if err == nil {
+		t.Fatal("expected error reading from connection accepted after Stop, got nil")
+	}
+	if ctx.Err() != nil {
+		t.Fatalf("connection accepted after Stop was never closed: %v", err)
+	}
+}
+
+func TestWebChannelStopIdempotent(t *testing.T) {
+	b := bus.New()
+	defer b.Close()
+	wc := NewWebChannel(echoHandler, b, nil, nil, nil, nil)
+	if err := wc.Start(context.Background()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	// A second Stop must be a no-op, not a panic on re-closing stopNotify.
+	wc.Stop()
+	wc.Stop()
+}
+
 func TestWebChannelMultipleMessages(t *testing.T) {
 	callCount := 0
 	handler := func(_ context.Context, msg IncomingMessage) (HandlerResponse, error) {

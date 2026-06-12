@@ -761,8 +761,11 @@ func New(opts Options) (*Server, error) {
 		}
 	}
 
-	// SaaS-specific subsystems: metrics collection, drain manager, internal auth.
-	var metricsRing *metrics.Ring
+	// Request metrics are collected in every build mode (the ring is a fixed
+	// 1000 entries); only the orchestrator push (heartbeat) is SaaS-specific.
+	metricsRing := metrics.NewRing(1000)
+
+	// SaaS-specific subsystems: drain manager, internal auth.
 	var drainMgr *drain.Manager
 	var internalSecret string
 	if isSaaS {
@@ -771,7 +774,6 @@ func New(opts Options) (*Server, error) {
 			db.Close()
 			return nil, fmt.Errorf("COGITATOR_INTERNAL_SECRET is required in SaaS mode (empty value would bypass internal auth)")
 		}
-		metricsRing = metrics.NewRing(1000)
 		drainMgr = drain.New()
 	}
 

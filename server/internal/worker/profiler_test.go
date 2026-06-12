@@ -279,16 +279,3 @@ func TestBuildStructuredProfile(t *testing.T) {
 	}
 }
 
-// containsString is a test helper that checks whether s contains substr.
-func containsString(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsRuneSearch(s, substr))
-}
-
-func containsRuneSearch(s, substr string) bool {
-	for i := range s {
-		if i+len(substr) <= len(s) && s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

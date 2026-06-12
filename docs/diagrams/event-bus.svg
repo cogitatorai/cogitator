@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 620" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="12">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="a3o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="1040" height="620" rx="8" fill="#f8fafc"/>
+  <style>
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+    .sub { fill: #475569; font-size: 11px; }
+    .title { fill: #0f172a; font-weight: 600; font-size: 13px; }
+    .small { fill: #475569; font-size: 11px; }
+    .producer { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.2; }
+    .consumer { fill: #ecfdf5; stroke: #16a34a; stroke-width: 1.2; }
+    .bus { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; }
+    .edge { stroke: #334155; stroke-width: 1.2; fill: none; }
+    .edgeO { stroke: #ea580c; stroke-width: 1.4; fill: none; }
+    .eventTag { fill: #0f172a; font-size: 10.5px; font-weight: 600; }
+    .llm { fill: #fef3c7; stroke: #d97706; }
+  </style>
+
+  <text x="18" y="26" class="header">Event Bus &amp; Background Workers</text>
+  <text x="18" y="44" class="sub">In-process pub/sub. Non-blocking publish (subscribers buffered or dropped). Workers run async, out of the chat critical path; only ⚙︎ marked workers call an LLM.</text>
+
+  <!-- Producers -->
+  <rect x="20"  y="80"  width="220" height="480" class="producer" rx="8"/>
+  <text x="130" y="104" text-anchor="middle" class="title">Producers</text>
+  <text x="130" y="120" text-anchor="middle" class="small">publish after the chat reply is sent</text>
+
+  <rect x="40"  y="140" width="180" height="56" fill="#ffffff" stroke="#2563eb" rx="4"/>
+  <text x="130" y="160" text-anchor="middle" class="title">Agent</text>
+  <text x="130" y="178" text-anchor="middle" class="small">MessageReceived · MessageResponded</text>
+  <text x="130" y="192" text-anchor="middle" class="small">AgentThinking · AgentToolCalling</text>
+
+  <rect x="40"  y="208" width="180" height="52" fill="#ffffff" stroke="#2563eb" rx="4"/>
+  <text x="130" y="228" text-anchor="middle" class="title">Memory store</text>
+  <text x="130" y="246" text-anchor="middle" class="small">EnrichmentQueued · NodeUpdated</text>
+
+  <rect x="40"  y="272" width="180" height="52" fill="#ffffff" stroke="#2563eb" rx="4"/>
+  <text x="130" y="292" text-anchor="middle" class="title">User / settings</text>
+  <text x="130" y="310" text-anchor="middle" class="small">ProfileRevisionDue · SettingsChanged</text>
+
+  <rect x="40"  y="336" width="180" height="52" fill="#ffffff" stroke="#2563eb" rx="4"/>
+  <text x="130" y="356" text-anchor="middle" class="title">Task scheduler</text>
+  <text x="130" y="374" text-anchor="middle" class="small">TaskChanged · TaskRunStarted/Done</text>
+
+  <rect x="40"  y="400" width="180" height="52" fill="#ffffff" stroke="#2563eb" rx="4"/>
+  <text x="130" y="420" text-anchor="middle" class="title">MCP manager</text>
+  <text x="130" y="438" text-anchor="middle" class="small">MCPServer{Up,Down,Reconnecting}</text>
+
+  <rect x="40"  y="464" width="180" height="52" fill="#ffffff" stroke="#2563eb" rx="4"/>
+  <text x="130" y="484" text-anchor="middle" class="title">Auth / budget</text>
+  <text x="130" y="502" text-anchor="middle" class="small">TokenUsed · UsageWarn · UsageBlocked</text>
+
+  <!-- Bus -->
+  <rect x="300" y="80" width="220" height="480" class="bus" rx="12"/>
+  <text x="410" y="110" text-anchor="middle" class="title" fill="#9a3412">Event Bus</text>
+  <text x="410" y="128" text-anchor="middle" class="small">internal/bus</text>
+
+  <text x="410" y="170" text-anchor="middle" class="eventTag">Invariants</text>
+  <text x="320" y="192" class="small">• Publish is non-blocking. Buffered</text>
+  <text x="332" y="206" class="small">channel per subscriber (drop if full).</text>
+  <text x="320" y="224" class="small">• Subscribers run on dedicated goroutines.</text>
+  <text x="320" y="242" class="small">• No durable queue — events are ephemeral.</text>
+  <text x="320" y="260" class="small">• Not for cross-process fan-out (stays in-proc).</text>
+
+  <text x="410" y="298" text-anchor="middle" class="eventTag">Why not a broker?</text>
+  <text x="320" y="320" class="small">• Single-binary constraint (desktop, self-host).</text>
+  <text x="320" y="338" class="small">• All consumers are co-located workers.</text>
+  <text x="320" y="356" class="small">• Durability lives in SQLite (tasks, nodes).</text>
+  <text x="320" y="374" class="small">  The bus is purely a wake-up signal.</text>
+
+  <text x="410" y="414" text-anchor="middle" class="eventTag">Delivery semantics</text>
+  <text x="320" y="436" class="small">• At-most-once per subscriber.</text>
+  <text x="320" y="454" class="small">• Re-derivable: all workers can scan</text>
+  <text x="320" y="468" class="small">  SQLite on startup and catch up missed work.</text>
+  <text x="320" y="490" class="small">• Coalescing: enricher debounces 500 ms.</text>
+  <text x="320" y="508" class="small">• Typed events (not raw JSON).</text>
+
+  <!-- Consumers -->
+  <rect x="580" y="80" width="440" height="480" class="consumer" rx="8"/>
+  <text x="800" y="104" text-anchor="middle" class="title">Subscribers · Workers</text>
+  <text x="800" y="120" text-anchor="middle" class="small">background goroutines · LLM-driven where marked ⚙︎</text>
+
+  <!-- Enricher -->
+  <rect x="600" y="140" width="400" height="72" class="llm" rx="5"/>
+  <text x="612" y="160" class="title">⚙︎ Enricher  <tspan class="small">(pool of 3, 500 ms debounce)</tspan></text>
+  <text x="612" y="180" class="small">← EnrichmentQueued. Calls LLM to produce summary, tags, retrieval</text>
+  <text x="612" y="196" class="small">triggers, and candidate edges. Dedups ≥ 0.90 cosine against existing.</text>
+
+  <!-- Consolidator -->
+  <rect x="600" y="222" width="400" height="72" class="consumer" rx="5"/>
+  <text x="612" y="242" class="title">Consolidator  <tspan class="small">(adaptive threshold)</tspan></text>
+  <text x="612" y="262" class="small">Periodic + EnrichmentQueued counter. Clusters enriched nodes by cosine</text>
+  <text x="612" y="278" class="small">(≥ 0.7); once cluster ≥ 3, synthesises a Pattern node from top tags. No LLM.</text>
+
+  <!-- Profiler -->
+  <rect x="600" y="304" width="400" height="72" class="consumer" rx="5"/>
+  <text x="612" y="324" class="title">Profiler  <tspan class="small">(RegenThreshold = 5 new memories)</tspan></text>
+  <text x="612" y="344" class="small">← ProfileRevisionDue or auto after N EnrichmentQueued. Rebuilds the</text>
+  <text x="612" y="360" class="small">behavioural profile from graph queries via a structured template. No LLM.</text>
+
+  <!-- Reflector -->
+  <rect x="600" y="386" width="400" height="72" class="llm" rx="5"/>
+  <text x="612" y="406" class="title">⚙︎ Reflector  <tspan class="small">(daily interval, cheap-tier LLM for non-English)</tspan></text>
+  <text x="612" y="426" class="small">Summarises recent conversations into Episode nodes; pattern-matches</text>
+  <text x="612" y="442" class="small">English signals; falls back to the cheap LLM for non-English.</text>
+
+  <!-- WS / notifier -->
+  <rect x="600" y="468" width="400" height="72" class="consumer" rx="5"/>
+  <text x="612" y="488" class="title">WS Channels · Notifier · Metrics</text>
+  <text x="612" y="508" class="small">Forward Message* / Task* events to connected clients. Fire push</text>
+  <text x="612" y="524" class="small">notifications. Update in-memory metrics ring buffer.</text>
+
+  <!-- Arrows producers → bus -->
+  <path class="edge" d="M220,168 L300,168" marker-end="url(#a3)"/>
+  <path class="edge" d="M220,234 L300,234" marker-end="url(#a3)"/>
+  <path class="edge" d="M220,298 L300,298" marker-end="url(#a3)"/>
+  <path class="edge" d="M220,362 L300,362" marker-end="url(#a3)"/>
+  <path class="edge" d="M220,426 L300,426" marker-end="url(#a3)"/>
+  <path class="edge" d="M220,490 L300,490" marker-end="url(#a3)"/>
+
+  <!-- Arrows bus → consumers -->
+  <path class="edgeO" d="M520,176 L600,176" marker-end="url(#a3o)"/>
+  <path class="edgeO" d="M520,258 L600,258" marker-end="url(#a3o)"/>
+  <path class="edgeO" d="M520,340 L600,340" marker-end="url(#a3o)"/>
+  <path class="edgeO" d="M520,422 L600,422" marker-end="url(#a3o)"/>
+  <path class="edgeO" d="M520,504 L600,504" marker-end="url(#a3o)"/>
+
+  <text x="1020" y="610" text-anchor="end" class="sub">cogitator/docs/diagrams/event-bus.svg</text>
+</svg>

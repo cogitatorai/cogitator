@@ -2,12 +2,22 @@ package config
 
 import (
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
+)
+
+// Default JWT token lifetimes. Access tokens are short-lived because they are
+// stored in browser localStorage; the refresh token (rotated on each use)
+// renews them.
+const (
+	defaultAccessTokenTTL  = 30 * time.Minute
+	defaultRefreshTokenTTL = 30 * 24 * time.Hour
 )
 
 // DatabaseConfig holds tuning parameters for the SQLite database layer.
@@ -39,6 +49,49 @@ type Config struct {
 	Voice        VoiceConfig               `yaml:"voice"`
 	Optimization OptimizationConfig        `yaml:"optimization"`
 	Database     DatabaseConfig            `yaml:"database"`
+	Auth         AuthConfig                `yaml:"auth"`
+}
+
+// AuthConfig holds authentication token lifetimes. TTLs are Go duration strings
+// ("30m", "720h"). Access tokens are intentionally short because they live in
+// browser localStorage; the refresh token renews them transparently.
+type AuthConfig struct {
+	AccessTokenTTL  string `yaml:"access_token_ttl" json:"access_token_ttl"`
+	RefreshTokenTTL string `yaml:"refresh_token_ttl" json:"refresh_token_ttl"`
+}
+
+// TokenTTLs returns the parsed access and refresh token lifetimes. Invalid or
+// non-positive values fall back to the defaults with a slog warning, and if the
+// access TTL is not strictly shorter than the refresh TTL both fall back to
+// defaults. This never panics so a bad config string cannot crash the server.
+func (a AuthConfig) TokenTTLs() (access, refresh time.Duration) {
+	access = parseTTL(a.AccessTokenTTL, defaultAccessTokenTTL, "COGITATOR_AUTH_ACCESS_TOKEN_TTL")
+	refresh = parseTTL(a.RefreshTokenTTL, defaultRefreshTokenTTL, "COGITATOR_AUTH_REFRESH_TOKEN_TTL")
+	if access >= refresh {
+		slog.Warn("auth access_token_ttl must be shorter than refresh_token_ttl; using defaults",
+			"access", access, "refresh", refresh)
+		return defaultAccessTokenTTL, defaultRefreshTokenTTL
+	}
+	return access, refresh
+}
+
+// parseTTL parses a Go duration string, returning def (with a warning) when the
+// value is empty, unparseable, or not positive.
+func parseTTL(v string, def time.Duration, name string) time.Duration {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		slog.Warn("invalid auth token TTL, using default", "field", name, "value", v, "default", def, "error", err)
+		return def
+	}
+	if d <= 0 {
+		slog.Warn("auth token TTL must be positive, using default", "field", name, "value", v, "default", def)
+		return def
+	}
+	return d
 }
 
 type UpdateConfig struct {
@@ -213,6 +266,10 @@ func Default() *Config {
 		Database: DatabaseConfig{
 			MaxReaders: 4,
 		},
+		Auth: AuthConfig{
+			AccessTokenTTL:  defaultAccessTokenTTL.String(),
+			RefreshTokenTTL: defaultRefreshTokenTTL.String(),
+		},
 	}
 }
 
@@ -341,6 +398,15 @@ func (c *Config) ApplyEnv() {
 		if n, err := strconv.Atoi(v); err == nil {
 			c.Database.MaxReaders = n
 		}
+	}
+
+	// JWT token lifetimes. Stored as raw strings here; validation and fallback
+	// to defaults happen in AuthConfig.TokenTTLs.
+	if v := os.Getenv("COGITATOR_AUTH_ACCESS_TOKEN_TTL"); v != "" {
+		c.Auth.AccessTokenTTL = v
+	}
+	if v := os.Getenv("COGITATOR_AUTH_REFRESH_TOKEN_TTL"); v != "" {
+		c.Auth.RefreshTokenTTL = v
 	}
 
 	// Optimization toggles.

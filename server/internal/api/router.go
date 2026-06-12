@@ -116,6 +116,15 @@ type Router struct {
 	orchestratorURL      string
 	tenantID             string
 
+	authFailures *failTracker // brute-force protection for auth endpoints
+
+	// Bounded, TTL-pruned stores for the social OAuth flow. They replace
+	// unbounded package-level maps (memory DoS) and per-entry cleanup
+	// goroutines (leak). State nonces are consumed on the OAuth callback;
+	// auth results are consumed on claim polling.
+	socialOAuthStates  *ttlStore[*pendingSocialAuth]
+	pendingAuthResults *ttlStore[*pendingAuthResult]
+
 	usageWarningMu         sync.RWMutex
 	usageWarningLevel      string
 	usageWarningPct        float64
@@ -221,10 +230,15 @@ func NewRouter(cfg RouterConfig) *Router {
 		isSaaS:               cfg.IsSaaS,
 		orchestratorURL:      cfg.OrchestratorURL,
 		tenantID:             cfg.TenantID,
+		authFailures:         newFailTracker(),
+		socialOAuthStates:    newTTLStore[*pendingSocialAuth](socialStateTTL, socialStateMaxEntries),
+		pendingAuthResults:   newTTLStore[*pendingAuthResult](pendingResultTTL, pendingResultMaxEntries),
 	}
 	r.registerRoutes()
 
-	// Compose middleware chain: CORS (outermost) -> auth -> mux (innermost).
+	// Compose middleware chain: recover (outermost) -> drain -> metrics ->
+	// CORS -> auth -> mux (innermost). Recover wraps everything so it catches
+	// panics from the other middleware as well as the handlers.
 	var handler http.Handler = r.mux
 	if cfg.JWTService != nil {
 		handler = jwtAuthMiddleware(cfg.JWTService, r.internalSecret != "", handler)
@@ -236,6 +250,7 @@ func NewRouter(cfg RouterConfig) *Router {
 	if cfg.DrainManager != nil {
 		handler = cfg.DrainManager.Middleware()(handler)
 	}
+	handler = recoverMiddleware(handler)
 	r.handler = handler
 
 	return r

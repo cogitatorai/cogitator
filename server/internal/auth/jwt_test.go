@@ -172,6 +172,50 @@ func TestMustUserFromContext_Panics(t *testing.T) {
 	MustUserFromContext(context.Background())
 }
 
+func TestAccessTokenTTLFlowsToExpiryClaim(t *testing.T) {
+	const accessTTL = 30 * time.Minute
+	svc := NewJWTService(testSecret, accessTTL, 30*24*time.Hour)
+
+	before := time.Now()
+	token, err := svc.GenerateAccessToken("u-ttl", "user")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	claims, err := svc.ValidateAccessToken(token)
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if claims.ExpiresAt == nil || claims.IssuedAt == nil {
+		t.Fatal("expected exp and iat claims set")
+	}
+	// exp should be roughly issuedAt + accessTTL (allow a small skew window).
+	gotTTL := claims.ExpiresAt.Time.Sub(claims.IssuedAt.Time)
+	if gotTTL != accessTTL {
+		t.Errorf("exp-iat = %v, want %v", gotTTL, accessTTL)
+	}
+	// exp should land near now+accessTTL.
+	wantExp := before.Add(accessTTL)
+	if claims.ExpiresAt.Time.Before(wantExp.Add(-2*time.Second)) ||
+		claims.ExpiresAt.Time.After(wantExp.Add(2*time.Second)) {
+		t.Errorf("exp = %v, want near %v", claims.ExpiresAt.Time, wantExp)
+	}
+}
+
+func TestRefreshTokenTTLFlowsToExpiresAt(t *testing.T) {
+	const refreshTTL = 7 * 24 * time.Hour
+	svc := NewJWTService(testSecret, 30*time.Minute, refreshTTL)
+
+	before := time.Now()
+	_, _, expiresAt, err := svc.GenerateRefreshToken()
+	if err != nil {
+		t.Fatalf("generate refresh: %v", err)
+	}
+	wantExp := before.Add(refreshTTL)
+	if expiresAt.Before(wantExp.Add(-2*time.Second)) || expiresAt.After(wantExp.Add(2*time.Second)) {
+		t.Errorf("refresh expiresAt = %v, want near %v", expiresAt, wantExp)
+	}
+}
+
 func TestRefreshTokenTTL(t *testing.T) {
 	ttl := 7 * 24 * time.Hour
 	svc := NewJWTService(testSecret, time.Minute, ttl)

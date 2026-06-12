@@ -13,8 +13,13 @@ build: ## Build the server binary
 test: ## Run all Go tests
 	cd server && go test ./... -count=1
 
-lint: ## Run go vet
-	cd server && go vet ./...
+lint: ## Run golangci-lint if available, else go vet
+	cd server && if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "golangci-lint not found; falling back to go vet"; \
+		go vet ./...; \
+	fi
 
 dashboard: ## Build the dashboard
 	cd dashboard && npm run build

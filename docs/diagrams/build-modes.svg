@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 520" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="12">
+  <style>
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+    .sub { fill: #475569; font-size: 11px; }
+    .colTitle { font-weight: 700; font-size: 14px; fill: #0f172a; }
+    .tag { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: #6b21a8; }
+    .rowLabel { fill: #0f172a; font-weight: 600; font-size: 12px; }
+    .cell { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1; }
+    .cellAlt { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1; }
+    .headCLI { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.5; }
+    .headDesk { fill: #ecfdf5; stroke: #16a34a; stroke-width: 1.5; }
+    .headSaaS { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.5; }
+    .small { fill: #334155; font-size: 11px; }
+    .check { fill: #16a34a; font-weight: 700; }
+    .cross { fill: #b91c1c; font-weight: 700; }
+    .neutral { fill: #475569; }
+  </style>
+  <rect width="1040" height="520" rx="8" fill="#f8fafc"/>
+
+  <text x="18" y="26" class="header">Build Modes — one binary, three personalities</text>
+  <text x="18" y="44" class="sub">Go build tags (desktop / saas / none) + env vars pick assets, routing, workspace layout, and secret store.</text>
+
+  <!-- Column headers -->
+  <rect x="260" y="70" width="240" height="56" class="headCLI" rx="6"/>
+  <text x="380" y="92" text-anchor="middle" class="colTitle">CLI / Self-host</text>
+  <text x="380" y="108" text-anchor="middle" class="tag">go build ./cmd/cogitator</text>
+  <text x="380" y="122" text-anchor="middle" class="sub">default tag · Docker image</text>
+
+  <rect x="510" y="70" width="240" height="56" class="headDesk" rx="6"/>
+  <text x="630" y="92" text-anchor="middle" class="colTitle">Desktop (macOS)</text>
+  <text x="630" y="108" text-anchor="middle" class="tag">-tags desktop</text>
+  <text x="630" y="122" text-anchor="middle" class="sub">Swift wrapper · WKWebView</text>
+
+  <rect x="760" y="70" width="260" height="56" class="headSaaS" rx="6"/>
+  <text x="890" y="92" text-anchor="middle" class="colTitle">SaaS tenant</text>
+  <text x="890" y="108" text-anchor="middle" class="tag">-tags saas</text>
+  <text x="890" y="122" text-anchor="middle" class="sub">Fly.io machine, orchestrated</text>
+
+  <!-- Rows -->
+  <g transform="translate(0,140)">
+    <!-- Row 1: Dashboard assets -->
+    <rect x="20"  y="0" width="240" height="36" class="cell" rx="3"/>
+    <rect x="260" y="0" width="240" height="36" class="cell" rx="3"/>
+    <rect x="510" y="0" width="240" height="36" class="cell" rx="3"/>
+    <rect x="760" y="0" width="260" height="36" class="cell" rx="3"/>
+    <text x="36"  y="22" class="rowLabel">Dashboard assets</text>
+    <text x="380" y="22" text-anchor="middle" class="small">from disk (<tspan class="tag">DashboardDir</tspan>)</text>
+    <text x="630" y="22" text-anchor="middle" class="small">embedded (<tspan class="tag">go:embed</tspan>)</text>
+    <text x="890" y="22" text-anchor="middle" class="small">/public (R2 · pulled)</text>
+
+    <!-- Row 2 -->
+    <rect x="20"  y="36" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="260" y="36" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="510" y="36" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="760" y="36" width="260" height="36" class="cellAlt" rx="3"/>
+    <text x="36"  y="58" class="rowLabel">LLM routing</text>
+    <text x="380" y="58" text-anchor="middle" class="small">direct → provider API</text>
+    <text x="630" y="58" text-anchor="middle" class="small">direct → provider API</text>
+    <text x="890" y="58" text-anchor="middle" class="small">via orchestrator proxy (tiered)</text>
+
+    <!-- Row 3 -->
+    <rect x="20"  y="72" width="240" height="36" class="cell" rx="3"/>
+    <rect x="260" y="72" width="240" height="36" class="cell" rx="3"/>
+    <rect x="510" y="72" width="240" height="36" class="cell" rx="3"/>
+    <rect x="760" y="72" width="260" height="36" class="cell" rx="3"/>
+    <text x="36"  y="94" class="rowLabel">Workspace root</text>
+    <text x="380" y="94" text-anchor="middle" class="small">configurable · user-set path</text>
+    <text x="630" y="94" text-anchor="middle" class="small">fixed <tspan class="tag">~/.cogitator</tspan></text>
+    <text x="890" y="94" text-anchor="middle" class="small">fixed <tspan class="tag">/data</tspan> (Fly volume)</text>
+
+    <!-- Row 4 -->
+    <rect x="20"  y="108" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="260" y="108" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="510" y="108" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="760" y="108" width="260" height="36" class="cellAlt" rx="3"/>
+    <text x="36"  y="130" class="rowLabel">Secret store</text>
+    <text x="380" y="130" text-anchor="middle" class="small">file (<tspan class="tag">secrets.yaml</tspan>)</text>
+    <text x="630" y="130" text-anchor="middle" class="small">macOS Keychain → file</text>
+    <text x="890" y="130" text-anchor="middle" class="small">env vars from Fly secrets</text>
+
+    <!-- Row 5 -->
+    <rect x="20"  y="144" width="240" height="36" class="cell" rx="3"/>
+    <rect x="260" y="144" width="240" height="36" class="cell" rx="3"/>
+    <rect x="510" y="144" width="240" height="36" class="cell" rx="3"/>
+    <rect x="760" y="144" width="260" height="36" class="cell" rx="3"/>
+    <text x="36"  y="166" class="rowLabel">Self-update</text>
+    <text x="380" y="166" text-anchor="middle" class="cross">—</text>
+    <text x="630" y="166" text-anchor="middle" class="small">GitHub releases (updater/)</text>
+    <text x="890" y="166" text-anchor="middle" class="small">fleet rollout from orchestrator</text>
+
+    <!-- Row 6 -->
+    <rect x="20"  y="180" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="260" y="180" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="510" y="180" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="760" y="180" width="260" height="36" class="cellAlt" rx="3"/>
+    <text x="36"  y="202" class="rowLabel">Orchestrator endpoints</text>
+    <text x="380" y="202" text-anchor="middle" class="cross">—</text>
+    <text x="630" y="202" text-anchor="middle" class="cross">—</text>
+    <text x="890" y="202" text-anchor="middle" class="check">heartbeat · metering · LLM proxy</text>
+
+    <!-- Row 7 -->
+    <rect x="20"  y="216" width="240" height="36" class="cell" rx="3"/>
+    <rect x="260" y="216" width="240" height="36" class="cell" rx="3"/>
+    <rect x="510" y="216" width="240" height="36" class="cell" rx="3"/>
+    <rect x="760" y="216" width="260" height="36" class="cell" rx="3"/>
+    <text x="36"  y="238" class="rowLabel">Sandbox mode</text>
+    <text x="380" y="238" text-anchor="middle" class="small">host or Docker</text>
+    <text x="630" y="238" text-anchor="middle" class="small">host (Keychain-gated)</text>
+    <text x="890" y="238" text-anchor="middle" class="small">host in container (Fly)</text>
+
+    <!-- Row 8 -->
+    <rect x="20"  y="252" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="260" y="252" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="510" y="252" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="760" y="252" width="260" height="36" class="cellAlt" rx="3"/>
+    <text x="36"  y="274" class="rowLabel">Auth requirements</text>
+    <text x="380" y="274" text-anchor="middle" class="small">first-run setup (local admin)</text>
+    <text x="630" y="274" text-anchor="middle" class="small">first-run setup (Keychain)</text>
+    <text x="890" y="274" text-anchor="middle" class="small">magic-link + Stripe gate</text>
+
+    <!-- Row 9 -->
+    <rect x="20"  y="288" width="240" height="36" class="cell" rx="3"/>
+    <rect x="260" y="288" width="240" height="36" class="cell" rx="3"/>
+    <rect x="510" y="288" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="760" y="288" width="260" height="36" class="cell" rx="3"/>
+    <text x="36"  y="310" class="rowLabel">Models UI page</text>
+    <text x="380" y="310" text-anchor="middle" class="check">visible (admin)</text>
+    <text x="630" y="310" text-anchor="middle" class="check">visible (admin)</text>
+    <text x="890" y="310" text-anchor="middle" class="cross">hidden — keys managed centrally</text>
+
+    <!-- Row 10 -->
+    <rect x="20"  y="324" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="260" y="324" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="510" y="324" width="240" height="36" class="cellAlt" rx="3"/>
+    <rect x="760" y="324" width="260" height="36" class="cellAlt" rx="3"/>
+    <text x="36"  y="346" class="rowLabel">Primary intent</text>
+    <text x="380" y="346" text-anchor="middle" class="small">self-hosted, Docker-first</text>
+    <text x="630" y="346" text-anchor="middle" class="small">solo power user, on-device</text>
+    <text x="890" y="346" text-anchor="middle" class="small">managed multi-tenant</text>
+  </g>
+
+  <text x="18" y="510" class="sub">Shared code paths: the agent loop, memory, tool registry, and scheduler are identical across modes. Only adapters (dashboard, secrets, LLM, workspace) swap.</text>
+  <text x="1020" y="510" text-anchor="end" class="sub">cogitator/docs/diagrams/build-modes.svg</text>
+</svg>

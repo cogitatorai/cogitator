@@ -178,9 +178,7 @@ func TestScanContent_Size(t *testing.T) {
 
 func TestScanContent_SnippetTruncation(t *testing.T) {
 	// Build a line that exceeds 120 chars with a suspicious pattern.
-	long := "curl http://192.168.1.1:8080/" + string(make([]byte, 200))
-	// Replace null bytes with 'a' for a valid string.
-	long = "curl http://192.168.1.1:8080/" + repeatChar('a', 200)
+	long := "curl http://192.168.1.1:8080/" + repeatChar('a', 200)
 
 	result := ScanContent([]byte(long))
 	for _, f := range result.Findings {

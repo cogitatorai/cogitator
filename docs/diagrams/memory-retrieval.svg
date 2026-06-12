@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 640" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="12">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#0f172a"/>
+    </marker>
+    <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fed7aa" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#fed7aa" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1040" height="640" rx="8" fill="#f8fafc"/>
+  <style>
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+    .sub { fill: #475569; font-size: 11px; }
+    .stage { fill: #ffffff; stroke: #334155; stroke-width: 1.2; }
+    .stageHot { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.6; }
+    .title { fill: #0f172a; font-weight: 600; font-size: 12.5px; }
+    .small { fill: #475569; font-size: 11px; }
+    .flow { stroke: #334155; stroke-width: 1.4; fill: none; }
+    .kgBox { fill: #f0fdf4; stroke: #16a34a; }
+    .edgeG { stroke: #334155; stroke-width: 1.1; fill: none; }
+    .nFact { fill: #dbeafe; stroke: #2563eb; }
+    .nPref { fill: #ede9fe; stroke: #7c3aed; }
+    .nPatt { fill: #cffafe; stroke: #0891b2; }
+    .nSkill { fill: #ffedd5; stroke: #ea580c; }
+    .nEp { fill: #dcfce7; stroke: #16a34a; }
+    .pinned { stroke-dasharray: 3 2; stroke-width: 2; }
+    .nodeLabel { fill: #0f172a; font-size: 10.5px; text-anchor: middle; font-weight: 600; }
+  </style>
+
+  <text x="18" y="26" class="header">Memory Retrieval — Hybrid Vector + Graph Walk</text>
+  <text x="18" y="44" class="sub">Embedder.Embed(query) → cosine top-K with type boost → 1-hop edge expansion → pinned merge → token budget → format.</text>
+
+  <!-- Pipeline stages -->
+  <g transform="translate(0,70)">
+    <rect x="20"  y="0"  width="150" height="70" class="stage" rx="5"/>
+    <text x="95"  y="20" text-anchor="middle" class="title">1. Embed query</text>
+    <text x="95"  y="38" text-anchor="middle" class="small">Embedder.Embed(msg)</text>
+    <text x="95"  y="54" text-anchor="middle" class="small">e.g. text-embedding-3-small</text>
+
+    <rect x="190" y="0"  width="150" height="70" class="stageHot" rx="5"/>
+    <text x="265" y="20" text-anchor="middle" class="title" fill="#9a3412">2. Vector search</text>
+    <text x="265" y="38" text-anchor="middle" class="small">cosine ≥ MinSimilarity</text>
+    <text x="265" y="54" text-anchor="middle" class="small">× TypeBoost (facts/prefs)</text>
+
+    <rect x="360" y="0"  width="150" height="70" class="stage" rx="5"/>
+    <text x="435" y="20" text-anchor="middle" class="title">3. Top-K ranking</text>
+    <text x="435" y="38" text-anchor="middle" class="small">TopK = 5 by default</text>
+    <text x="435" y="54" text-anchor="middle" class="small">ties broken by recency</text>
+
+    <rect x="530" y="0"  width="170" height="70" class="stageHot" rx="5"/>
+    <text x="615" y="20" text-anchor="middle" class="title" fill="#9a3412">4. Graph expand</text>
+    <text x="615" y="38" text-anchor="middle" class="small">1-hop · weight ≥ 0.5</text>
+    <text x="615" y="54" text-anchor="middle" class="small">summary-only for neighbors</text>
+
+    <rect x="720" y="0"  width="150" height="70" class="stage" rx="5"/>
+    <text x="795" y="20" text-anchor="middle" class="title">5. Merge pinned</text>
+    <text x="795" y="38" text-anchor="middle" class="small">always included</text>
+    <text x="795" y="54" text-anchor="middle" class="small">listed first in prompt</text>
+
+    <rect x="890" y="0"  width="130" height="70" class="stage" rx="5"/>
+    <text x="955" y="20" text-anchor="middle" class="title">6. Token budget</text>
+    <text x="955" y="38" text-anchor="middle" class="small">cap 2000 tokens</text>
+    <text x="955" y="54" text-anchor="middle" class="small">drop lowest score</text>
+
+    <path class="flow" d="M170,35 L190,35" marker-end="url(#a2)"/>
+    <path class="flow" d="M340,35 L360,35" marker-end="url(#a2)"/>
+    <path class="flow" d="M510,35 L530,35" marker-end="url(#a2)"/>
+    <path class="flow" d="M700,35 L720,35" marker-end="url(#a2)"/>
+    <path class="flow" d="M870,35 L890,35" marker-end="url(#a2)"/>
+  </g>
+
+  <!-- Output into prompt -->
+  <g transform="translate(0,170)">
+    <rect x="20"  y="0" width="1000" height="50" class="stage" rx="5"/>
+    <text x="40"  y="20" class="title">7. Format as Markdown → inject into system prompt</text>
+    <text x="40"  y="38" class="small">Pinned block · Nodes with subject/owner annotation · Neighbor summaries · "See also" edges · Reason-to-retrieve trigger.</text>
+  </g>
+
+  <!-- Knowledge graph sample -->
+  <g transform="translate(0,250)">
+    <rect x="20"  y="0" width="610" height="370" class="kgBox" rx="6"/>
+    <text x="40"  y="22" class="title" fill="#14532d">Knowledge graph structure (sample)</text>
+    <text x="40"  y="40" class="small">Nodes: Fact · Preference · Pattern · Skill · Episode · TaskKnowledge. Confidence 0–1. Pinned/private flags.</text>
+    <text x="40"  y="56" class="small">Edges (weighted 0–1): refines · contradicts · supports · derived_from · example_of · related_to.</text>
+
+    <!-- Sample nodes -->
+    <circle cx="130" cy="150" r="42" class="nFact"/>
+    <text x="130" y="147" class="nodeLabel">Fact</text>
+    <text x="130" y="162" class="nodeLabel" font-weight="400" font-size="9.5">"lives in Dublin"</text>
+
+    <circle cx="260" cy="110" r="42" class="nPref pinned"/>
+    <text x="260" y="107" class="nodeLabel">Preference</text>
+    <text x="260" y="122" class="nodeLabel" font-weight="400" font-size="9.5">📌 terse replies</text>
+
+    <circle cx="400" cy="170" r="42" class="nPatt"/>
+    <text x="400" y="167" class="nodeLabel">Pattern</text>
+    <text x="400" y="182" class="nodeLabel" font-weight="400" font-size="9.5">asks in evenings</text>
+
+    <circle cx="270" cy="240" r="42" class="nEp"/>
+    <text x="270" y="237" class="nodeLabel">Episode</text>
+    <text x="270" y="252" class="nodeLabel" font-weight="400" font-size="9.5">last Tue session</text>
+
+    <circle cx="510" cy="280" r="42" class="nSkill"/>
+    <text x="510" y="277" class="nodeLabel">Skill</text>
+    <text x="510" y="292" class="nodeLabel" font-weight="400" font-size="9.5">"package-audit"</text>
+
+    <!-- Sample edges -->
+    <line x1="170" y1="140" x2="220" y2="120" class="edgeG"/>
+    <text x="180" y="120" class="small">supports 0.82</text>
+
+    <line x1="300" y1="130" x2="360" y2="160" class="edgeG"/>
+    <text x="308" y="150" class="small">derived_from 0.71</text>
+
+    <line x1="260" y1="155" x2="270" y2="197" class="edgeG"/>
+    <text x="270" y="190" class="small">example_of 0.64</text>
+
+    <line x1="440" y1="185" x2="470" y2="245" class="edgeG"/>
+    <text x="450" y="220" class="small">related_to 0.55</text>
+
+    <line x1="170" y1="175" x2="230" y2="235" class="edgeG" stroke-dasharray="3 3"/>
+    <text x="170" y="215" class="small" fill="#b45309">contradicts 0.9 (low conf fact)</text>
+  </g>
+
+  <!-- Algorithm notes -->
+  <g transform="translate(650,250)">
+    <rect x="0"   y="0" width="370" height="370" class="stage" rx="6"/>
+    <text x="16"  y="22" class="title">Retrieval algorithm — why this shape</text>
+
+    <text x="16"  y="48" class="small">• Hybrid (vector + graph) beats flat RAG: cosine hits</text>
+    <text x="28"  y="62" class="small">bring topical relevance, 1-hop edges bring causal /</text>
+    <text x="28"  y="76" class="small">contradicting context the vector alone misses.</text>
+
+    <text x="16"  y="98" class="small">• Type boost privileges Facts &amp; Preferences over</text>
+    <text x="28"  y="112" class="small">Patterns &amp; Episodes: concrete claims beat abstractions</text>
+    <text x="28"  y="126" class="small">for grounding answers.</text>
+
+    <text x="16"  y="148" class="small">• Pinned nodes bypass ranking — hard guarantees for</text>
+    <text x="28"  y="162" class="small">operator-set preferences ("always reply in Italian").</text>
+
+    <text x="16"  y="184" class="small">• 1-hop only (configurable ContextWindow). Deeper</text>
+    <text x="28"  y="198" class="small">walks add noise; enrichment paths already denormalise.</text>
+
+    <text x="16"  y="220" class="small">• Token budget (≈ 2000) is the hard cap. Nodes past</text>
+    <text x="28"  y="234" class="small">the cap are dropped in ascending score order.</text>
+
+    <text x="16"  y="256" class="small">• Graceful degradation: no Embedder → cheap-tier LLM</text>
+    <text x="28"  y="270" class="small">ranks candidates by relevance (slower, still correct).</text>
+
+
+    <text x="16"  y="292" class="small">• Privacy: private nodes filtered by userID at the SQL</text>
+    <text x="28"  y="306" class="small">boundary before ranking — not at the prompt layer.</text>
+
+    <text x="16"  y="328" class="small">• Dedup at write time: cosine ≥ 0.90 against an</text>
+    <text x="28"  y="342" class="small">existing node blocks creation (see Enricher).</text>
+  </g>
+
+  <text x="1020" y="632" text-anchor="end" class="sub">cogitator/docs/diagrams/memory-retrieval.svg</text>
+</svg>

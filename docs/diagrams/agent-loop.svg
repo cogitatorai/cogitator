@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 720" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" font-size="12">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#0f172a"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="1040" height="720" rx="8" fill="#f8fafc"/>
+  <style>
+    .lane { fill: #f8fafc; stroke: #cbd5e1; }
+    .laneTitle { fill: #0f172a; font-weight: 700; font-size: 13px; }
+    .laneSub { fill: #64748b; font-size: 10.5px; }
+    .life { stroke: #94a3b8; stroke-dasharray: 4 3; }
+    .msg { stroke: #0f172a; stroke-width: 1.2; fill: none; }
+    .msgO { stroke: #ea580c; stroke-width: 1.4; fill: none; }
+    .label { fill: #0f172a; font-size: 11.5px; }
+    .ret { stroke: #334155; stroke-width: 1; stroke-dasharray: 5 3; fill: none; }
+    .note { fill: #fff7ed; stroke: #ea580c; }
+    .header { fill: #0f172a; font-weight: 700; font-size: 15px; }
+    .loop { fill: none; stroke: #ea580c; stroke-width: 1.4; stroke-dasharray: 3 2; }
+  </style>
+
+  <text x="18" y="26" class="header">Agent Conversation Loop — Chat()</text>
+  <text x="18" y="44" class="laneSub">Non-streaming at the agent boundary. Up to 25 tool rounds per user turn. 32 KB cap per tool result.</text>
+
+  <!-- Lanes -->
+  <g>
+    <rect x="20"  y="62" width="130" height="40" class="lane" rx="4"/>
+    <text x="85"  y="82"  text-anchor="middle" class="laneTitle">Client</text>
+    <text x="85"  y="96"  text-anchor="middle" class="laneSub">dashboard / mobile</text>
+
+    <rect x="160" y="62" width="130" height="40" class="lane" rx="4"/>
+    <text x="225" y="82"  text-anchor="middle" class="laneTitle">API</text>
+    <text x="225" y="96"  text-anchor="middle" class="laneSub">handler + middleware</text>
+
+    <rect x="300" y="62" width="160" height="40" class="lane" rx="4"/>
+    <text x="380" y="82"  text-anchor="middle" class="laneTitle">Agent</text>
+    <text x="380" y="96"  text-anchor="middle" class="laneSub">agent.Chat()</text>
+
+    <rect x="470" y="62" width="130" height="40" class="lane" rx="4"/>
+    <text x="535" y="82"  text-anchor="middle" class="laneTitle">Memory</text>
+    <text x="535" y="96"  text-anchor="middle" class="laneSub">hybrid retriever</text>
+
+    <rect x="610" y="62" width="130" height="40" class="lane" rx="4"/>
+    <text x="675" y="82"  text-anchor="middle" class="laneTitle">Provider</text>
+    <text x="675" y="96"  text-anchor="middle" class="laneSub">LLM (OpenAI-compat)</text>
+
+    <rect x="750" y="62" width="130" height="40" class="lane" rx="4"/>
+    <text x="815" y="82"  text-anchor="middle" class="laneTitle">Tools</text>
+    <text x="815" y="96"  text-anchor="middle" class="laneSub">executor</text>
+
+    <rect x="890" y="62" width="130" height="40" class="lane" rx="4"/>
+    <text x="955" y="82"  text-anchor="middle" class="laneTitle">Bus + Store</text>
+    <text x="955" y="96"  text-anchor="middle" class="laneSub">session, events</text>
+  </g>
+
+  <!-- Lifelines -->
+  <g class="life">
+    <line x1="85"  y1="102" x2="85"  y2="700"/>
+    <line x1="225" y1="102" x2="225" y2="700"/>
+    <line x1="380" y1="102" x2="380" y2="700"/>
+    <line x1="535" y1="102" x2="535" y2="700"/>
+    <line x1="675" y1="102" x2="675" y2="700"/>
+    <line x1="815" y1="102" x2="815" y2="700"/>
+    <line x1="955" y1="102" x2="955" y2="700"/>
+  </g>
+
+  <!-- 1. Client POST /api/chat -->
+  <path class="msg" d="M85,130 L222,130" marker-end="url(#a)"/>
+  <text x="90" y="124" class="label">1. POST /api/chat  { session, message, files }</text>
+
+  <!-- 2. API → Agent + budget gate -->
+  <path class="msg" d="M225,160 L377,160" marker-end="url(#a)"/>
+  <text x="228" y="154" class="label">2. Chat(ctx, req) — after JWT · budget check · rate limit</text>
+
+  <!-- 3. Agent → Memory -->
+  <path class="msg" d="M380,192 L532,192" marker-end="url(#a)"/>
+  <text x="384" y="186" class="label">3. Retrieve(userID, msg, history)</text>
+
+  <!-- 4. Memory returns context -->
+  <path class="ret" d="M535,220 L383,220" marker-end="url(#a)"/>
+  <text x="388" y="214" class="label">4. RetrievedContext — pinned + top-K nodes, 1-hop edges, ≤ 2000 tokens</text>
+
+  <!-- 5. Agent → build messages + session history -->
+  <path class="msg" d="M380,252 L952,252" marker-end="url(#a)"/>
+  <text x="384" y="246" class="label">5. LoadHistory(sessionKey)</text>
+
+  <!-- 6. Agent → Provider first call -->
+  <rect x="300" y="272" width="660" height="280" fill="none" class="loop" rx="6"/>
+  <text x="310" y="288" fill="#ea580c" font-weight="600" font-size="11">tool-use loop (up to MaxToolRounds = 25)</text>
+
+  <path class="msgO" d="M380,308 L672,308" marker-end="url(#ao)"/>
+  <text x="384" y="302" class="label" fill="#9a3412">6. Chat(messages, tools[], model) · round 0 may omit tools (chitchat fast path, retried with tools if empty)</text>
+
+  <!-- 7. Provider returns tool_calls -->
+  <path class="ret" d="M675,338 L383,338" marker-end="url(#a)"/>
+  <text x="388" y="332" class="label">7. finish=tool_calls, [{id, name, args}, …]</text>
+
+  <!-- 8. Agent → Tools.Execute (multiple, serial per call) -->
+  <path class="msgO" d="M380,368 L812,368" marker-end="url(#ao)"/>
+  <text x="384" y="362" class="label" fill="#9a3412">8. Execute(name, args) — routes to builtin / MCP / connector / shell</text>
+
+  <!-- 9. Tools returns result (truncated) -->
+  <path class="ret" d="M815,398 L383,398" marker-end="url(#a)"/>
+  <text x="388" y="392" class="label">9. result (truncated to 32 KB, notice appended if capped)</text>
+
+  <!-- 10. Agent appends tool result and re-calls provider -->
+  <path class="msgO" d="M380,428 L672,428" marker-end="url(#ao)"/>
+  <text x="384" y="422" class="label" fill="#9a3412">10. Chat(messages + tool results) — next round</text>
+
+  <path class="ret" d="M675,458 L383,458" marker-end="url(#a)"/>
+  <text x="388" y="452" class="label">11. finish=stop, content="…" OR more tool_calls (loop continues)</text>
+
+  <!-- Loop exit note -->
+  <rect x="320" y="478" width="600" height="58" class="note" rx="5"/>
+  <text x="332" y="498" class="label" fill="#9a3412" font-weight="600">Loop exit conditions</text>
+  <text x="332" y="514" class="label">• finish=stop with content · tool rounds exhausted (force stop) · context cancelled</text>
+  <text x="332" y="528" class="label">• If caller ctx cancels and provider lacks StreamCancel → 120 s detached goroutine drains the call</text>
+
+  <!-- 12. Agent → Store.Save -->
+  <path class="msg" d="M380,578 L952,578" marker-end="url(#a)"/>
+  <text x="384" y="572" class="label">12. SaveMessage(assistant, tool_calls, tools_used, usage) — transactional</text>
+
+  <!-- 13. Agent → Bus.Publish -->
+  <path class="msg" d="M380,608 L952,608" marker-end="url(#a)"/>
+  <text x="384" y="602" class="label">13. bus.Publish — MessageResponded, TokenUsed, EnrichmentQueued?</text>
+
+  <!-- 14. Bus → Client via WS -->
+  <path class="msg" d="M955,638 L88,638" marker-end="url(#a)"/>
+  <text x="92"  y="632" class="label">14. WebSocket: status (thinking/tool_calling) · response · session_update</text>
+
+  <!-- 15. Return response -->
+  <path class="ret" d="M380,668 L227,668" marker-end="url(#a)"/>
+  <text x="232" y="662" class="label">15. return ChatResponse</text>
+  <path class="ret" d="M225,690 L88,690" marker-end="url(#a)"/>
+  <text x="92"  y="684" class="label">16. HTTP 200 { response, tools_used, usage }</text>
+
+  <text x="1020" y="712" text-anchor="end" class="laneSub">cogitator/docs/diagrams/agent-loop.svg</text>
+</svg>

@@ -1,0 +1,33 @@
+# golangci-lint configuration (v2 schema).
+#
+# CI pins golangci-lint v2.6.1 (see .github/workflows/ci.yml); use the same version
+# locally to avoid finding drift between local runs and CI.
+#
+# Pragmatic, conservative linter set chosen so that CI is GREEN on the current
+# codebase without a mass refactor. We enable the high-signal linters that catch
+# real correctness/dead-code issues and that the code already satisfies.
+#
+# Intentionally DISABLED (would require real refactoring, not config tuning):
+#   - errcheck:    ~50 unchecked-error findings across the codebase. Enabling now
+#                  would force touching dozens of call sites; defer to a focused PR.
+#   - staticcheck: ~33 findings, the bulk being SA1019 deprecation warnings for
+#                  nhooyr.io/websocket (a dependency migration, not a quick fix),
+#                  plus a few style nits (ST1005, QF1008, S1016). Re-enable after
+#                  the websocket dependency is migrated to github.com/coder/websocket.
+#
+# gofmt is NOT enabled: the existing source has alignment inconsistencies in
+# several const/struct blocks that gofmt would rewrite across ~40 files. That is
+# a formatting sweep best done on its own, not gated behind this first CI run.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet       # suspicious constructs; mirrors `go vet`
+    - ineffassign # detects ineffectual assignments
+    - unused      # dead code (unused funcs, vars, consts)
+
+issues:
+  # Don't cap the number of reported issues per linter/line.
+  max-issues-per-linter: 0
+  max-same-issues: 0

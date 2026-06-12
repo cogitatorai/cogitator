@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"log/slog"
-	"math"
 	"strings"
 	"testing"
 
@@ -56,18 +55,6 @@ func makeNode(id, title string) memory.Node {
 
 // vec2 constructs a 2-dimensional float32 vector.
 func vec2(x, y float32) []float32 { return []float32{x, y} }
-
-// cosAngle returns the cosine similarity between two 2-D unit-ish vectors for
-// comparison in tests.
-func cosAngle(ax, ay, bx, by float64) float64 {
-	dot := ax*bx + ay*by
-	na := math.Sqrt(ax*ax + ay*ay)
-	nb := math.Sqrt(bx*bx + by*by)
-	if na == 0 || nb == 0 {
-		return 0
-	}
-	return dot / (na * nb)
-}
 
 func TestClusterNodes_SimilarNodesGrouped(t *testing.T) {
 	c := &Consolidator{clusterSim: 0.7, minCluster: 2}

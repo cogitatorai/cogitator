@@ -23,6 +23,9 @@ var (
 	ErrTokenExpired  = errors.New("refresh token expired")
 	ErrDuplicateUser = errors.New("email already exists")
 	ErrLinkNotFound  = errors.New("oauth link not found")
+	// ErrSetupComplete is returned by CreateFirstAdmin when at least one user
+	// already exists, i.e. the first-run setup has already been performed.
+	ErrSetupComplete = errors.New("setup already completed")
 )
 
 // Store provides CRUD operations for users, invite codes, and refresh tokens.
@@ -63,6 +66,60 @@ func (s *Store) Create(input CreateUserInput) (*User, error) {
 			return nil, ErrDuplicateUser
 		}
 		return nil, fmt.Errorf("inserting user: %w", err)
+	}
+
+	return u, nil
+}
+
+// CreateFirstAdmin atomically creates the first admin account, but only if no
+// users exist yet. It guards against a TOCTOU race where two concurrent setup
+// requests both observe an empty users table and both create an admin.
+//
+// Atomicity comes from a single conditional INSERT (INSERT ... SELECT ...
+// WHERE NOT EXISTS) executed on the writer connection. The writer pool is
+// limited to a single connection, so concurrent calls serialize at the SQLite
+// level: the first INSERT inserts a row, every subsequent one matches an
+// existing user via NOT EXISTS and affects zero rows. The DB is the source of
+// truth, so no in-process lock is required.
+//
+// Returns ErrSetupComplete if a user already exists, or ErrDuplicateUser if the
+// email collides with an existing account.
+func (s *Store) CreateFirstAdmin(input CreateUserInput) (*User, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hashing password: %w", err)
+	}
+
+	now := time.Now().UTC()
+	u := &User{
+		ID:           uuid.New().String(),
+		Email:        input.Email,
+		Name:         input.Name,
+		PasswordHash: string(hash),
+		Role:         RoleAdmin,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	res, err := s.db.Writer().Exec(
+		`INSERT INTO users (id, email, name, password_hash, role, created_at, updated_at)
+		 SELECT ?, ?, ?, ?, ?, ?, ?
+		 WHERE NOT EXISTS (SELECT 1 FROM users)`,
+		u.ID, u.Email, u.Name, u.PasswordHash, string(u.Role), u.CreatedAt, u.UpdatedAt,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return nil, ErrDuplicateUser
+		}
+		return nil, fmt.Errorf("inserting first admin: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("checking rows affected: %w", err)
+	}
+	if n == 0 {
+		return nil, ErrSetupComplete
 	}
 
 	return u, nil

@@ -61,6 +61,7 @@ func setupTestRouter(t *testing.T, responses ...provider.Response) *Router {
 	executor := task.NewExecutor(taskStore, noopAgent, nil, eventBus, nil)
 
 	return NewRouter(RouterConfig{
+		DB:            db,
 		Agent:         a,
 		Sessions:      sessStore,
 		Memory:        memStore,

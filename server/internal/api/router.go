@@ -259,6 +259,7 @@ func NewRouter(cfg RouterConfig) *Router {
 
 func (r *Router) registerRoutes() {
 	r.mux.HandleFunc("GET /api/health", r.handleHealth)
+	r.mux.HandleFunc("GET /api/ready", r.handleReady)
 	r.mux.HandleFunc("GET /api/status", r.handleSystemStatus)
 	r.mux.HandleFunc("GET /api/auth/providers", r.handleAuthProviders)
 	r.mux.HandleFunc("GET /api/connectors/callback", r.handleConnectorCallback)

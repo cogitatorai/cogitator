@@ -106,5 +106,30 @@ func (r *Router) handleSystemStatus(w http.ResponseWriter, req *http.Request) {
 	}
 	status["components"] = components
 
+	// Per-component health booleans so the dashboard can show degraded
+	// state instead of just counts.
+	health := map[string]any{"provider": providerConfigured}
+	if r.db != nil {
+		ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+		defer cancel()
+		var one int
+		health["db"] = r.db.Reader().QueryRowContext(ctx, "SELECT 1").Scan(&one) == nil
+	}
+	if r.mcp != nil {
+		running := 0
+		servers := r.mcp.Servers()
+		for _, s := range servers {
+			if s.Status == mcp.StatusRunning {
+				running++
+			}
+		}
+		health["mcp"] = map[string]int{"running": running, "configured": len(servers)}
+	}
+	status["health"] = health
+
+	if r.metricsRing != nil {
+		status["http"] = r.metricsRing.Snapshot()
+	}
+
 	writeJSON(w, http.StatusOK, status)
 }

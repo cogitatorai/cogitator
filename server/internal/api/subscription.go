@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -63,7 +63,7 @@ func (rt *Router) handleSubscriptionStatusPush(w http.ResponseWriter, r *http.Re
 		req.Status, req.GraceEndsAt,
 	)
 	if err != nil {
-		log.Printf("subscription status push failed: %v", err)
+		slog.Error("subscription status push failed", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

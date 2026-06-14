@@ -3,7 +3,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -25,17 +25,19 @@ func main() {
 		WorkspacePath: wsPath,
 	})
 	if err != nil {
-		log.Fatalf("startup: %v", err)
+		slog.Error("startup failed", "error", err)
+		os.Exit(1)
 	}
 
 	if err := srv.Start(); err != nil {
-		log.Fatalf("listen: %v", err)
+		slog.Error("listen failed", "error", err)
+		os.Exit(1)
 	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 
-	log.Println("shutting down...")
+	slog.Info("shutting down")
 	srv.ShutdownWithTimeout(5 * time.Second)
 }

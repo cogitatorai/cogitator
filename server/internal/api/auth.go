@@ -59,8 +59,8 @@ func jwtAuthMiddleware(jwtSvc *auth.JWTService, hasInternalSecret bool, next htt
 
 // isPublicEndpoint returns true for paths that do not require authentication.
 func isPublicEndpoint(method, path string) bool {
-	// Health check.
-	if method == http.MethodGet && path == "/api/health" {
+	// Health and readiness checks.
+	if method == http.MethodGet && (path == "/api/health" || path == "/api/ready") {
 		return true
 	}
 	// Auth endpoints (login, register, refresh, etc.).

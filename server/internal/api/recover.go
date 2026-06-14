@@ -67,7 +67,11 @@ func recoverMiddleware(next http.Handler) http.Handler {
 				panic(rec)
 			}
 
+			// The request ID is read back from the response header because
+			// this middleware sits outside requestLogMiddleware: the ID is
+			// set on the shared header map before the inner chain runs.
 			slog.Error("recovered from handler panic",
+				"request_id", rw.Header().Get("X-Request-Id"),
 				"method", r.Method,
 				"path", r.URL.Path,
 				"panic", rec,

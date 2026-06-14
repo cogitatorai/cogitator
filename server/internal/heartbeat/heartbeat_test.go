@@ -13,7 +13,7 @@ import (
 
 func TestHeartbeat(t *testing.T) {
 	ring := metrics.NewRing(100)
-	ring.Record(10*time.Millisecond, 200)
+	ring.Record(10*time.Millisecond, 200, "GET /api/health")
 
 	var received atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

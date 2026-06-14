@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -28,7 +28,7 @@ func (rt *Router) handleUsageWarningPush(w http.ResponseWriter, r *http.Request)
 	rt.usageWarningUpgradeURL = req.UpgradeURL
 	rt.usageWarningMu.Unlock()
 
-	log.Printf("usage warning updated: level=%s usage_pct=%.1f%%", req.Level, req.UsagePct)
+	slog.Info("usage warning updated", "level", req.Level, "usage_pct", req.UsagePct)
 	w.WriteHeader(http.StatusOK)
 }
 

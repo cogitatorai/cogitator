@@ -136,7 +136,18 @@ func TestEnricherCreatesEdges(t *testing.T) {
 		nil,
 	)
 
-	mock := provider.NewMock(provider.Response{Content: responseJSON})
+	// Supply several identical responses: the enricher's startup kick and the
+	// debounced EnrichmentQueued event can each trigger processPending, and a
+	// failed enrichment leaves the node pending for retry. With a single mock
+	// response, any second Chat call would get the non-JSON fallback, fail, and
+	// spin. Repeating the valid response keeps every call deterministic.
+	mock := provider.NewMock(
+		provider.Response{Content: responseJSON},
+		provider.Response{Content: responseJSON},
+		provider.Response{Content: responseJSON},
+		provider.Response{Content: responseJSON},
+		provider.Response{Content: responseJSON},
+	)
 	enricher := NewEnricher(store, nil, mock, eventBus, "test-model", nil, nil, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -147,26 +158,25 @@ func TestEnricherCreatesEdges(t *testing.T) {
 
 	eventBus.Publish(bus.Event{Type: bus.EnrichmentQueued})
 
-	// Wait until both nodes in the graph have expected enrichment state.
+	// Wait for the edge itself, not just the node's enrichment status: the
+	// enricher marks the node complete before it writes the edge, so a status
+	// check alone can observe the gap and read zero edges.
+	var edges []memory.Edge
 	waitFor(t, 3*time.Second, func() bool {
-		n, err := store.GetNode(sourceID)
-		return err == nil && n.EnrichmentStatus == memory.EnrichmentComplete
+		e, err := store.GetEdgesFrom(sourceID, "")
+		if err != nil {
+			return false
+		}
+		edges = e
+		return len(edges) > 0
 	})
-
-	edges, err := store.GetEdgesFrom(sourceID, "")
-	if err != nil {
-		t.Fatalf("get edges: %v", err)
-	}
-	if len(edges) == 0 {
-		t.Fatal("expected at least one edge to be created")
-	}
 
 	found := false
 	for _, e := range edges {
 		if e.TargetID == targetID && e.Relation == memory.RelSupports {
 			found = true
 			// Weight is derived from cosine similarity; no embeddings are stored
-		// in this test so the fallback of 0.5 is expected.
+			// in this test so the fallback of 0.5 is expected.
 			if e.Weight != 0.5 {
 				t.Errorf("edge weight = %v, want 0.5 (cosine fallback)", e.Weight)
 			}

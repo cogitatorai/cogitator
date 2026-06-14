@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
-	github.com/andybalholm/cascadia v1.3.3
+	github.com/andybalholm/cascadia v1.3.4
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.18

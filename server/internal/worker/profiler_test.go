@@ -18,6 +18,20 @@ const initialProfile = `## Communication
 - Always verify API responses before processing. [evidence: node_def]
 `
 
+// waitForProfileContains waits until the profile at path contains marker.
+// Tests must wait on the rewritten profile, not on the .bak file: the profiler
+// writes the backup *before* the new profile, so the backup can exist while
+// profile.md still holds the old content. Polling for a marker absent from the
+// initial profile also tolerates the non-atomic write (a partial read simply
+// fails the check and retries).
+func waitForProfileContains(t *testing.T, path, marker string) {
+	t.Helper()
+	waitFor(t, 3*time.Second, func() bool {
+		c, err := os.ReadFile(path)
+		return err == nil && strings.Contains(string(c), marker)
+	})
+}
+
 func setupProfiler(t *testing.T) (*Profiler, *bus.Bus, string) {
 	t.Helper()
 	db := testDB(t)
@@ -92,12 +106,10 @@ func TestProfilerRevisesProfile(t *testing.T) {
 
 	eventBus.Publish(bus.Event{Type: bus.ProfileRevisionDue})
 
-	// Wait for the backup to appear, which signals the write cycle completed.
+	// Wait for the rewritten profile (waiting on the .bak alone races the
+	// profile write, since the backup is written first).
 	backupPath := profilePath + ".bak"
-	waitFor(t, 3*time.Second, func() bool {
-		_, err := os.Stat(backupPath)
-		return err == nil
-	})
+	waitForProfileContains(t, profilePath, "Prefers bullet points")
 
 	content, err := os.ReadFile(profilePath)
 	if err != nil {
@@ -130,12 +142,9 @@ func TestProfilerNoChanges(t *testing.T) {
 
 	eventBus.Publish(bus.Event{Type: bus.ProfileRevisionDue})
 
-	// Wait for the backup to appear.
-	backupPath := profilePath + ".bak"
-	waitFor(t, 3*time.Second, func() bool {
-		_, err := os.Stat(backupPath)
-		return err == nil
-	})
+	// Wait for the rewritten profile (the .bak is written first, so waiting on
+	// it alone races the profile write).
+	waitForProfileContains(t, profilePath, "## Identity")
 
 	content, err := os.ReadFile(profilePath)
 	if err != nil {
@@ -167,10 +176,9 @@ func TestProfilerCreatesBackup(t *testing.T) {
 
 	eventBus.Publish(bus.Event{Type: bus.ProfileRevisionDue})
 
-	waitFor(t, 3*time.Second, func() bool {
-		_, err := os.Stat(backupPath)
-		return err == nil
-	})
+	// The backup is written before the new profile, so once the profile shows
+	// structured sections the backup is guaranteed present too.
+	waitForProfileContains(t, profilePath, "## Identity")
 
 	// Verify backup content matches the original profile.
 	backupContent, err := os.ReadFile(backupPath)
@@ -219,12 +227,9 @@ func TestProfilerRegenOnMemoryCount(t *testing.T) {
 	eventBus.Publish(bus.Event{Type: bus.EnrichmentQueued})
 	eventBus.Publish(bus.Event{Type: bus.EnrichmentQueued})
 
-	// Wait for the backup to appear.
-	backupPath := profilePath + ".bak"
-	waitFor(t, 3*time.Second, func() bool {
-		_, err := os.Stat(backupPath)
-		return err == nil
-	})
+	// Wait for the rewritten profile (the .bak is written first, so waiting on
+	// it alone races the profile write).
+	waitForProfileContains(t, profilePath, "## Identity")
 
 	content, err := os.ReadFile(profilePath)
 	if err != nil {

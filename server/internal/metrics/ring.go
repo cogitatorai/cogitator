@@ -1,7 +1,9 @@
-// Package metrics provides in-memory request telemetry for SaaS health
-// monitoring. The ring buffer collects latency and status data for the most
-// recent N requests, enabling p95 latency and error rate calculation without
-// external dependencies or disk writes.
+// Package metrics provides in-memory request telemetry, collected in every
+// build mode. The ring buffer holds latency, status, and route data for the
+// most recent N requests, enabling p95 latency and error rate calculation
+// (global and per-route) without external dependencies or disk writes. In
+// SaaS mode the heartbeat pushes a snapshot to the orchestrator; self-hosted
+// and desktop builds surface it through /api/status.
 package metrics
 
 import (

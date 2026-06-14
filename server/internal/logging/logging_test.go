@@ -81,9 +81,9 @@ func TestNewHandlerTextDefault(t *testing.T) {
 
 func TestParseLevel(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    slog.Level
-		wantOK  bool
+		input  string
+		want   slog.Level
+		wantOK bool
 	}{
 		{"", slog.LevelInfo, true},
 		{"info", slog.LevelInfo, true},

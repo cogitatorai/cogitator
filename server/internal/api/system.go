@@ -13,6 +13,11 @@ import (
 // unready (503); a missing provider or down MCP server is reported but does
 // not flip readiness, because the instance can still serve auth, setup, and
 // the dashboard. /api/health remains the trivially cheap liveness probe.
+//
+// This endpoint is intentionally public (load balancers and orchestrators
+// must reach it pre-auth). It deliberately exposes only coarse booleans
+// (db/provider reachable, MCP running count) and no hostnames, versions, or
+// counts, so the disclosure on a self-hosted instance is negligible.
 func (r *Router) handleReady(w http.ResponseWriter, req *http.Request) {
 	checks := map[string]bool{}
 	ready := true

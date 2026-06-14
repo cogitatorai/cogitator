@@ -261,7 +261,7 @@ func (u *Updater) setError(msg string) {
 	u.mu.Lock()
 	u.status.Error = msg
 	u.mu.Unlock()
-	slog.Info("updater", "msg", msg)
+	slog.Warn("updater error", "msg", msg)
 }
 
 // loadCache reads cached release info from disk. Missing or corrupt files

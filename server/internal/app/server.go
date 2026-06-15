@@ -396,6 +396,8 @@ func New(opts Options) (*Server, error) {
 		taskAdapter.UserLister = &userListerAdapter{store: userStore}
 	}
 
+	retrievalStats := metrics.NewRetrievalStats(1000)
+	retrievalTraces := memory.NewTraceRing(200)
 	retriever := memory.NewRetriever(memory.RetrieverConfig{
 		Store:         memoryStore,
 		Content:       contentManager,
@@ -405,6 +407,9 @@ func New(opts Options) (*Server, error) {
 		TokenBudget:   cfg.Memory.RetrievalTokenBudget,
 		MinSimilarity: cfg.Memory.RetrievalMinSimilarity,
 		TypeBoost:     cfg.Memory.RetrievalTypeBoost,
+		TraceEnabled:  cfg.Memory.RetrievalTrace,
+		TraceSink:     retrievalTraces,
+		Stats:         retrievalStats,
 	})
 	if nodeEmbedder != nil {
 		stdProv := cfg.Models.Standard.Provider
@@ -834,6 +839,8 @@ func New(opts Options) (*Server, error) {
 		GoogleClientSecret: googleClientSecret,
 		AppleServicesID:    social.AppleServicesID,
 		MetricsRing:        metricsRing,
+		RetrievalStats:     retrievalStats,
+		RetrievalTraces:    retrievalTraces,
 		InternalSecret:     internalSecret,
 		DrainManager:       drainMgr,
 		VoiceRegistry:        voiceRegistry,

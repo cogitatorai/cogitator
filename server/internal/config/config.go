@@ -184,6 +184,7 @@ type MemoryConfig struct {
 	RetrievalTypeBoost    float64 `yaml:"retrieval_type_boost"`
 	EnrichmentVersion        int     `yaml:"enrichment_version"`
 	DedupSimilarityThreshold float64 `yaml:"dedup_similarity_threshold"`
+	RetrievalTrace           bool    `yaml:"retrieval_trace"`
 }
 
 type ReflectionConfig struct {
@@ -398,6 +399,9 @@ func (c *Config) ApplyEnv() {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			c.Memory.DedupSimilarityThreshold = f
 		}
+	}
+	if v := os.Getenv("COGITATOR_RETRIEVAL_TRACE"); v == "1" || strings.EqualFold(v, "true") {
+		c.Memory.RetrievalTrace = true
 	}
 
 	// Database tuning.

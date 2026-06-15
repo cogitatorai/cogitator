@@ -107,6 +107,8 @@ type Router struct {
 	pushTokens      *push.Store
 	store           secretstore.SecretStore
 	metricsRing     *metrics.Ring
+	retrievalStats  *metrics.RetrievalStats
+	retrievalTraces *memory.TraceRing
 	internalSecret  string
 	drainManager    *drain.Manager
 	reembedCancel        context.CancelFunc // cancels any in-flight re-embed goroutine
@@ -172,6 +174,8 @@ type RouterConfig struct {
 	PushTokens      *push.Store
 	Store           secretstore.SecretStore
 	MetricsRing     *metrics.Ring
+	RetrievalStats  *metrics.RetrievalStats
+	RetrievalTraces *memory.TraceRing
 	InternalSecret  string
 	DrainManager    *drain.Manager
 	VoiceRegistry        *voice.Registry
@@ -223,6 +227,8 @@ func NewRouter(cfg RouterConfig) *Router {
 		pushTokens:      cfg.PushTokens,
 		store:           cfg.Store,
 		metricsRing:     cfg.MetricsRing,
+		retrievalStats:  cfg.RetrievalStats,
+		retrievalTraces: cfg.RetrievalTraces,
 		internalSecret:  cfg.InternalSecret,
 		drainManager:    cfg.DrainManager,
 		voiceRegistry:        cfg.VoiceRegistry,
@@ -286,6 +292,7 @@ func (r *Router) registerRoutes() {
 		r.mux.Handle("PUT /api/users/{id}/role", adminOnly(http.HandlerFunc(r.handleUpdateUserRole)))
 		r.mux.Handle("PUT /api/users/{id}/password", adminOnly(http.HandlerFunc(r.handleResetPassword)))
 		r.mux.Handle("DELETE /api/users/{id}", adminOnly(http.HandlerFunc(r.handleDeleteUser)))
+		r.mux.Handle("GET /api/admin/retrieval-traces", adminOnly(http.HandlerFunc(r.handleRetrievalTraces)))
 
 		// Invite codes (admin + moderator).
 		adminOrMod := requireRole("admin", "moderator")

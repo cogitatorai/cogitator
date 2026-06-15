@@ -135,6 +135,9 @@ func (r *Router) handleSystemStatus(w http.ResponseWriter, req *http.Request) {
 	if r.metricsRing != nil {
 		status["http"] = r.metricsRing.Snapshot()
 	}
+	if r.retrievalStats != nil {
+		status["retrieval"] = r.retrievalStats.Snapshot()
+	}
 
 	writeJSON(w, http.StatusOK, status)
 }

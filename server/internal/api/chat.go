@@ -9,6 +9,7 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/agent"
 	"github.com/cogitatorai/cogitator/server/internal/budget"
 	"github.com/cogitatorai/cogitator/server/internal/fileproc"
+	"github.com/cogitatorai/cogitator/server/internal/memory"
 )
 
 type chatRequest struct {
@@ -20,9 +21,10 @@ type chatRequest struct {
 }
 
 type chatResponse struct {
-	Content    string `json:"content"`
-	SessionKey string `json:"session_key"`
-	ToolsUsed  any    `json:"tools_used,omitempty"`
+	Content        string                 `json:"content"`
+	SessionKey     string                 `json:"session_key"`
+	ToolsUsed      any                    `json:"tools_used,omitempty"`
+	RetrievalTrace *memory.RetrievalTrace `json:"retrieval_trace,omitempty"`
 }
 
 func (r *Router) handleChat(w http.ResponseWriter, req *http.Request) {
@@ -61,7 +63,13 @@ func (r *Router) handleChat(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	resp, err := r.agent.Chat(req.Context(), agent.ChatRequest{
+	ctx := req.Context()
+	var traceHolder *memory.TraceHolder
+	if isAdmin(req) && req.URL.Query().Get("debug") == "retrieval" {
+		ctx, traceHolder = memory.WithTrace(ctx)
+	}
+
+	resp, err := r.agent.Chat(ctx, agent.ChatRequest{
 		SessionKey:       body.SessionKey,
 		Channel:          body.Channel,
 		ChatID:           body.ChatID,
@@ -77,11 +85,15 @@ func (r *Router) handleChat(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, chatResponse{
+	out := chatResponse{
 		Content:    resp.Content,
 		SessionKey: body.SessionKey,
 		ToolsUsed:  resp.ToolsUsed,
-	})
+	}
+	if traceHolder != nil {
+		out.RetrievalTrace = traceHolder.Get()
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (r *Router) handleChatWithFile(w http.ResponseWriter, req *http.Request) {

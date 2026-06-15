@@ -292,6 +292,7 @@ func (r *Router) registerRoutes() {
 		r.mux.Handle("PUT /api/users/{id}/role", adminOnly(http.HandlerFunc(r.handleUpdateUserRole)))
 		r.mux.Handle("PUT /api/users/{id}/password", adminOnly(http.HandlerFunc(r.handleResetPassword)))
 		r.mux.Handle("DELETE /api/users/{id}", adminOnly(http.HandlerFunc(r.handleDeleteUser)))
+		r.mux.Handle("GET /api/admin/retrieval-traces", adminOnly(http.HandlerFunc(r.handleRetrievalTraces)))
 
 		// Invite codes (admin + moderator).
 		adminOrMod := requireRole("admin", "moderator")

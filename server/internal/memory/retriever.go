@@ -353,14 +353,16 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 	var candidates []scored
 	var belowThreshold []TraceCandidate
 	var maxSim float64
+	maxSimSet := false
 
 	for id, meta := range cache {
 		if seen[id] {
 			continue
 		}
 		sim := CosineSimilarity(queryVec, meta.Embedding)
-		if sim > maxSim {
+		if !maxSimSet || sim > maxSim {
 			maxSim = sim
+			maxSimSet = true
 		}
 
 		if sim < minSim {
@@ -430,12 +432,10 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 
 	// Build the per-turn trace when requested.
 	if traceOn {
-		selectedIDs := make(map[string]bool, len(selected))
-		for _, c := range selected {
-			selectedIDs[c.id] = true
-		}
+		selectedIDs := make(map[string]bool, len(result.Nodes))
 		titleByID := make(map[string]string, len(result.Nodes))
 		for _, rn := range result.Nodes {
+			selectedIDs[rn.Node.ID] = true
 			titleByID[rn.Node.ID] = rn.Node.Title
 		}
 		tr := &RetrievalTrace{

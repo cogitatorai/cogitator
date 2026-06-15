@@ -31,6 +31,10 @@ type RunConfig struct {
 	// If empty, all stages with a cases.json present are run.
 	Stages []string
 
+	// RetrievalCasesFile overrides the retrieval cases file name under
+	// <DataDir>/retrieval/. Empty means "cases.json".
+	RetrievalCasesFile string
+
 	// Retrieval embedding. Embedder is used for both seeding fixtures and the
 	// query. EmbeddingModel labels stored vectors. When Embedder is nil the
 	// retrieval stage falls back to the legacy no-embedder (LLM) path.
@@ -56,7 +60,11 @@ func Run(ctx context.Context, cfg RunConfig) (*Report, error) {
 	}
 
 	for _, stage := range stages {
-		casesPath := filepath.Join(cfg.DataDir, stage, "cases.json")
+		casesFile := "cases.json"
+		if stage == "retrieval" && cfg.RetrievalCasesFile != "" {
+			casesFile = cfg.RetrievalCasesFile
+		}
+		casesPath := filepath.Join(cfg.DataDir, stage, casesFile)
 		if _, err := os.Stat(casesPath); os.IsNotExist(err) {
 			continue
 		}
@@ -203,8 +211,14 @@ func runRetrieval(ctx context.Context, cfg RunConfig, casesPath string) (StageRe
 		return StageResult{}, fmt.Errorf("parse retrieval cases: %w", err)
 	}
 
-	// Load fixtures if present alongside the cases file.
-	fixturesPath := filepath.Join(filepath.Dir(casesPath), "fixtures.json")
+	// Load fixtures if present alongside the cases file. The deterministic
+	// mechanics suite uses its own hand-built graph in mechanics_fixtures.json.
+	base := filepath.Base(casesPath)
+	fixturesName := "fixtures.json"
+	if base == "mechanics.json" {
+		fixturesName = "mechanics_fixtures.json"
+	}
+	fixturesPath := filepath.Join(filepath.Dir(casesPath), fixturesName)
 	var fixtures []RetrievalFixture
 	if fdata, ferr := os.ReadFile(fixturesPath); ferr == nil {
 		if jerr := json.Unmarshal(fdata, &fixtures); jerr != nil {

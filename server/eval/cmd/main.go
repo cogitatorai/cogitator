@@ -105,6 +105,11 @@ func runCmd(args []string) {
 		os.Exit(1)
 	}
 
+	retrievalCases := "cases.json"
+	if *embedderMode == "deterministic" {
+		retrievalCases = "mechanics.json"
+	}
+
 	var stages []string
 	if *stage != "" {
 		stages = []string{*stage}
@@ -121,9 +126,10 @@ func runCmd(args []string) {
 		Model:          *model,
 		DataDir:        dataDir,
 		CacheDir:       cacheDir,
-		Stages:         stages,
-		Embedder:       embedder,
-		EmbeddingModel: embeddingModel,
+		Stages:             stages,
+		Embedder:           embedder,
+		EmbeddingModel:     embeddingModel,
+		RetrievalCasesFile: retrievalCases,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

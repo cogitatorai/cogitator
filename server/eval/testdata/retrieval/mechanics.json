@@ -1,0 +1,50 @@
+[
+  {
+    "id": "exact_match_retrieved",
+    "query": "alpha bravo charlie delta",
+    "expected_node_ids": ["m_exact"],
+    "expected_not_ids": ["m_unrelated"],
+    "min_precision": 0.0,
+    "min_recall": 1.0
+  },
+  {
+    "id": "zero_retrieval_below_threshold",
+    "query": "papa quebec romeo sierra2 tango2 uniform2",
+    "expected_node_ids": [],
+    "expected_not_ids": ["m_exact", "m_partial", "m_unrelated", "m_pref_delta", "m_pattern_delta"],
+    "min_precision": 0.0,
+    "min_recall": 0.0
+  },
+  {
+    "id": "distractor_rejection",
+    "query": "alpha bravo charlie delta",
+    "expected_node_ids": ["m_exact"],
+    "expected_not_ids": ["m_unrelated"],
+    "min_precision": 0.0,
+    "min_recall": 1.0
+  },
+  {
+    "id": "pinned_not_in_scored_results",
+    "query": "oscar pinned reference note",
+    "expected_node_ids": [],
+    "expected_not_ids": ["m_pinned"],
+    "min_precision": 0.0,
+    "min_recall": 0.0
+  },
+  {
+    "id": "typeboost_pref_and_pattern_both_retrieved_pref_ranks_first",
+    "query": "sierra mike november",
+    "expected_node_ids": ["m_pref_delta", "m_pattern_delta"],
+    "expected_not_ids": ["m_exact", "m_unrelated"],
+    "min_precision": 1.0,
+    "min_recall": 1.0
+  },
+  {
+    "id": "partial_overlap_alone_above_threshold",
+    "query": "echo foxtrot golf hotel",
+    "expected_node_ids": ["m_partial"],
+    "expected_not_ids": ["m_exact", "m_unrelated"],
+    "min_precision": 0.0,
+    "min_recall": 1.0
+  }
+]

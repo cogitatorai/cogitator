@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/cogitatorai/cogitator/server/internal/metrics"
 )
 
 func TestReadyEndpoint(t *testing.T) {
@@ -58,4 +60,29 @@ func TestStatusIncludesHealth(t *testing.T) {
 	if _, ok := health["provider"]; !ok {
 		t.Errorf("health.provider missing: %v", health)
 	}
+}
+
+func TestStatusIncludesRetrievalMetrics(t *testing.T) {
+	router := setupTestRouter(t)
+	router.retrievalStats = metricsNewRetrievalStatsForTest()
+
+	req := httptest.NewRequest("GET", "/api/status", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("status = %d", w.Code)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if _, ok := body["retrieval"]; !ok {
+		t.Errorf("retrieval section missing: %v", body)
+	}
+}
+
+func metricsNewRetrievalStatsForTest() *metrics.RetrievalStats {
+	s := metrics.NewRetrievalStats(10)
+	s.Record(0.8, 2, 0.5)
+	return s
 }

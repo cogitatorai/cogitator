@@ -1,0 +1,26 @@
+[
+  {
+    "id": "retrieve_coffee",
+    "query": "What coffee does the user like?",
+    "expected_node_ids": ["node_coffee"],
+    "expected_not_ids": ["node_hiking"],
+    "min_precision": 0.5,
+    "min_recall": 1.0
+  },
+  {
+    "id": "retrieve_outdoor",
+    "query": "What does the user do outdoors?",
+    "expected_node_ids": ["node_hiking"],
+    "expected_not_ids": ["node_coffee"],
+    "min_precision": 0.5,
+    "min_recall": 1.0
+  },
+  {
+    "id": "retrieve_where_live",
+    "query": "Where does the user live?",
+    "expected_node_ids": ["node_location"],
+    "expected_not_ids": [],
+    "min_precision": 0.5,
+    "min_recall": 1.0
+  }
+]

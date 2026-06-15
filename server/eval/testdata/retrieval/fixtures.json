@@ -1,0 +1,38 @@
+[
+  {
+    "id": "node_coffee",
+    "type": "preference",
+    "title": "User prefers dark roast coffee",
+    "summary": "the user prefers dark roast coffee",
+    "tags": ["coffee", "food"],
+    "content": "I always go for dark roast.",
+    "embedding": [0.8, 0.1, 0.1]
+  },
+  {
+    "id": "node_hiking",
+    "type": "preference",
+    "title": "User enjoys hiking",
+    "summary": "the user enjoys hiking in mountains",
+    "tags": ["hiking", "outdoor"],
+    "content": "I love going on hikes.",
+    "embedding": [0.1, 0.9, 0.0]
+  },
+  {
+    "id": "node_location",
+    "type": "fact",
+    "title": "User lives in Portland",
+    "summary": "the user lives in Portland in the Pacific Northwest",
+    "tags": ["location", "portland"],
+    "content": "I live in Portland.",
+    "embedding": [0.2, 0.1, 0.7]
+  },
+  {
+    "id": "node_mystery",
+    "type": "preference",
+    "title": "User likes mystery novels",
+    "summary": "the user enjoys mystery fiction and detective stories",
+    "tags": ["books", "mystery"],
+    "content": "I read a lot of mystery fiction.",
+    "embedding": [0.3, 0.6, 0.1]
+  }
+]

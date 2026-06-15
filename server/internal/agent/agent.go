@@ -15,6 +15,7 @@ import (
 	"github.com/cogitatorai/cogitator/server/internal/bus"
 	"github.com/cogitatorai/cogitator/server/internal/fileproc"
 	"github.com/cogitatorai/cogitator/server/internal/provider"
+	"github.com/cogitatorai/cogitator/server/internal/reqctx"
 	"github.com/cogitatorai/cogitator/server/internal/session"
 	"github.com/cogitatorai/cogitator/server/internal/task"
 	"github.com/cogitatorai/cogitator/server/internal/tools"
@@ -309,6 +310,9 @@ func looksToolFree(msg string) bool {
 }
 
 func (a *Agent) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+	if req.SessionKey != "" {
+		ctx = reqctx.WithSessionKey(ctx, req.SessionKey)
+	}
 	a.mu.RLock()
 	p := a.provider
 	model := a.model

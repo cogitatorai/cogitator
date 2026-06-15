@@ -52,7 +52,10 @@ type RetrievalFixture struct {
 	RetrievalTriggers []string      `json:"retrieval_triggers,omitempty"`
 	Content           string        `json:"content"`
 	Pinned            bool          `json:"pinned,omitempty"`
-	Edges             []FixtureEdge `json:"edges,omitempty"`
+	// Private, when true, scopes the node to its UserID so retrieval for other
+	// users cannot see it. Non-private nodes are shared (visible to all users).
+	Private bool          `json:"private,omitempty"`
+	Edges   []FixtureEdge `json:"edges,omitempty"`
 }
 
 // ReflectionCase is a single reflection evaluation test case.

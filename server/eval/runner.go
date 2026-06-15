@@ -246,6 +246,23 @@ func runRetrieval(ctx context.Context, cfg RunConfig, casesPath string) (StageRe
 	store := memory.NewStore(db)
 	cm := memory.NewContentManager(tmpDir)
 
+	// Seed the users referenced by fixtures so the nodes.user_id foreign key is
+	// satisfied. Fixtures may scope nodes to a user (user_id) for cross-user
+	// isolation cases; those users must exist in the users table first.
+	seenUsers := make(map[string]bool)
+	for _, f := range fixtures {
+		if f.UserID == "" || seenUsers[f.UserID] {
+			continue
+		}
+		seenUsers[f.UserID] = true
+		if _, uerr := db.Writer().Exec(
+			`INSERT INTO users (id, email, name, password_hash, role) VALUES (?, ?, ?, ?, ?)`,
+			f.UserID, f.UserID+"@eval.local", f.UserID, "x", "user",
+		); uerr != nil {
+			return StageResult{}, fmt.Errorf("seed user %q: %w", f.UserID, uerr)
+		}
+	}
+
 	// fixtureIDMap maps fixture ID (from JSON) to the actual node ID assigned
 	// by CreateNode. This remapping is necessary because CreateNode generates
 	// its own ULID and ignores any pre-set ID.
@@ -266,6 +283,7 @@ func runRetrieval(ctx context.Context, cfg RunConfig, casesPath string) (StageRe
 			Tags:              f.Tags,
 			RetrievalTriggers: f.RetrievalTriggers,
 			Pinned:            f.Pinned,
+			Private:           f.Private,
 			EnrichmentStatus:  memory.EnrichmentComplete,
 			Confidence:        1.0,
 		}

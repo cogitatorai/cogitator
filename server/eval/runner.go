@@ -43,6 +43,13 @@ type RunConfig struct {
 }
 
 // Run executes the evaluation and returns a Report.
+// diagnosticMetrics are per-case signals reported in each stage's Metrics but
+// excluded from the rolled-up Total score (they are not 0-1 higher-is-better).
+var diagnosticMetrics = map[string]bool{
+	"expected_rank":  true,
+	"zero_retrieval": true,
+}
+
 func Run(ctx context.Context, cfg RunConfig) (*Report, error) {
 	var cache *Cache
 	if cfg.CacheDir != "" {
@@ -89,16 +96,25 @@ func Run(ctx context.Context, cfg RunConfig) (*Report, error) {
 		report.Stages = append(report.Stages, stageResult)
 	}
 
-	// Compute overall score: average of stage metric averages.
+	// Compute overall score: average of stage metric averages. Diagnostic
+	// metrics are excluded from the rollup — expected_rank is not on a 0-1
+	// scale and zero_retrieval is lower-is-better, so averaging them into the
+	// "higher is better" Total would distort it. They remain in each stage's
+	// Metrics for reporting.
 	if len(report.Stages) > 0 {
 		var total float64
 		for _, s := range report.Stages {
 			var stageAvg float64
-			for _, v := range s.Metrics {
+			var n int
+			for k, v := range s.Metrics {
+				if diagnosticMetrics[k] {
+					continue
+				}
 				stageAvg += v
+				n++
 			}
-			if len(s.Metrics) > 0 {
-				stageAvg /= float64(len(s.Metrics))
+			if n > 0 {
+				stageAvg /= float64(n)
 			}
 			total += stageAvg
 		}

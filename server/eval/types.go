@@ -24,23 +24,35 @@ type EnrichmentExpected struct {
 
 // RetrievalCase is a single retrieval evaluation test case.
 type RetrievalCase struct {
-	ID             string   `json:"id"`
-	Query          string   `json:"query"`
-	ExpectedIDs    []string `json:"expected_node_ids"`
-	ExpectedNotIDs []string `json:"expected_not_ids"`
-	MinPrecision   float64  `json:"min_precision"`
-	MinRecall      float64  `json:"min_recall"`
+	ID             string             `json:"id"`
+	Query          string             `json:"query"`
+	History        []provider.Message `json:"history,omitempty"`
+	UserID         string             `json:"user_id,omitempty"`
+	ExpectedIDs    []string           `json:"expected_node_ids"`
+	ExpectedNotIDs []string           `json:"expected_not_ids"`
+	MinPrecision   float64            `json:"min_precision"`
+	MinRecall      float64            `json:"min_recall"`
 }
 
-// RetrievalFixture is a pre-seeded node for retrieval tests.
+// FixtureEdge is a directed weighted edge between two fixtures (by fixture ID).
+type FixtureEdge struct {
+	Target string  `json:"target"`
+	Weight float64 `json:"weight"`
+}
+
+// RetrievalFixture is a pre-seeded node for retrieval tests. Embeddings are
+// computed at seed time via the production NodeEmbedder, not stored here.
 type RetrievalFixture struct {
-	ID        string    `json:"id"`
-	Type      string    `json:"type"`
-	Title     string    `json:"title"`
-	Summary   string    `json:"summary"`
-	Tags      []string  `json:"tags"`
-	Content   string    `json:"content"`
-	Embedding []float32 `json:"embedding"`
+	ID                string        `json:"id"`
+	UserID            string        `json:"user_id,omitempty"`
+	Type              string        `json:"type"`
+	Title             string        `json:"title"`
+	Summary           string        `json:"summary"`
+	Tags              []string      `json:"tags"`
+	RetrievalTriggers []string      `json:"retrieval_triggers,omitempty"`
+	Content           string        `json:"content"`
+	Pinned            bool          `json:"pinned,omitempty"`
+	Edges             []FixtureEdge `json:"edges,omitempty"`
 }
 
 // ReflectionCase is a single reflection evaluation test case.
@@ -53,12 +65,20 @@ type ReflectionCase struct {
 
 // CaseResult holds the score for a single test case.
 type CaseResult struct {
-	ID     string             `json:"id"`
-	Stage  string             `json:"stage"`
-	Scores map[string]float64 `json:"scores"`
-	Pass   bool               `json:"pass"`
-	Cached bool               `json:"cached"`
-	Error  string             `json:"error,omitempty"`
+	ID          string             `json:"id"`
+	Stage       string             `json:"stage"`
+	Scores      map[string]float64 `json:"scores"`
+	Pass        bool               `json:"pass"`
+	Cached      bool               `json:"cached"`
+	Error       string             `json:"error,omitempty"`
+	Diagnostics []DropDiagnostic   `json:"diagnostics,omitempty"`
+}
+
+// DropDiagnostic explains why an expected node was not injected.
+type DropDiagnostic struct {
+	NodeID     string  `json:"node_id"`
+	DropReason string  `json:"drop_reason"`
+	Similarity float64 `json:"similarity"`
 }
 
 // StageResult aggregates results for one evaluation stage.

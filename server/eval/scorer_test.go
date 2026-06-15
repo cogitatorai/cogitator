@@ -63,3 +63,23 @@ func TestScoreEnrichment(t *testing.T) {
 		t.Errorf("summary_quality = %f, want 1.0", scores["summary_quality"])
 	}
 }
+
+func TestScoreRetrievalZeroAndRank(t *testing.T) {
+	c := RetrievalCase{ExpectedIDs: []string{"a", "b"}}
+
+	s := ScoreRetrieval(c, nil)
+	if s["zero_retrieval"] != 1 {
+		t.Errorf("zero_retrieval = %v, want 1", s["zero_retrieval"])
+	}
+	if s["expected_rank"] != 0 {
+		t.Errorf("expected_rank = %v, want 0 (absent)", s["expected_rank"])
+	}
+
+	s2 := ScoreRetrieval(c, []string{"x", "b", "a"})
+	if s2["zero_retrieval"] != 0 {
+		t.Errorf("zero_retrieval = %v, want 0", s2["zero_retrieval"])
+	}
+	if s2["expected_rank"] != 2 {
+		t.Errorf("expected_rank = %v, want 2", s2["expected_rank"])
+	}
+}

@@ -115,6 +115,22 @@ func ScoreRetrieval(c RetrievalCase, returnedIDs []string) map[string]float64 {
 		}
 	}
 	scores["exclusion"] = exclusion
+	if len(returnedIDs) == 0 {
+		scores["zero_retrieval"] = 1
+	} else {
+		scores["zero_retrieval"] = 0
+	}
+	expSet := make(map[string]bool, len(c.ExpectedIDs))
+	for _, id := range c.ExpectedIDs {
+		expSet[id] = true
+	}
+	scores["expected_rank"] = 0
+	for i, id := range returnedIDs {
+		if expSet[id] {
+			scores["expected_rank"] = float64(i + 1)
+			break
+		}
+	}
 	return scores
 }
 

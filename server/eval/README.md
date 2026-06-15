@@ -4,7 +4,7 @@ Evaluates LLM behavior across Cogitator's memory pipeline: enrichment, retrieval
 
 ## Quick Start
 
-From `cogitator/server/eval/`:
+Run from `cogitator/server/eval/` (commands below use `./cmd/`), or from `cogitator/server/` using `./eval/cmd` — the harness locates its `testdata/` from either working directory.
 
 ```bash
 # Run all stages against your configured provider

@@ -38,7 +38,7 @@ Bug fixes, documentation improvements, and small quality-of-life changes can go 
 
 1. **One concern per PR.** A bug fix is one PR. A new feature is another. Mixing them makes review harder.
 
-2. **Write tests** for bug fixes (prove it's fixed) and new functionality. The server uses standard Go testing.
+2. **Write tests** for bug fixes (prove it's fixed) and new functionality. The server uses standard Go testing. If your change touches memory retrieval, enrichment, or agent quality, also run the evaluation harness in `server/eval/` (see [`server/eval/README.md`](server/eval/README.md)) and add a case for any behavior you change — the deterministic retrieval eval is hermetic and runs as part of `go test ./...`.
 
 3. **Follow existing patterns.** Read the code around what you're changing. Match the style, naming conventions, and error handling patterns you see.
 

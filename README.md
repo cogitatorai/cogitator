@@ -69,7 +69,13 @@ cd server && go test ./... -count=1
 
 # Lint
 cd server && go vet ./...
+
+# Evaluate memory/agent quality (retrieval mechanics — hermetic, no API key;
+# also covered by `go test ./...` via the eval test wrappers)
+cd server && go run ./eval/cmd run -stage retrieval -embedder deterministic
 ```
+
+The evaluation harness for memory retrieval and agent quality lives in `server/eval/` — see [`server/eval/README.md`](server/eval/README.md) for the deterministic (hermetic) and real-embedding (cached, offline-reproducible) retrieval evals, the "why was my memory missed?" drop-reason diagnostics, and how to add cases.
 
 If you are building from the parent monorepo (which includes platform wrappers, mobile app, and other components), a top-level Makefile provides convenience targets: `make all`, `make dev`, `make test`, `make lint`.
 

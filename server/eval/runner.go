@@ -217,7 +217,10 @@ func runRetrieval(ctx context.Context, cfg RunConfig, casesPath string) (StageRe
 	// writer and reader connections; an in-memory database is isolated per
 	// connection, so the reader would not see tables seeded by the writer (e.g.
 	// node_embeddings on the vector path).
-	tmpDir, _ := os.MkdirTemp("", "eval-retrieval-*")
+	tmpDir, err := os.MkdirTemp("", "eval-retrieval-*")
+	if err != nil {
+		return StageResult{}, fmt.Errorf("create eval tempdir: %w", err)
+	}
 	defer os.RemoveAll(tmpDir)
 
 	db, err := database.Open(filepath.Join(tmpDir, "eval.db"), database.Options{})
@@ -328,7 +331,7 @@ func runRetrieval(ctx context.Context, cfg RunConfig, casesPath string) (StageRe
 		// Remap expected IDs from fixture IDs to actual store IDs.
 		remapped := remapIDs(c, fixtureIDMap)
 
-		cr := runRetrievalCase(ctx, cfg, retriever, remapped)
+		cr := runRetrievalCase(ctx, retriever, remapped)
 		stage.Results = append(stage.Results, cr)
 		if cr.Error == "" {
 			for k, v := range cr.Scores {
@@ -373,7 +376,7 @@ type TraceCandidateView struct {
 	Similarity float64
 }
 
-func runRetrievalCase(ctx context.Context, cfg RunConfig, retriever *memory.Retriever, c RetrievalCase) CaseResult {
+func runRetrievalCase(ctx context.Context, retriever *memory.Retriever, c RetrievalCase) CaseResult {
 	cr := CaseResult{ID: c.ID, Stage: "retrieval", Scores: make(map[string]float64)}
 
 	// Request a trace for this turn so we can explain why expected nodes were

@@ -9,29 +9,35 @@ import (
 	"sync"
 
 	"github.com/cogitatorai/cogitator/server/internal/provider"
+	"github.com/cogitatorai/cogitator/server/internal/reqctx"
 )
 
 // Retriever performs memory retrieval using vector similarity when an embedder
 // is configured, falling back to LLM classification when it is not.
 type Retriever struct {
-	mu               sync.RWMutex
-	store            *Store
-	content          *ContentManager
-	provider         provider.Provider
-	model            string
-	topK             int
-	edgeMinWeight    float64
-	logger           *slog.Logger
+	mu            sync.RWMutex
+	store         *Store
+	content       *ContentManager
+	provider      provider.Provider
+	model         string
+	topK          int
+	edgeMinWeight float64
+	logger        *slog.Logger
 
 	// Vector retrieval fields.
 	embedder       provider.Embedder
 	embeddingModel string
-	cacheDirty    bool
-	contextWindow int
+	cacheDirty     bool
+	contextWindow  int
 	tokenBudget    int
 	minSimilarity  float64
 	typeBoost      float64
 	types          []NodeType
+
+	// Instrumentation (all optional / nil-safe).
+	traceEnabled bool
+	traceSink    TraceSink
+	stats        StatsSink
 
 	// Enriched cache: userID -> nodeID -> EmbeddingMeta
 	metaCache   map[string]map[string]EmbeddingMeta
@@ -40,22 +46,29 @@ type Retriever struct {
 
 // RetrieverConfig holds configuration for constructing a Retriever.
 type RetrieverConfig struct {
-	Store            *Store
-	Content          *ContentManager
-	Provider         provider.Provider
-	Model            string
-	TopK             int     // defaults to 5
-	EdgeMinWeight    float64 // minimum edge weight to follow, defaults to 0.5
-	Logger           *slog.Logger
+	Store         *Store
+	Content       *ContentManager
+	Provider      provider.Provider
+	Model         string
+	TopK          int     // defaults to 5
+	EdgeMinWeight float64 // minimum edge weight to follow, defaults to 0.5
+	Logger        *slog.Logger
 
 	// Vector retrieval configuration.
 	Embedder       provider.Embedder
 	EmbeddingModel string
-	ContextWindow int // defaults to 5
+	ContextWindow  int        // defaults to 5
 	TokenBudget    int        // max estimated tokens of retrieved context, defaults to 2000
 	MinSimilarity  float64    // cosine similarity floor, defaults to 0.3
 	TypeBoost      float64    // score multiplier for preference/fact, defaults to 1.1
 	Types          []NodeType // retrievable types, defaults to fact/preference/pattern/skill
+
+	// Instrumentation. TraceEnabled gates recording into TraceSink; the trace
+	// is also built on demand when a context holder is present (?debug). Stats
+	// is always-on (vector path only). All optional.
+	TraceEnabled bool
+	TraceSink    TraceSink
+	Stats        StatsSink
 }
 
 // NewRetriever constructs a Retriever from the given config, applying defaults
@@ -86,21 +99,24 @@ func NewRetriever(cfg RetrieverConfig) *Retriever {
 		cfg.Types = []NodeType{NodeFact, NodePreference, NodePattern, NodeSkill}
 	}
 	return &Retriever{
-		store:            cfg.Store,
-		content:          cfg.Content,
-		provider:         cfg.Provider,
-		model:            cfg.Model,
-		topK:             cfg.TopK,
-		edgeMinWeight:    cfg.EdgeMinWeight,
-		logger:           cfg.Logger,
-		embedder:         cfg.Embedder,
-		embeddingModel:   cfg.EmbeddingModel,
-		cacheDirty:    true,
-		contextWindow: cfg.ContextWindow,
-		tokenBudget:      cfg.TokenBudget,
-		minSimilarity:    cfg.MinSimilarity,
-		typeBoost:        cfg.TypeBoost,
-		types:            cfg.Types,
+		store:          cfg.Store,
+		content:        cfg.Content,
+		provider:       cfg.Provider,
+		model:          cfg.Model,
+		topK:           cfg.TopK,
+		edgeMinWeight:  cfg.EdgeMinWeight,
+		logger:         cfg.Logger,
+		embedder:       cfg.Embedder,
+		embeddingModel: cfg.EmbeddingModel,
+		cacheDirty:     true,
+		contextWindow:  cfg.ContextWindow,
+		tokenBudget:    cfg.TokenBudget,
+		minSimilarity:  cfg.MinSimilarity,
+		typeBoost:      cfg.TypeBoost,
+		types:          cfg.Types,
+		traceEnabled:   cfg.TraceEnabled,
+		traceSink:      cfg.TraceSink,
+		stats:          cfg.Stats,
 	}
 }
 
@@ -271,6 +287,9 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 	types := r.types
 	r.mu.RUnlock()
 
+	holder := traceHolderFrom(ctx)
+	traceOn := r.traceEnabled || holder != nil
+
 	// Build retrieval text from recent history + current message.
 	queryText := buildRetrievalText(message, history, ctxWindow)
 
@@ -327,31 +346,45 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 	type scored struct {
 		id            string
 		score         float64
+		sim           float64
+		typ           NodeType
 		contentLength int
 	}
 	var candidates []scored
+	var belowThreshold []TraceCandidate
+	var maxSim float64
 
 	for id, meta := range cache {
 		if seen[id] {
 			continue
 		}
 		sim := CosineSimilarity(queryVec, meta.Embedding)
+		if sim > maxSim {
+			maxSim = sim
+		}
 
-		// Drop candidates below similarity threshold.
 		if sim < minSim {
+			if traceOn {
+				belowThreshold = append(belowThreshold, TraceCandidate{
+					NodeID:     id,
+					Type:       meta.Type,
+					Similarity: sim,
+					EstTokens:  estimateTokensFromLength(meta.ContentLength),
+					DropReason: DropBelowMinSimilarity,
+				})
+			}
 			continue
 		}
 
 		score := sim * meta.Confidence
-
-		// Apply type boost for preference and fact nodes.
 		if meta.Type == NodePreference || meta.Type == NodeFact {
 			score *= tBoost
 		}
-
 		candidates = append(candidates, scored{
 			id:            id,
 			score:         score,
+			sim:           sim,
+			typ:           meta.Type,
 			contentLength: meta.ContentLength,
 		})
 	}
@@ -384,6 +417,70 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 		_ = r.store.AdjustConfidence(c.id, 0.02, 0.95)
 		content := r.loadContent(node.ContentPath)
 		result.Nodes = append(result.Nodes, RetrievedNode{Node: *node, Content: content})
+	}
+
+	// Always-on aggregate stats (vector path).
+	if r.stats != nil {
+		budgetUtil := 0.0
+		if budget > 0 {
+			budgetUtil = float64(tokensUsed) / float64(budget)
+		}
+		r.stats.Record(maxSim, len(result.Nodes), budgetUtil)
+	}
+
+	// Build the per-turn trace when requested.
+	if traceOn {
+		selectedIDs := make(map[string]bool, len(selected))
+		for _, c := range selected {
+			selectedIDs[c.id] = true
+		}
+		titleByID := make(map[string]string, len(result.Nodes))
+		for _, rn := range result.Nodes {
+			titleByID[rn.Node.ID] = rn.Node.Title
+		}
+		tr := &RetrievalTrace{
+			RequestID:  reqctx.RequestID(ctx),
+			SessionKey: reqctx.SessionKey(ctx),
+			UserID:     userID,
+			Path:       "vector",
+			QueryChars: len(queryText),
+			Budget:     budget,
+			TokensUsed: tokensUsed,
+		}
+		for _, c := range candidates {
+			tc := TraceCandidate{
+				NodeID:     c.id,
+				Title:      titleByID[c.id],
+				Type:       c.typ,
+				Similarity: c.sim,
+				Score:      c.score,
+				EstTokens:  estimateTokensFromLength(c.contentLength),
+				Injected:   selectedIDs[c.id],
+			}
+			if tc.Injected {
+				tr.InjectedIDs = append(tr.InjectedIDs, c.id)
+			} else {
+				tc.DropReason = DropTokenBudget
+			}
+			tr.Candidates = append(tr.Candidates, tc)
+		}
+		sort.Slice(belowThreshold, func(i, j int) bool {
+			return belowThreshold[i].Similarity > belowThreshold[j].Similarity
+		})
+		const maxBelowTraced = 20
+		if len(belowThreshold) > maxBelowTraced {
+			belowThreshold = belowThreshold[:maxBelowTraced]
+		}
+		tr.Candidates = append(tr.Candidates, belowThreshold...)
+		for _, pn := range result.Pinned {
+			tr.PinnedIDs = append(tr.PinnedIDs, pn.Node.ID)
+		}
+		if holder != nil {
+			holder.Set(tr)
+		}
+		if r.traceEnabled && r.traceSink != nil {
+			r.traceSink.Record(tr)
+		}
 	}
 
 	// Follow 1-hop high-weight edges from every loaded node (pinned + retrieved).
@@ -422,12 +519,15 @@ func (r *Retriever) retrieveVector(ctx context.Context, userID, message string, 
 		}
 	}
 
-	r.logger.Info("retrieval: vector path",
+	r.logger.Debug("retrieval: vector path",
+		"request_id", reqctx.RequestID(ctx),
 		"query_len", len(queryText),
 		"pinned", len(result.Pinned),
 		"nodes", len(result.Nodes),
 		"connected", len(result.Connected),
 		"tokens_used", tokensUsed,
+		"top_similarity", maxSim,
+		"zero_retrieval", len(result.Nodes) == 0,
 	)
 
 	return result, nil

@@ -66,7 +66,10 @@ func runCmd(args []string) {
 	if *model == "" {
 		*model = cfg.Models.Standard.Model
 	}
-	if *providerName == "" || *model == "" {
+	// Deterministic retrieval needs no LLM provider/model: the retriever uses
+	// the embedder, not the provider. Only enforce the requirement otherwise.
+	deterministicRetrieval := *embedderMode == "deterministic" && *stage == "retrieval"
+	if (*providerName == "" || *model == "") && !deterministicRetrieval {
 		fmt.Fprintln(os.Stderr, "error: -provider and -model are required (or set COGITATOR_MODEL_PROVIDER and COGITATOR_MODEL)")
 		os.Exit(1)
 	}
@@ -204,9 +207,11 @@ func cacheCmd(args []string) {
 func findDataDir() string {
 	dir, _ := os.Getwd()
 	for {
-		candidate := filepath.Join(dir, "testdata")
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
+		for _, rel := range []string{filepath.Join("eval", "testdata"), "testdata"} {
+			cand := filepath.Join(dir, rel)
+			if info, err := os.Stat(filepath.Join(cand, "retrieval")); err == nil && info.IsDir() {
+				return cand
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -214,7 +219,7 @@ func findDataDir() string {
 		}
 		dir = parent
 	}
-	return filepath.Join("testdata", "eval")
+	return filepath.Join("testdata") // last-resort fallback
 }
 
 func firstNonEmpty(a, b string) string {

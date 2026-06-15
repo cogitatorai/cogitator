@@ -411,7 +411,9 @@ func runRetrievalCase(ctx context.Context, retriever *memory.Retriever, c Retrie
 	}
 
 	cr.Scores = ScoreRetrieval(c, returnedIDs)
-	cr.Pass = cr.Scores["precision"] >= c.MinPrecision && cr.Scores["recall"] >= c.MinRecall
+	cr.Pass = cr.Scores["precision"] >= c.MinPrecision &&
+		cr.Scores["recall"] >= c.MinRecall &&
+		cr.Scores["exclusion"] == 1.0
 
 	// Build a candidate lookup from the trace, then attach a diagnostic for each
 	// expected node that was not injected.

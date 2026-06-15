@@ -1,0 +1,38 @@
+[
+  {
+    "id": "reflect_correction",
+    "messages": [
+      {"role": "assistant", "content": "Here is the answer you requested."},
+      {"role": "user", "content": "That's wrong, I didn't ask for that."}
+    ],
+    "expected_signal": "correction",
+    "min_confidence": 0.7
+  },
+  {
+    "id": "reflect_refinement",
+    "messages": [
+      {"role": "assistant", "content": "Here is the plan."},
+      {"role": "user", "content": "Actually, I meant something more like a different approach."}
+    ],
+    "expected_signal": "refinement",
+    "min_confidence": 0.7
+  },
+  {
+    "id": "reflect_acknowledgment",
+    "messages": [
+      {"role": "assistant", "content": "Done, the file has been updated."},
+      {"role": "user", "content": "Perfect, that's exactly what I wanted!"}
+    ],
+    "expected_signal": "acknowledgment",
+    "min_confidence": 0.7
+  },
+  {
+    "id": "reflect_none",
+    "messages": [
+      {"role": "assistant", "content": "Here is the result."},
+      {"role": "user", "content": "Can you also check the weather?"}
+    ],
+    "expected_signal": "",
+    "min_confidence": 0
+  }
+]

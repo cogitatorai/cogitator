@@ -49,7 +49,8 @@ Thumbs.db
 *.sln
 
 # Eval harness (private, not shipped with public repo)
-server/eval/
+server/eval/results/
+server/eval/testdata/cache/
 
 # Logs
 *.log

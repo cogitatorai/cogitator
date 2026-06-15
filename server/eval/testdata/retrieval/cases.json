@@ -1,0 +1,336 @@
+[
+  {
+    "id": "direct_match_home_city",
+    "query": "Where does the user currently live?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_home_city"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "direct_match_dog",
+    "query": "Does the user have a dog and what is its name?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_dog_name"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "direct_peanut_allergy",
+    "query": "Is the user allergic to peanuts?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_allergy_peanut"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "paraphrase_occupation",
+    "query": "What does the user do for a living?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_job_title"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "paraphrase_music_taste",
+    "query": "What kind of tunes is the user into?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "pref_music_jazz"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "paraphrase_languages",
+    "query": "Which foreign languages can the user speak?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "skill_french"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "distractor_coffee_current_known_hard_temporal",
+    "query": "What does the user drink for coffee these days?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "pref_coffee_current"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "direct_marathon",
+    "query": "What marathon did the user run and when?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_marathon"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "direct_editor_neovim",
+    "query": "What code editor does the user use?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_tool_neovim"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "multihop_python_and_sql",
+    "query": "What are the user's data engineering programming skills?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "skill_python",
+      "skill_sql"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 0.5
+  },
+  {
+    "id": "multihop_dog_walk_routine",
+    "query": "What is the user's morning dog walking routine?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "pattern_morning_walk",
+      "fact_dog_name"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 0.5
+  },
+  {
+    "id": "history_dilution_birthplace",
+    "query": "And where was the user originally born?",
+    "user_id": "u_heavy",
+    "history": [
+      {
+        "role": "user",
+        "content": "Let's plan dinner for tonight."
+      },
+      {
+        "role": "assistant",
+        "content": "Sure, any cuisine in mind?"
+      },
+      {
+        "role": "user",
+        "content": "Maybe something light. Also remind me to buy printer paper."
+      },
+      {
+        "role": "assistant",
+        "content": "Noted on the printer paper."
+      }
+    ],
+    "expected_node_ids": [
+      "fact_birth_city"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.05,
+    "min_recall": 1.0
+  },
+  {
+    "id": "history_dilution_spouse",
+    "query": "Who is the user married to?",
+    "user_id": "u_heavy",
+    "history": [
+      {
+        "role": "user",
+        "content": "What's the weather like for hiking?"
+      },
+      {
+        "role": "assistant",
+        "content": "Looks clear this weekend."
+      },
+      {
+        "role": "user",
+        "content": "Great. By the way I need new running shoes soon."
+      },
+      {
+        "role": "assistant",
+        "content": "Got it."
+      }
+    ],
+    "expected_node_ids": [
+      "fact_partner_name"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.05,
+    "min_recall": 1.0
+  },
+  {
+    "id": "pinned_coexist_woodworking",
+    "query": "What woodworking does the user do as a hobby?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "skill_woodworking"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.05,
+    "min_recall": 1.0
+  },
+  {
+    "id": "zero_retrieval_nonsense",
+    "query": "What is the user's opinion on the regulation of deep-sea manganese nodule mining in international waters?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [],
+    "expected_not_ids": [],
+    "min_precision": 0,
+    "min_recall": 0
+  },
+  {
+    "id": "zero_retrieval_unrelated_physics",
+    "query": "Explain the Higgs boson mechanism and electroweak symmetry breaking.",
+    "user_id": "u_heavy",
+    "expected_node_ids": [],
+    "expected_not_ids": [],
+    "min_precision": 0,
+    "min_recall": 0
+  },
+  {
+    "id": "cross_user_isolation_light_drink",
+    "query": "What does the user drink in the morning?",
+    "user_id": "u_light",
+    "expected_node_ids": [
+      "pref_light_tea"
+    ],
+    "expected_not_ids": [
+      "pref_coffee_current",
+      "pref_coffee_old"
+    ],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "cross_user_isolation_light_job",
+    "query": "What is this user's job?",
+    "user_id": "u_light",
+    "expected_node_ids": [
+      "f_light_jobteacher"
+    ],
+    "expected_not_ids": [
+      "fact_job_title"
+    ],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "cross_user_isolation_light_city",
+    "query": "Which city does this user live in?",
+    "user_id": "u_light",
+    "expected_node_ids": [
+      "fact_light_city"
+    ],
+    "expected_not_ids": [
+      "fact_home_city"
+    ],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "direct_match_pet_cat",
+    "query": "Does the user have a cat?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "f_pet_cat"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "paraphrase_car",
+    "query": "What vehicle does the user drive around in?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "fact_car_ev"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "direct_match_travel_dream",
+    "query": "Where does the user dream of traveling?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "pref_travel_japan"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "paraphrase_spicy_food",
+    "query": "How does the user feel about spicy food?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "pref_food_spicy"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "paraphrase_reading_genre",
+    "query": "What genre of books does the user enjoy reading?",
+    "user_id": "u_heavy",
+    "expected_node_ids": [
+      "pref_reading_scifi"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.1,
+    "min_recall": 1.0
+  },
+  {
+    "id": "history_dilution_anniversary",
+    "query": "When is the user's wedding anniversary?",
+    "user_id": "u_heavy",
+    "history": [
+      {
+        "role": "user",
+        "content": "Can you suggest a good jazz album?"
+      },
+      {
+        "role": "assistant",
+        "content": "Try A Love Supreme by Coltrane."
+      },
+      {
+        "role": "user",
+        "content": "Perfect. Also I might go bouldering later."
+      },
+      {
+        "role": "assistant",
+        "content": "Sounds fun."
+      }
+    ],
+    "expected_node_ids": [
+      "fact_anniversary_date"
+    ],
+    "expected_not_ids": [],
+    "min_precision": 0.05,
+    "min_recall": 1.0
+  }
+]

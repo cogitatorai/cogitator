@@ -1,0 +1,2781 @@
+[
+  {
+    "id": "pref_coffee_current",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Now drinks oat-milk lattes, quit dark roast",
+    "summary": "The user switched to oat-milk lattes and no longer drinks dark roast coffee.",
+    "tags": [
+      "coffee",
+      "drinks",
+      "diet"
+    ],
+    "retrieval_triggers": [
+      "what coffee",
+      "coffee order",
+      "latte",
+      "oat milk",
+      "morning drink"
+    ],
+    "content": "I quit dark roast a while ago. These days my go-to is an oat-milk latte from the place near the office.",
+    "private": true
+  },
+  {
+    "id": "pref_coffee_old",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Used to love dark roast coffee (no longer)",
+    "summary": "A stale, outdated preference: years ago the user loved strong dark roast coffee. This no longer reflects what they drink.",
+    "tags": [
+      "coffee",
+      "dark-roast",
+      "outdated"
+    ],
+    "retrieval_triggers": [
+      "dark roast history",
+      "former coffee taste"
+    ],
+    "content": "Years ago I loved strong dark roast coffee. That taste is long gone and outdated now.",
+    "private": true
+  },
+  {
+    "id": "fact_allergy_peanut",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Severe peanut allergy",
+    "summary": "The user has a severe, life-threatening allergy to peanuts and carries an epinephrine pen.",
+    "tags": [
+      "health",
+      "allergy",
+      "food",
+      "medical"
+    ],
+    "retrieval_triggers": [
+      "peanut allergy",
+      "food allergy",
+      "epipen",
+      "can the user eat",
+      "allergic"
+    ],
+    "content": "I have a severe peanut allergy and always carry an EpiPen. Even trace amounts are dangerous.",
+    "private": true
+  },
+  {
+    "id": "fact_intolerance_lactose",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Mild lactose intolerance",
+    "summary": "The user is mildly lactose intolerant and avoids large amounts of dairy.",
+    "tags": [
+      "health",
+      "diet",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "lactose",
+      "dairy",
+      "milk intolerance"
+    ],
+    "content": "Dairy in large amounts upsets my stomach, so I keep it light. It's not an allergy, just intolerance.",
+    "private": true
+  },
+  {
+    "id": "fact_home_city",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Lives in Lisbon, Portugal",
+    "summary": "The user currently lives in Lisbon, Portugal, in the Alfama neighborhood.",
+    "tags": [
+      "location",
+      "home",
+      "lisbon",
+      "portugal"
+    ],
+    "retrieval_triggers": [
+      "where does the user live",
+      "home city",
+      "lisbon",
+      "current address"
+    ],
+    "content": "I live in Lisbon, in the Alfama district. Moved here two years ago.",
+    "private": true
+  },
+  {
+    "id": "fact_birth_city",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Born and raised in Manchester, UK",
+    "summary": "The user was born and grew up in Manchester, England, before emigrating.",
+    "tags": [
+      "location",
+      "origin",
+      "manchester",
+      "uk"
+    ],
+    "retrieval_triggers": [
+      "where was the user born",
+      "hometown",
+      "grew up"
+    ],
+    "content": "I was born and raised in Manchester, England. Left after university.",
+    "private": true
+  },
+  {
+    "id": "skill_python",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Expert in Python and data pipelines",
+    "summary": "The user is an expert Python programmer specializing in ETL and data pipelines with Airflow.",
+    "tags": [
+      "programming",
+      "python",
+      "data",
+      "airflow"
+    ],
+    "retrieval_triggers": [
+      "python skills",
+      "data pipeline",
+      "etl",
+      "what languages",
+      "airflow"
+    ],
+    "content": "I've written Python professionally for eight years, mostly data pipelines and ETL with Airflow.",
+    "private": true,
+    "edges": [
+      {
+        "target": "skill_sql",
+        "weight": 0.9
+      }
+    ]
+  },
+  {
+    "id": "skill_sql",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Strong SQL and data warehousing",
+    "summary": "The user is highly skilled in SQL, query optimization, and data warehouse design.",
+    "tags": [
+      "sql",
+      "database",
+      "data",
+      "warehouse"
+    ],
+    "retrieval_triggers": [
+      "sql skills",
+      "database",
+      "query optimization",
+      "data warehouse"
+    ],
+    "content": "I'm very comfortable with SQL: window functions, query tuning, and warehouse modeling.",
+    "private": true
+  },
+  {
+    "id": "pref_music_jazz",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves modal jazz, especially Coltrane",
+    "summary": "The user loves modal jazz and counts John Coltrane as a favorite artist.",
+    "tags": [
+      "music",
+      "jazz",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "what music",
+      "favorite music",
+      "jazz",
+      "coltrane",
+      "listen to"
+    ],
+    "content": "Modal jazz is my thing. Coltrane's 'A Love Supreme' is on repeat constantly.",
+    "private": true
+  },
+  {
+    "id": "pref_music_dislike_metal",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Dislikes heavy metal",
+    "summary": "The user actively dislikes heavy metal and aggressive loud music.",
+    "tags": [
+      "music",
+      "metal",
+      "dislike"
+    ],
+    "retrieval_triggers": [
+      "music the user hates",
+      "heavy metal",
+      "loud music"
+    ],
+    "content": "I can't stand heavy metal. Too loud and aggressive for me.",
+    "private": true
+  },
+  {
+    "id": "fact_dog_name",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Has a border collie named Mochi",
+    "summary": "The user owns a border collie named Mochi who is three years old.",
+    "tags": [
+      "pet",
+      "dog",
+      "family"
+    ],
+    "retrieval_triggers": [
+      "pet",
+      "dog",
+      "mochi",
+      "does the user have a pet"
+    ],
+    "content": "Mochi is my border collie, three years old and full of energy.",
+    "private": true,
+    "edges": [
+      {
+        "target": "pattern_morning_walk",
+        "weight": 0.85
+      }
+    ]
+  },
+  {
+    "id": "pattern_morning_walk",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Walks the dog every morning at 7am",
+    "summary": "The user has a daily routine of walking the dog along the river at 7am before work.",
+    "tags": [
+      "routine",
+      "exercise",
+      "dog",
+      "morning"
+    ],
+    "retrieval_triggers": [
+      "morning routine",
+      "dog walk",
+      "daily routine",
+      "exercise habit"
+    ],
+    "content": "Every morning at 7 I take Mochi for a long walk along the river before starting work.",
+    "private": true
+  },
+  {
+    "id": "fact_job_title",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Senior data engineer at a fintech startup",
+    "summary": "The user works as a senior data engineer at a fintech startup called Ledgerly.",
+    "tags": [
+      "work",
+      "job",
+      "fintech",
+      "career"
+    ],
+    "retrieval_triggers": [
+      "what does the user do",
+      "job",
+      "occupation",
+      "employer",
+      "career"
+    ],
+    "content": "I'm a senior data engineer at Ledgerly, a fintech startup. Been there about three years.",
+    "private": true,
+    "edges": [
+      {
+        "target": "skill_python",
+        "weight": 0.8
+      }
+    ]
+  },
+  {
+    "id": "pref_travel_japan",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Dreams of visiting Japan in spring",
+    "summary": "The user wants to travel to Japan, ideally during cherry blossom season in spring.",
+    "tags": [
+      "travel",
+      "japan",
+      "bucket list"
+    ],
+    "retrieval_triggers": [
+      "travel plans",
+      "want to visit",
+      "japan",
+      "vacation dream"
+    ],
+    "content": "Top of my travel list is Japan during cherry blossom season. Kyoto especially.",
+    "private": true
+  },
+  {
+    "id": "fact_partner_name",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Married to Sofia, a pediatrician",
+    "summary": "The user is married to Sofia, who works as a pediatrician.",
+    "tags": [
+      "family",
+      "relationship",
+      "spouse"
+    ],
+    "retrieval_triggers": [
+      "spouse",
+      "wife",
+      "partner",
+      "married",
+      "sofia"
+    ],
+    "content": "My wife Sofia is a pediatrician at the children's hospital downtown.",
+    "private": true
+  },
+  {
+    "id": "pref_food_spicy",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves very spicy food",
+    "summary": "The user loves extremely spicy food, especially Thai and Sichuan cuisine.",
+    "tags": [
+      "food",
+      "spicy",
+      "cuisine"
+    ],
+    "retrieval_triggers": [
+      "spicy food",
+      "favorite cuisine",
+      "thai",
+      "sichuan",
+      "what food"
+    ],
+    "content": "The spicier the better. Sichuan and Thai are my favorites; I order everything extra hot.",
+    "private": true
+  },
+  {
+    "id": "pref_food_no_cilantro",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Hates cilantro (tastes like soap)",
+    "summary": "The user strongly dislikes cilantro because it tastes like soap to them.",
+    "tags": [
+      "food",
+      "cilantro",
+      "dislike"
+    ],
+    "retrieval_triggers": [
+      "cilantro",
+      "coriander",
+      "food the user dislikes"
+    ],
+    "content": "Cilantro tastes like soap to me. Please always leave it off.",
+    "private": true
+  },
+  {
+    "id": "fact_car_ev",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Drives a used electric Nissan Leaf",
+    "summary": "The user drives a second-hand electric Nissan Leaf and charges it at home.",
+    "tags": [
+      "car",
+      "ev",
+      "transport"
+    ],
+    "retrieval_triggers": [
+      "car",
+      "vehicle",
+      "what does the user drive",
+      "electric car"
+    ],
+    "content": "I drive a used Nissan Leaf, fully electric. I charge it overnight at home.",
+    "private": true
+  },
+  {
+    "id": "skill_woodworking",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Hobbyist woodworker, builds furniture",
+    "summary": "The user is a hobbyist woodworker who builds small furniture pieces on weekends.",
+    "tags": [
+      "woodworking",
+      "hobby",
+      "craft"
+    ],
+    "retrieval_triggers": [
+      "woodworking",
+      "build furniture",
+      "hobby craft",
+      "carpentry"
+    ],
+    "content": "On weekends I do woodworking in the garage, mostly small furniture like stools and shelves.",
+    "private": true
+  },
+  {
+    "id": "pattern_weekend_woodshop",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Spends Saturday afternoons in the workshop",
+    "summary": "The user reliably spends Saturday afternoons working in their home woodworking shop.",
+    "tags": [
+      "routine",
+      "weekend",
+      "woodworking"
+    ],
+    "retrieval_triggers": [
+      "weekend routine",
+      "saturday",
+      "workshop time"
+    ],
+    "content": "Saturday afternoons are sacred workshop time for me.",
+    "private": true,
+    "edges": [
+      {
+        "target": "skill_woodworking",
+        "weight": 0.9
+      }
+    ]
+  },
+  {
+    "id": "fact_pinned_emergency_contact",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Emergency contact is brother Daniel",
+    "summary": "The user's emergency contact is their brother Daniel, reachable by phone.",
+    "tags": [
+      "family",
+      "emergency",
+      "contact"
+    ],
+    "retrieval_triggers": [
+      "emergency contact",
+      "who to call",
+      "next of kin"
+    ],
+    "content": "In an emergency, call my brother Daniel. He's my designated contact.",
+    "pinned": true,
+    "private": true
+  },
+  {
+    "id": "pref_pinned_dietary_vegetarian",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Eats vegetarian on weekdays",
+    "summary": "The user follows a vegetarian diet on weekdays and eats meat only occasionally on weekends.",
+    "tags": [
+      "diet",
+      "vegetarian",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "diet",
+      "vegetarian",
+      "eating habits"
+    ],
+    "content": "I eat vegetarian Monday through Friday, and only occasionally have meat on weekends.",
+    "pinned": true,
+    "private": true
+  },
+  {
+    "id": "fact_anniversary_date",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Wedding anniversary is June 14th",
+    "summary": "The user's wedding anniversary falls on June 14th each year.",
+    "tags": [
+      "family",
+      "anniversary",
+      "date"
+    ],
+    "retrieval_triggers": [
+      "anniversary",
+      "wedding date",
+      "june 14"
+    ],
+    "content": "Our wedding anniversary is June 14th. I always plan something special.",
+    "private": true,
+    "edges": [
+      {
+        "target": "fact_partner_name",
+        "weight": 0.9
+      }
+    ]
+  },
+  {
+    "id": "pref_running_shoes",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Prefers minimalist running shoes",
+    "summary": "The user prefers minimalist, zero-drop running shoes for road running.",
+    "tags": [
+      "running",
+      "shoes",
+      "fitness"
+    ],
+    "retrieval_triggers": [
+      "running shoes",
+      "shoe preference",
+      "minimalist shoes"
+    ],
+    "content": "I run in minimalist zero-drop shoes. Took a while to adjust but I love them now.",
+    "private": true
+  },
+  {
+    "id": "fact_marathon",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Ran the Berlin marathon in 2024",
+    "summary": "The user completed the Berlin marathon in 2024 with a time just under four hours.",
+    "tags": [
+      "running",
+      "marathon",
+      "achievement"
+    ],
+    "retrieval_triggers": [
+      "marathon",
+      "berlin",
+      "running achievement",
+      "race"
+    ],
+    "content": "I ran the Berlin marathon in 2024, finished in 3:58.",
+    "private": true,
+    "edges": [
+      {
+        "target": "pref_running_shoes",
+        "weight": 0.7
+      }
+    ]
+  },
+  {
+    "id": "skill_french",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Conversational in French",
+    "summary": "The user speaks conversational French at roughly a B2 level.",
+    "tags": [
+      "language",
+      "french",
+      "skill"
+    ],
+    "retrieval_triggers": [
+      "languages spoken",
+      "french",
+      "speak a language"
+    ],
+    "content": "I speak conversational French, around B2. Comfortable in most everyday situations.",
+    "private": true
+  },
+  {
+    "id": "fact_glasses",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Wears glasses for nearsightedness",
+    "summary": "The user is nearsighted and wears glasses for distance vision.",
+    "tags": [
+      "health",
+      "vision",
+      "glasses"
+    ],
+    "retrieval_triggers": [
+      "glasses",
+      "eyesight",
+      "vision",
+      "nearsighted"
+    ],
+    "content": "I'm nearsighted and wear glasses, especially for driving and screens far away.",
+    "private": true
+  },
+  {
+    "id": "pref_reading_scifi",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Reads hard science fiction",
+    "summary": "The user enjoys hard science fiction novels, particularly Ted Chiang and Kim Stanley Robinson.",
+    "tags": [
+      "books",
+      "scifi",
+      "reading"
+    ],
+    "retrieval_triggers": [
+      "what books",
+      "reading",
+      "science fiction",
+      "favorite author"
+    ],
+    "content": "I read a lot of hard sci-fi. Ted Chiang and Kim Stanley Robinson are favorites.",
+    "private": true
+  },
+  {
+    "id": "pref_reading_dislike_romance",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Not interested in romance novels",
+    "summary": "The user has no interest in the romance genre and avoids those books.",
+    "tags": [
+      "books",
+      "romance",
+      "dislike"
+    ],
+    "retrieval_triggers": [
+      "books the user avoids",
+      "romance novels",
+      "genre dislike"
+    ],
+    "content": "Romance novels just aren't for me. I skip that genre entirely.",
+    "private": true
+  },
+  {
+    "id": "fact_tool_neovim",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Uses Neovim as primary editor",
+    "summary": "The user codes in Neovim with a heavily customized Lua configuration.",
+    "tags": [
+      "tools",
+      "neovim",
+      "editor",
+      "programming"
+    ],
+    "retrieval_triggers": [
+      "text editor",
+      "neovim",
+      "vim",
+      "ide",
+      "what editor"
+    ],
+    "content": "Neovim is my editor of choice, with a custom Lua config I've tuned for years.",
+    "private": true
+  },
+  {
+    "id": "fact_tool_no_vscode",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Avoids VS Code, finds it heavy",
+    "summary": "The user dislikes VS Code, considering it too heavy and resource-hungry.",
+    "tags": [
+      "tools",
+      "vscode",
+      "editor",
+      "dislike"
+    ],
+    "retrieval_triggers": [
+      "vscode dislike",
+      "heavy editor",
+      "avoids vscode"
+    ],
+    "content": "I avoid VS Code; it feels bloated and eats memory on my machine.",
+    "private": true
+  },
+  {
+    "id": "fact_light_allergy_pollen",
+    "user_id": "u_light",
+    "type": "fact",
+    "title": "Seasonal pollen allergy in spring",
+    "summary": "This user gets seasonal hay fever from tree pollen every spring.",
+    "tags": [
+      "health",
+      "allergy",
+      "pollen"
+    ],
+    "retrieval_triggers": [
+      "allergy",
+      "hay fever",
+      "pollen",
+      "seasonal allergy"
+    ],
+    "content": "Every spring the tree pollen gets me. Sneezing and itchy eyes for weeks.",
+    "private": true
+  },
+  {
+    "id": "pref_light_tea",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Drinks green tea, never coffee",
+    "summary": "This user drinks green tea throughout the day and never touches coffee.",
+    "tags": [
+      "drinks",
+      "tea",
+      "diet"
+    ],
+    "retrieval_triggers": [
+      "what does this user drink",
+      "tea",
+      "green tea",
+      "morning drink"
+    ],
+    "content": "I drink green tea all day and never coffee; caffeine from coffee makes me jittery.",
+    "private": true
+  },
+  {
+    "id": "fact_light_city",
+    "user_id": "u_light",
+    "type": "fact",
+    "title": "Lives in Montreal, Canada",
+    "summary": "This user lives in Montreal, Quebec, and speaks both English and French.",
+    "tags": [
+      "location",
+      "montreal",
+      "canada"
+    ],
+    "retrieval_triggers": [
+      "where does this user live",
+      "montreal",
+      "home city"
+    ],
+    "content": "I live in Montreal. Bilingual neighborhood, harsh winters, great food.",
+    "private": true
+  },
+  {
+    "id": "skill_light_photography",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Film photography hobbyist",
+    "summary": "This user shoots 35mm film photography and develops their own black-and-white rolls.",
+    "tags": [
+      "photography",
+      "film",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "photography",
+      "film camera",
+      "hobby",
+      "darkroom"
+    ],
+    "content": "I shoot 35mm film and develop my own black-and-white at home.",
+    "private": true
+  },
+  {
+    "id": "fact_quantum_unrelated",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Note about office printer paper jams",
+    "summary": "The office printer on the third floor frequently jams with thick paper.",
+    "tags": [
+      "office",
+      "printer",
+      "logistics"
+    ],
+    "retrieval_triggers": [
+      "printer",
+      "paper jam",
+      "office equipment"
+    ],
+    "content": "The third-floor printer jams constantly when anyone uses cardstock.",
+    "private": true
+  },
+  {
+    "id": "f_plant_monstera",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Owns a large monstera plant",
+    "summary": "Keeps a big monstera deliciosa in the living room.",
+    "tags": [
+      "plants",
+      "home"
+    ],
+    "retrieval_triggers": [
+      "houseplants",
+      "monstera"
+    ],
+    "content": "My monstera has gotten huge; I have to prune it monthly.",
+    "private": true
+  },
+  {
+    "id": "f_plant_succulents",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Collects succulents on the balcony",
+    "summary": "Enjoys collecting drought-tolerant succulents.",
+    "tags": [
+      "plants",
+      "balcony"
+    ],
+    "content": "I keep a row of succulents on the balcony; they barely need water.",
+    "private": true
+  },
+  {
+    "id": "f_sport_climbing",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Enjoys indoor bouldering",
+    "summary": "Goes bouldering at an indoor climbing gym twice a week.",
+    "tags": [
+      "climbing",
+      "sport",
+      "fitness"
+    ],
+    "retrieval_triggers": [
+      "bouldering",
+      "climbing"
+    ],
+    "content": "Bouldering is my main sport; I climb V4s now.",
+    "private": true
+  },
+  {
+    "id": "f_sport_swimming",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Swims laps on Tuesdays",
+    "summary": "Has a habit of swimming laps at the public pool on Tuesday evenings.",
+    "tags": [
+      "swimming",
+      "routine"
+    ],
+    "content": "Tuesday evenings I swim a kilometer at the local pool.",
+    "private": true
+  },
+  {
+    "id": "f_game_chess",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Plays online chess daily",
+    "summary": "Plays a few games of online blitz chess every day.",
+    "tags": [
+      "chess",
+      "games",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "chess",
+      "board games"
+    ],
+    "content": "I play blitz chess online most days, rated around 1600.",
+    "private": true
+  },
+  {
+    "id": "f_game_boardgames",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Hosts board game nights",
+    "summary": "Hosts a monthly board game night with friends.",
+    "tags": [
+      "board games",
+      "social"
+    ],
+    "content": "Once a month I host a board game night; Wingspan is a current favorite.",
+    "private": true
+  },
+  {
+    "id": "f_finance_budget",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Reviews budget every Sunday",
+    "summary": "Reviews personal finances and budget each Sunday evening.",
+    "tags": [
+      "finance",
+      "budget",
+      "routine"
+    ],
+    "retrieval_triggers": [
+      "budget",
+      "personal finance"
+    ],
+    "content": "Sunday nights I reconcile my budget in a spreadsheet.",
+    "private": true
+  },
+  {
+    "id": "f_finance_index",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Invests in index funds only",
+    "summary": "Prefers passive low-cost index fund investing over stock picking.",
+    "tags": [
+      "finance",
+      "investing"
+    ],
+    "content": "I only invest in broad index funds; no stock picking.",
+    "private": true
+  },
+  {
+    "id": "f_garden_tomatoes",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Grows heirloom tomatoes",
+    "summary": "Grows heirloom tomato varieties in a small backyard garden.",
+    "tags": [
+      "garden",
+      "vegetables"
+    ],
+    "retrieval_triggers": [
+      "gardening",
+      "tomatoes"
+    ],
+    "content": "Every summer I grow heirloom tomatoes; Brandywine is the best.",
+    "private": true
+  },
+  {
+    "id": "f_cook_sourdough",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Bakes sourdough bread",
+    "summary": "Maintains a sourdough starter and bakes weekly loaves.",
+    "tags": [
+      "baking",
+      "cooking",
+      "sourdough"
+    ],
+    "retrieval_triggers": [
+      "sourdough",
+      "bread baking"
+    ],
+    "content": "I keep a sourdough starter named Herbert and bake a loaf each week.",
+    "private": true
+  },
+  {
+    "id": "f_cook_knife_skills",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Strong knife skills in the kitchen",
+    "summary": "Has practiced knife technique and can dice quickly and safely.",
+    "tags": [
+      "cooking",
+      "knife",
+      "kitchen"
+    ],
+    "content": "I took a knife skills class; my brunoise is pretty tidy now.",
+    "private": true
+  },
+  {
+    "id": "f_travel_iceland",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Visited Iceland last winter",
+    "summary": "Took a winter trip to Iceland to see the northern lights.",
+    "tags": [
+      "travel",
+      "iceland"
+    ],
+    "retrieval_triggers": [
+      "iceland trip",
+      "northern lights"
+    ],
+    "content": "Last winter I went to Iceland and finally saw the aurora.",
+    "private": true
+  },
+  {
+    "id": "f_travel_train",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Prefers train travel over flying",
+    "summary": "Prefers to travel by train rather than fly when possible.",
+    "tags": [
+      "travel",
+      "trains"
+    ],
+    "content": "I'd rather take a long train than fly; less stress, better views.",
+    "private": true
+  },
+  {
+    "id": "f_pet_cat",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Has a tabby cat named Pixel",
+    "summary": "Owns an indoor tabby cat named Pixel.",
+    "tags": [
+      "pet",
+      "cat"
+    ],
+    "retrieval_triggers": [
+      "cat",
+      "pixel"
+    ],
+    "content": "Pixel is my tabby cat; she's an indoor cat and very chatty.",
+    "private": true
+  },
+  {
+    "id": "f_pet_fish",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Keeps a planted aquarium",
+    "summary": "Maintains a freshwater planted aquarium with neon tetras.",
+    "tags": [
+      "aquarium",
+      "fish",
+      "pet"
+    ],
+    "content": "I have a 60-liter planted tank with neon tetras and shrimp.",
+    "private": true
+  },
+  {
+    "id": "f_music_piano",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Plays classical piano",
+    "summary": "Plays classical piano, currently working through Chopin nocturnes.",
+    "tags": [
+      "piano",
+      "music",
+      "classical"
+    ],
+    "retrieval_triggers": [
+      "piano",
+      "play an instrument"
+    ],
+    "content": "I play piano; right now I'm learning a Chopin nocturne.",
+    "private": true
+  },
+  {
+    "id": "f_music_vinyl",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Collects vinyl records",
+    "summary": "Collects vinyl records, mostly 70s soul and funk.",
+    "tags": [
+      "vinyl",
+      "records",
+      "music"
+    ],
+    "content": "My vinyl collection is mostly 70s soul and funk.",
+    "private": true
+  },
+  {
+    "id": "f_tech_homelab",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Runs a home server lab",
+    "summary": "Runs a homelab with a NAS and self-hosted services.",
+    "tags": [
+      "homelab",
+      "server",
+      "tech"
+    ],
+    "retrieval_triggers": [
+      "homelab",
+      "home server",
+      "nas"
+    ],
+    "content": "My homelab has a NAS and a few self-hosted apps on Docker.",
+    "private": true
+  },
+  {
+    "id": "f_tech_3dprint",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Owns a 3D printer",
+    "summary": "Owns and operates an FDM 3D printer for small parts.",
+    "tags": [
+      "3d printing",
+      "maker"
+    ],
+    "retrieval_triggers": [
+      "3d printer",
+      "3d printing"
+    ],
+    "content": "I print small parts and brackets on my FDM 3D printer.",
+    "private": true
+  },
+  {
+    "id": "f_volunteer_shelter",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Volunteers at an animal shelter",
+    "summary": "Volunteers at a local animal shelter on Saturday mornings.",
+    "tags": [
+      "volunteering",
+      "animals"
+    ],
+    "retrieval_triggers": [
+      "volunteer",
+      "shelter"
+    ],
+    "content": "Saturday mornings I help out at the animal shelter walking dogs.",
+    "private": true
+  },
+  {
+    "id": "f_volunteer_food",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Helps at a food bank monthly",
+    "summary": "Helps sort donations at the food bank once a month.",
+    "tags": [
+      "volunteering",
+      "community"
+    ],
+    "content": "Once a month I sort donations at the community food bank.",
+    "private": true
+  },
+  {
+    "id": "f_art_watercolor",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Paints with watercolors",
+    "summary": "Paints landscapes with watercolors as a relaxing hobby.",
+    "tags": [
+      "art",
+      "painting",
+      "watercolor"
+    ],
+    "retrieval_triggers": [
+      "painting",
+      "watercolor"
+    ],
+    "content": "Watercolor landscapes help me unwind on quiet evenings.",
+    "private": true
+  },
+  {
+    "id": "f_art_pottery",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Takes a pottery class",
+    "summary": "Attends a weekly pottery class and throws bowls on the wheel.",
+    "tags": [
+      "pottery",
+      "ceramics",
+      "art"
+    ],
+    "content": "I'm taking pottery; throwing bowls on the wheel is harder than it looks.",
+    "private": true
+  },
+  {
+    "id": "f_drink_wine",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Enjoys natural wine",
+    "summary": "Enjoys natural and low-intervention wines, especially orange wine.",
+    "tags": [
+      "wine",
+      "drinks"
+    ],
+    "retrieval_triggers": [
+      "wine",
+      "natural wine"
+    ],
+    "content": "I'm into natural wine lately; orange wines are a fun surprise.",
+    "private": true
+  },
+  {
+    "id": "f_drink_kombucha",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Brews kombucha at home",
+    "summary": "Brews kombucha at home in two-week batches.",
+    "tags": [
+      "kombucha",
+      "fermentation"
+    ],
+    "content": "I brew kombucha in big jars; ginger is my favorite flavor.",
+    "private": true
+  },
+  {
+    "id": "f_work_meetings",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Dislikes back-to-back meetings",
+    "summary": "Strongly dislikes scheduling back-to-back meetings without breaks.",
+    "tags": [
+      "work",
+      "meetings",
+      "schedule"
+    ],
+    "retrieval_triggers": [
+      "meetings",
+      "calendar preference"
+    ],
+    "content": "Back-to-back meetings drain me; I block buffer time deliberately.",
+    "private": true
+  },
+  {
+    "id": "f_work_remote",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Works fully remote",
+    "summary": "Works fully remotely from a home office.",
+    "tags": [
+      "work",
+      "remote"
+    ],
+    "retrieval_triggers": [
+      "remote work",
+      "work from home"
+    ],
+    "content": "I've been fully remote for years; my home office is dialed in.",
+    "private": true
+  },
+  {
+    "id": "f_fashion_minimal",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Wears a minimalist capsule wardrobe",
+    "summary": "Keeps a minimalist capsule wardrobe in neutral colors.",
+    "tags": [
+      "fashion",
+      "minimalism"
+    ],
+    "retrieval_triggers": [
+      "clothing",
+      "wardrobe"
+    ],
+    "content": "My wardrobe is a small capsule of neutral basics.",
+    "private": true
+  },
+  {
+    "id": "f_fashion_sneakers",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Collects vintage sneakers",
+    "summary": "Collects vintage and limited-edition sneakers.",
+    "tags": [
+      "sneakers",
+      "fashion"
+    ],
+    "content": "I've got a small collection of vintage sneakers I rotate.",
+    "private": true
+  },
+  {
+    "id": "f_health_yoga",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Does morning yoga",
+    "summary": "Practices a short yoga routine most mornings.",
+    "tags": [
+      "yoga",
+      "fitness",
+      "morning"
+    ],
+    "retrieval_triggers": [
+      "yoga",
+      "stretching"
+    ],
+    "content": "Most mornings I do twenty minutes of yoga to loosen up.",
+    "private": true
+  },
+  {
+    "id": "f_health_meditation",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Meditates before bed",
+    "summary": "Meditates for ten minutes before going to sleep.",
+    "tags": [
+      "meditation",
+      "sleep",
+      "wellness"
+    ],
+    "content": "I meditate ten minutes nightly; it helps me wind down.",
+    "private": true
+  },
+  {
+    "id": "f_food_ramen",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Obsessed with tonkotsu ramen",
+    "summary": "Loves rich tonkotsu ramen and seeks it out when traveling.",
+    "tags": [
+      "ramen",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "ramen",
+      "noodles"
+    ],
+    "content": "Tonkotsu ramen is my comfort food; I'll travel for a good bowl.",
+    "private": true
+  },
+  {
+    "id": "f_food_breakfast",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Skips breakfast, eats brunch",
+    "summary": "Habitually skips breakfast and eats a late brunch instead.",
+    "tags": [
+      "food",
+      "breakfast",
+      "routine"
+    ],
+    "content": "I never eat early; brunch around 11 is my first meal.",
+    "private": true
+  },
+  {
+    "id": "f_lang_spanish",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Learning Spanish on Duolingo",
+    "summary": "Is learning beginner Spanish through daily app practice.",
+    "tags": [
+      "language",
+      "spanish",
+      "learning"
+    ],
+    "retrieval_triggers": [
+      "learning spanish",
+      "duolingo"
+    ],
+    "content": "I'm a beginner at Spanish, practicing daily on an app.",
+    "private": true
+  },
+  {
+    "id": "f_lang_signlanguage",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Knows basic sign language",
+    "summary": "Knows basic American Sign Language from a community class.",
+    "tags": [
+      "language",
+      "asl",
+      "sign language"
+    ],
+    "content": "I took an ASL class and can sign basic conversations.",
+    "private": true
+  },
+  {
+    "id": "f_movie_horror",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves horror films",
+    "summary": "Enjoys atmospheric horror and slow-burn thrillers.",
+    "tags": [
+      "movies",
+      "horror"
+    ],
+    "retrieval_triggers": [
+      "movies",
+      "horror films"
+    ],
+    "content": "Atmospheric horror is my favorite genre for movie night.",
+    "private": true
+  },
+  {
+    "id": "f_movie_documentaries",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Watches nature documentaries",
+    "summary": "Frequently watches nature and wildlife documentaries.",
+    "tags": [
+      "documentaries",
+      "nature",
+      "tv"
+    ],
+    "content": "I unwind with nature documentaries, the David Attenborough kind.",
+    "private": true
+  },
+  {
+    "id": "f_travel_camping",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Goes backcountry camping",
+    "summary": "Enjoys backcountry tent camping in national parks.",
+    "tags": [
+      "camping",
+      "outdoors"
+    ],
+    "retrieval_triggers": [
+      "camping",
+      "outdoors"
+    ],
+    "content": "I love backcountry camping; carrying everything in is half the fun.",
+    "private": true
+  },
+  {
+    "id": "f_travel_hostels",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Prefers hostels when traveling",
+    "summary": "Prefers staying in hostels for the social atmosphere.",
+    "tags": [
+      "travel",
+      "hostels"
+    ],
+    "content": "I stay in hostels mostly; you meet the best people.",
+    "private": true
+  },
+  {
+    "id": "f_skill_juggling",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Can juggle three balls",
+    "summary": "Learned to juggle three balls as a party trick.",
+    "tags": [
+      "juggling",
+      "skill",
+      "fun"
+    ],
+    "retrieval_triggers": [
+      "juggling"
+    ],
+    "content": "I can juggle three balls reliably; working on four.",
+    "private": true
+  },
+  {
+    "id": "f_skill_origami",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Folds intricate origami",
+    "summary": "Folds complex origami models from single sheets.",
+    "tags": [
+      "origami",
+      "craft"
+    ],
+    "content": "Origami calms me; I've folded a dragon from one square.",
+    "private": true
+  },
+  {
+    "id": "f_home_declutter",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Declutters seasonally",
+    "summary": "Does a big decluttering of the home every season.",
+    "tags": [
+      "home",
+      "declutter",
+      "routine"
+    ],
+    "retrieval_triggers": [
+      "declutter",
+      "tidying"
+    ],
+    "content": "Every season I do a big declutter and donate what I don't use.",
+    "private": true
+  },
+  {
+    "id": "f_home_smarthome",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Has a smart home setup",
+    "summary": "Runs smart lights and thermostats on a local hub.",
+    "tags": [
+      "smart home",
+      "tech",
+      "home"
+    ],
+    "content": "My smart home runs lights and the thermostat off a local hub.",
+    "private": true
+  },
+  {
+    "id": "f_food_pizza",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Prefers thin-crust Neapolitan pizza",
+    "summary": "Prefers authentic thin-crust Neapolitan pizza over thick crust.",
+    "tags": [
+      "pizza",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "pizza"
+    ],
+    "content": "Neapolitan thin crust only; thick deep-dish isn't pizza to me.",
+    "private": true
+  },
+  {
+    "id": "f_food_sushi",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves omakase sushi",
+    "summary": "Enjoys omakase-style sushi tasting menus.",
+    "tags": [
+      "sushi",
+      "food"
+    ],
+    "content": "Omakase is a treat; I trust the chef's whole sequence.",
+    "private": true
+  },
+  {
+    "id": "f_work_standing",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Uses a standing desk",
+    "summary": "Works at a standing desk for part of the day.",
+    "tags": [
+      "work",
+      "desk",
+      "ergonomics"
+    ],
+    "retrieval_triggers": [
+      "standing desk",
+      "desk setup"
+    ],
+    "content": "I alternate sitting and standing at my desk through the day.",
+    "private": true
+  },
+  {
+    "id": "f_work_pomodoro",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Uses the Pomodoro technique",
+    "summary": "Structures focus time using 25-minute Pomodoro intervals.",
+    "tags": [
+      "productivity",
+      "focus",
+      "routine"
+    ],
+    "content": "I work in 25-minute Pomodoros with short breaks.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_birdwatch",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Goes birdwatching on weekends",
+    "summary": "Enjoys birdwatching and keeps a life list of species.",
+    "tags": [
+      "birdwatching",
+      "nature",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "birdwatching",
+      "birding"
+    ],
+    "content": "I keep a birding life list; spotted a kingfisher last week.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_astronomy",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Amateur astronomer with a telescope",
+    "summary": "Stargazes with a backyard reflector telescope.",
+    "tags": [
+      "astronomy",
+      "telescope",
+      "hobby"
+    ],
+    "content": "I have a Dobsonian telescope; Saturn's rings never get old.",
+    "private": true
+  },
+  {
+    "id": "f_drink_smoothie",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Makes a green smoothie each morning",
+    "summary": "Blends a spinach-and-banana green smoothie every morning.",
+    "tags": [
+      "smoothie",
+      "breakfast",
+      "routine"
+    ],
+    "retrieval_triggers": [
+      "smoothie"
+    ],
+    "content": "Morning smoothie: spinach, banana, oat milk, peanut-free.",
+    "private": true
+  },
+  {
+    "id": "f_pet_parrot",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Has a talking African grey parrot",
+    "summary": "Owns an African grey parrot that mimics phrases.",
+    "tags": [
+      "parrot",
+      "pet",
+      "bird"
+    ],
+    "content": "My African grey parrot says 'good morning' on cue.",
+    "private": true
+  },
+  {
+    "id": "f_sport_cycling",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Commutes by bicycle",
+    "summary": "Commutes to errands by bicycle year-round.",
+    "tags": [
+      "cycling",
+      "commute",
+      "transport"
+    ],
+    "retrieval_triggers": [
+      "cycling",
+      "bike commute"
+    ],
+    "content": "I bike for errands and commuting whenever the weather allows.",
+    "private": true
+  },
+  {
+    "id": "f_sport_kayak",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Sea kayaks in summer",
+    "summary": "Goes sea kayaking along the coast in summer.",
+    "tags": [
+      "kayak",
+      "watersport"
+    ],
+    "content": "Summer weekends I sea kayak along the coastline.",
+    "private": true
+  },
+  {
+    "id": "f_skill_calligraphy",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Practices brush calligraphy",
+    "summary": "Practices modern brush calligraphy and lettering.",
+    "tags": [
+      "calligraphy",
+      "lettering",
+      "art"
+    ],
+    "retrieval_triggers": [
+      "calligraphy",
+      "lettering"
+    ],
+    "content": "I practice brush lettering; addressing cards is oddly meditative.",
+    "private": true
+  },
+  {
+    "id": "f_skill_welding",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Took a welding course",
+    "summary": "Completed a beginner MIG welding course.",
+    "tags": [
+      "welding",
+      "maker",
+      "metal"
+    ],
+    "content": "I learned basic MIG welding at a maker space.",
+    "private": true
+  },
+  {
+    "id": "f_food_vegan_baking",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Bakes vegan desserts",
+    "summary": "Bakes egg-free and dairy-free vegan desserts.",
+    "tags": [
+      "vegan",
+      "baking",
+      "dessert"
+    ],
+    "retrieval_triggers": [
+      "vegan baking"
+    ],
+    "content": "I bake vegan: aquafaba meringues are my party trick.",
+    "private": true
+  },
+  {
+    "id": "f_food_pickling",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Pickles vegetables",
+    "summary": "Quick-pickles seasonal vegetables in vinegar brine.",
+    "tags": [
+      "pickling",
+      "fermentation",
+      "food"
+    ],
+    "content": "I quick-pickle whatever's in season; pickled radish is great.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_modeltrains",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Builds a model train layout",
+    "summary": "Builds and details an HO-scale model train layout.",
+    "tags": [
+      "model trains",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "model trains"
+    ],
+    "content": "My HO-scale layout grows every winter; tiny trees take forever.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_geocache",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Goes geocaching",
+    "summary": "Finds geocaches on hikes using a phone app.",
+    "tags": [
+      "geocaching",
+      "outdoors"
+    ],
+    "content": "Geocaching turns any hike into a treasure hunt.",
+    "private": true
+  },
+  {
+    "id": "f_tech_keyboard",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Uses a split mechanical keyboard",
+    "summary": "Types on an ergonomic split mechanical keyboard.",
+    "tags": [
+      "keyboard",
+      "ergonomics",
+      "tech"
+    ],
+    "retrieval_triggers": [
+      "keyboard",
+      "mechanical keyboard"
+    ],
+    "content": "My split mechanical keyboard saved my wrists.",
+    "private": true
+  },
+  {
+    "id": "f_tech_linux",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Daily-drives Linux",
+    "summary": "Uses Arch Linux as a daily operating system.",
+    "tags": [
+      "linux",
+      "os",
+      "tech"
+    ],
+    "retrieval_triggers": [
+      "linux",
+      "operating system"
+    ],
+    "content": "I daily-drive Arch Linux on my laptop.",
+    "private": true
+  },
+  {
+    "id": "f_pref_temperature_cold",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Keeps the home cold",
+    "summary": "Prefers a cold home and sleeps with the window open.",
+    "tags": [
+      "home",
+      "temperature",
+      "comfort"
+    ],
+    "retrieval_triggers": [
+      "thermostat",
+      "temperature preference"
+    ],
+    "content": "I keep the thermostat low and sleep with the window cracked.",
+    "private": true
+  },
+  {
+    "id": "f_pref_early_riser",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Wakes at 5:30am",
+    "summary": "Is an early riser, awake by 5:30 every day.",
+    "tags": [
+      "sleep",
+      "routine",
+      "morning"
+    ],
+    "retrieval_triggers": [
+      "wake up time",
+      "early riser"
+    ],
+    "content": "I'm up at 5:30 daily; mornings are my best hours.",
+    "private": true
+  },
+  {
+    "id": "f_pref_night_owl_dislike",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Avoids late-night socializing",
+    "summary": "Dislikes events that run late into the night.",
+    "tags": [
+      "social",
+      "schedule"
+    ],
+    "content": "Late-night events aren't for me; I fade after nine.",
+    "private": true
+  },
+  {
+    "id": "f_skill_excel",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Advanced spreadsheet modeling",
+    "summary": "Builds advanced financial models in spreadsheets.",
+    "tags": [
+      "spreadsheets",
+      "excel",
+      "skill"
+    ],
+    "retrieval_triggers": [
+      "spreadsheets",
+      "excel"
+    ],
+    "content": "I build detailed spreadsheet models with pivot tables and macros.",
+    "private": true
+  },
+  {
+    "id": "f_skill_publicspeaking",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Comfortable public speaker",
+    "summary": "Is a confident public speaker after years of toastmasters.",
+    "tags": [
+      "public speaking",
+      "communication"
+    ],
+    "content": "Toastmasters made me comfortable speaking to big rooms.",
+    "private": true
+  },
+  {
+    "id": "f_food_coffee_shop_work",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Works from cafes on Fridays",
+    "summary": "Works from neighborhood cafes on Friday afternoons.",
+    "tags": [
+      "work",
+      "cafe",
+      "routine"
+    ],
+    "retrieval_triggers": [
+      "work from cafe"
+    ],
+    "content": "Friday afternoons I decamp to a cafe to work.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_diy_electronics",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Builds Arduino projects",
+    "summary": "Builds small electronics projects with Arduino and sensors.",
+    "tags": [
+      "arduino",
+      "electronics",
+      "maker"
+    ],
+    "retrieval_triggers": [
+      "arduino",
+      "electronics projects"
+    ],
+    "content": "I tinker with Arduino: a plant-watering sensor was my latest.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_knitting",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Knits scarves and hats",
+    "summary": "Knits scarves, hats, and the occasional sweater.",
+    "tags": [
+      "knitting",
+      "craft"
+    ],
+    "content": "I knit through winter; gave everyone scarves last year.",
+    "private": true
+  },
+  {
+    "id": "f_travel_roadtrip",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves long road trips",
+    "summary": "Enjoys multi-day road trips with curated playlists.",
+    "tags": [
+      "road trip",
+      "travel"
+    ],
+    "retrieval_triggers": [
+      "road trip"
+    ],
+    "content": "Give me a long road trip and a good playlist any day.",
+    "private": true
+  },
+  {
+    "id": "f_travel_beach_dislike",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Dislikes beach holidays",
+    "summary": "Finds beach holidays boring and prefers active trips.",
+    "tags": [
+      "travel",
+      "beach",
+      "dislike"
+    ],
+    "content": "Lying on a beach bores me; I'd rather be hiking or exploring.",
+    "private": true
+  },
+  {
+    "id": "f_food_cheese",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves stinky aged cheeses",
+    "summary": "Enjoys pungent aged cheeses like Roquefort and Epoisses.",
+    "tags": [
+      "cheese",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "cheese"
+    ],
+    "content": "The stinkier the cheese the better; Epoisses is heaven.",
+    "private": true
+  },
+  {
+    "id": "f_food_chocolate",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Prefers dark chocolate",
+    "summary": "Prefers very dark chocolate, 85 percent or higher.",
+    "tags": [
+      "chocolate",
+      "dessert",
+      "food"
+    ],
+    "content": "Only dark chocolate for me, 85 percent and up.",
+    "private": true
+  },
+  {
+    "id": "f_sport_tennis",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Plays weekend tennis",
+    "summary": "Plays recreational tennis on weekend mornings.",
+    "tags": [
+      "tennis",
+      "sport"
+    ],
+    "retrieval_triggers": [
+      "tennis"
+    ],
+    "content": "Weekend mornings I hit the courts for doubles.",
+    "private": true
+  },
+  {
+    "id": "f_sport_golf_dislike",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Finds golf tedious",
+    "summary": "Dislikes golf and finds the pace too slow.",
+    "tags": [
+      "golf",
+      "sport",
+      "dislike"
+    ],
+    "content": "Golf bores me to tears; too slow and fussy.",
+    "private": true
+  },
+  {
+    "id": "f_music_concerts",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Goes to live concerts often",
+    "summary": "Attends live music concerts a couple times a month.",
+    "tags": [
+      "concerts",
+      "music",
+      "social"
+    ],
+    "retrieval_triggers": [
+      "concerts",
+      "live music"
+    ],
+    "content": "I catch live shows a couple times a month; small venues mostly.",
+    "private": true
+  },
+  {
+    "id": "f_music_podcasts",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Listens to history podcasts",
+    "summary": "Listens to long-form history podcasts while commuting.",
+    "tags": [
+      "podcasts",
+      "history",
+      "audio"
+    ],
+    "content": "History podcasts fill my commute; the deep-dive ones especially.",
+    "private": true
+  },
+  {
+    "id": "f_health_pt",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Doing physical therapy for a knee",
+    "summary": "Is in physical therapy recovering from a knee injury.",
+    "tags": [
+      "health",
+      "physical therapy",
+      "knee"
+    ],
+    "retrieval_triggers": [
+      "physical therapy",
+      "knee injury"
+    ],
+    "content": "I'm in PT for my knee after a skiing tumble last winter.",
+    "private": true
+  },
+  {
+    "id": "f_health_vitamins",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Takes vitamin D daily",
+    "summary": "Takes a daily vitamin D supplement in winter.",
+    "tags": [
+      "health",
+      "vitamins",
+      "supplements"
+    ],
+    "content": "I take vitamin D daily through the dark months.",
+    "private": true
+  },
+  {
+    "id": "f_work_opensource",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Contributes to open source",
+    "summary": "Contributes to open source projects in spare time.",
+    "tags": [
+      "open source",
+      "programming",
+      "community"
+    ],
+    "retrieval_triggers": [
+      "open source contributions"
+    ],
+    "content": "I send small open-source PRs most weekends.",
+    "private": true
+  },
+  {
+    "id": "f_work_mentoring",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Mentors junior engineers",
+    "summary": "Mentors two junior engineers at work.",
+    "tags": [
+      "mentoring",
+      "work",
+      "career"
+    ],
+    "content": "I mentor a couple of juniors; weekly one-on-ones.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_homebrew_beer",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Brews craft beer at home",
+    "summary": "Home-brews craft beer, mostly hazy IPAs.",
+    "tags": [
+      "homebrew",
+      "beer",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "home brewing beer"
+    ],
+    "content": "I home-brew beer; hazy IPAs are my specialty.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_coffee_roast_dislike",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Not interested in roasting beans",
+    "summary": "Has no interest in roasting their own beans at home.",
+    "tags": [
+      "hobby",
+      "dislike"
+    ],
+    "content": "Roasting beans at home seems like too much effort to me.",
+    "private": true
+  },
+  {
+    "id": "f_food_breakfast_eggs",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Likes soft-boiled eggs",
+    "summary": "Prefers soft-boiled eggs with runny yolks.",
+    "tags": [
+      "eggs",
+      "breakfast",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "eggs"
+    ],
+    "content": "Soft-boiled eggs, six minutes, runny yolk: perfect.",
+    "private": true
+  },
+  {
+    "id": "f_food_curry",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Enjoys Sri Lankan curry",
+    "summary": "Enjoys Sri Lankan curries with coconut and curry leaves.",
+    "tags": [
+      "curry",
+      "food",
+      "sri lankan"
+    ],
+    "content": "Sri Lankan curry with fresh curry leaves is unbeatable.",
+    "private": true
+  },
+  {
+    "id": "f_skill_gardening_design",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Designs pollinator gardens",
+    "summary": "Designs gardens to attract bees and butterflies.",
+    "tags": [
+      "gardening",
+      "pollinators",
+      "design"
+    ],
+    "retrieval_triggers": [
+      "pollinator garden"
+    ],
+    "content": "I design pollinator-friendly beds full of native flowers.",
+    "private": true
+  },
+  {
+    "id": "f_skill_beekeeping",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Keeps two beehives",
+    "summary": "Keeps two beehives and harvests honey in late summer.",
+    "tags": [
+      "beekeeping",
+      "bees",
+      "hobby"
+    ],
+    "content": "I keep two hives; harvested twelve jars of honey this year.",
+    "private": true
+  },
+  {
+    "id": "f_tech_camera_drone",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Flies a camera drone",
+    "summary": "Owns and flies a small camera drone for aerial photos.",
+    "tags": [
+      "drone",
+      "photography",
+      "tech"
+    ],
+    "retrieval_triggers": [
+      "drone"
+    ],
+    "content": "I fly a small drone for aerial shots on hikes.",
+    "private": true
+  },
+  {
+    "id": "f_tech_retro_games",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Collects retro game consoles",
+    "summary": "Collects and restores retro game consoles from the 90s.",
+    "tags": [
+      "retro games",
+      "consoles",
+      "hobby"
+    ],
+    "content": "I restore old consoles; recapped a Sega Saturn last month.",
+    "private": true
+  },
+  {
+    "id": "f_pref_handwritten_notes",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Takes handwritten notes",
+    "summary": "Prefers handwritten notes in a paper notebook over digital.",
+    "tags": [
+      "notes",
+      "stationery",
+      "productivity"
+    ],
+    "retrieval_triggers": [
+      "handwritten notes",
+      "notebook"
+    ],
+    "content": "I think better writing notes by hand in a paper notebook.",
+    "private": true
+  },
+  {
+    "id": "f_pref_fountain_pen",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Writes with fountain pens",
+    "summary": "Collects and writes with fountain pens and bottled ink.",
+    "tags": [
+      "fountain pen",
+      "stationery"
+    ],
+    "content": "Fountain pens make writing a pleasure; I mix bottled inks.",
+    "private": true
+  },
+  {
+    "id": "f_routine_meal_prep",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Meal preps on Sundays",
+    "summary": "Prepares the week's lunches every Sunday afternoon.",
+    "tags": [
+      "meal prep",
+      "cooking",
+      "routine"
+    ],
+    "retrieval_triggers": [
+      "meal prep"
+    ],
+    "content": "Sundays I batch-cook lunches for the week.",
+    "private": true
+  },
+  {
+    "id": "f_routine_journaling",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Journals every night",
+    "summary": "Keeps a nightly journal of three good things.",
+    "tags": [
+      "journaling",
+      "wellness",
+      "routine"
+    ],
+    "content": "Each night I jot three good things from the day.",
+    "private": true
+  },
+  {
+    "id": "f_skill_negotiation",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Skilled negotiator",
+    "summary": "Is a skilled negotiator from years in procurement.",
+    "tags": [
+      "negotiation",
+      "business",
+      "skill"
+    ],
+    "retrieval_triggers": [
+      "negotiation"
+    ],
+    "content": "Years in procurement made me a calm, effective negotiator.",
+    "private": true
+  },
+  {
+    "id": "f_skill_firstaid",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Certified in first aid and CPR",
+    "summary": "Holds a current first aid and CPR certification.",
+    "tags": [
+      "first aid",
+      "cpr",
+      "safety"
+    ],
+    "content": "I keep my first aid and CPR certification current.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_stargazing_app",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Uses stargazing apps",
+    "summary": "Uses phone apps to identify constellations at night.",
+    "tags": [
+      "astronomy",
+      "apps",
+      "hobby"
+    ],
+    "content": "I point my phone up to name constellations on clear nights.",
+    "private": true
+  },
+  {
+    "id": "f_food_fermented",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Loves fermented foods",
+    "summary": "Enjoys fermented foods like kimchi and miso.",
+    "tags": [
+      "fermented",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "fermented food",
+      "kimchi"
+    ],
+    "content": "Kimchi, miso, sauerkraut: I love fermented flavors.",
+    "private": true
+  },
+  {
+    "id": "f_travel_solo",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Prefers solo travel",
+    "summary": "Prefers traveling solo for flexibility.",
+    "tags": [
+      "travel",
+      "solo"
+    ],
+    "content": "Solo travel suits me; I can change plans on a whim.",
+    "private": true
+  },
+  {
+    "id": "f_work_notetaking_app",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Organizes work in a notes app",
+    "summary": "Organizes all work tasks in a markdown notes app.",
+    "tags": [
+      "notes",
+      "productivity",
+      "work"
+    ],
+    "content": "All my work tasks live in a plain-markdown notes app.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_puzzles",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Does 1000-piece jigsaw puzzles",
+    "summary": "Enjoys assembling large jigsaw puzzles on rainy days.",
+    "tags": [
+      "puzzles",
+      "hobby"
+    ],
+    "retrieval_triggers": [
+      "jigsaw puzzles"
+    ],
+    "content": "Rainy days are for 1000-piece jigsaws on the dining table.",
+    "private": true
+  },
+  {
+    "id": "f_hobby_crossword",
+    "user_id": "u_heavy",
+    "type": "pattern",
+    "title": "Does the daily crossword",
+    "summary": "Completes the daily newspaper crossword each morning.",
+    "tags": [
+      "crossword",
+      "puzzles",
+      "routine"
+    ],
+    "content": "Morning ritual: coffee-free, just the daily crossword.",
+    "private": true
+  },
+  {
+    "id": "f_pref_window_seat",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Always picks the window seat",
+    "summary": "Prefers the window seat on planes and trains.",
+    "tags": [
+      "travel",
+      "seating",
+      "preference"
+    ],
+    "retrieval_triggers": [
+      "window seat"
+    ],
+    "content": "Window seat every time; I like to watch the world go by.",
+    "private": true
+  },
+  {
+    "id": "f_pref_aisle_dislike",
+    "user_id": "u_heavy",
+    "type": "preference",
+    "title": "Avoids aisle seats",
+    "summary": "Dislikes aisle seats due to cart bumps.",
+    "tags": [
+      "travel",
+      "seating"
+    ],
+    "content": "Aisle seats get bumped by carts; I avoid them.",
+    "private": true
+  },
+  {
+    "id": "f_fact_left_handed",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Is left-handed",
+    "summary": "Is left-handed and uses left-handed scissors.",
+    "tags": [
+      "trait",
+      "handedness"
+    ],
+    "retrieval_triggers": [
+      "left-handed",
+      "handedness"
+    ],
+    "content": "I'm left-handed; lefty scissors changed my life.",
+    "private": true
+  },
+  {
+    "id": "f_fact_twin",
+    "user_id": "u_heavy",
+    "type": "fact",
+    "title": "Has an identical twin",
+    "summary": "Has an identical twin sibling living abroad.",
+    "tags": [
+      "family",
+      "twin"
+    ],
+    "content": "I have an identical twin who lives overseas.",
+    "private": true
+  },
+  {
+    "id": "f_skill_drone_repair",
+    "user_id": "u_heavy",
+    "type": "skill",
+    "title": "Repairs small electronics",
+    "summary": "Repairs small consumer electronics as a side skill.",
+    "tags": [
+      "repair",
+      "electronics",
+      "skill"
+    ],
+    "retrieval_triggers": [
+      "electronics repair"
+    ],
+    "content": "I fix phones and small gadgets for friends.",
+    "private": true
+  },
+  {
+    "id": "f_pref_tea_light",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Enjoys herbal teas in the evening",
+    "summary": "This user winds down with caffeine-free herbal teas at night.",
+    "tags": [
+      "tea",
+      "evening",
+      "drinks"
+    ],
+    "retrieval_triggers": [
+      "herbal tea"
+    ],
+    "content": "Evenings call for chamomile or peppermint, never caffeine.",
+    "private": true
+  },
+  {
+    "id": "f_light_cycling",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Mountain bikes on trails",
+    "summary": "This user mountain bikes on forest trails most weekends.",
+    "tags": [
+      "mountain biking",
+      "outdoors"
+    ],
+    "content": "Weekends I'm on the mountain bike trails in the hills.",
+    "private": true
+  },
+  {
+    "id": "f_light_cooking",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Cooks Quebecois comfort food",
+    "summary": "This user cooks traditional Quebecois dishes like tourtiere.",
+    "tags": [
+      "cooking",
+      "quebecois",
+      "food"
+    ],
+    "retrieval_triggers": [
+      "quebec cooking"
+    ],
+    "content": "I make a mean tourtiere; it's a Quebec winter staple.",
+    "private": true
+  },
+  {
+    "id": "f_light_hockey",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Plays recreational ice hockey",
+    "summary": "This user plays in a beer-league ice hockey team.",
+    "tags": [
+      "hockey",
+      "sport"
+    ],
+    "retrieval_triggers": [
+      "ice hockey"
+    ],
+    "content": "Beer-league hockey twice a week keeps me sane in winter.",
+    "private": true
+  },
+  {
+    "id": "f_light_skiing",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Skis the Laurentians",
+    "summary": "This user skis in the Laurentian mountains each winter.",
+    "tags": [
+      "skiing",
+      "winter",
+      "outdoors"
+    ],
+    "content": "Winter weekends I ski up in the Laurentians.",
+    "private": true
+  },
+  {
+    "id": "f_light_jobteacher",
+    "user_id": "u_light",
+    "type": "fact",
+    "title": "Works as a high school teacher",
+    "summary": "This user teaches high school physics.",
+    "tags": [
+      "work",
+      "teaching",
+      "physics"
+    ],
+    "retrieval_triggers": [
+      "job",
+      "occupation",
+      "teacher"
+    ],
+    "content": "I teach physics to high schoolers; love the lightbulb moments.",
+    "private": true
+  },
+  {
+    "id": "f_light_garden",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Grows herbs on the windowsill",
+    "summary": "This user grows kitchen herbs on a sunny windowsill.",
+    "tags": [
+      "herbs",
+      "garden",
+      "windowsill"
+    ],
+    "content": "Basil and thyme on the windowsill; fresh herbs year-round.",
+    "private": true
+  },
+  {
+    "id": "f_light_reading",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Reads French literature",
+    "summary": "This user reads classic French literature in the original.",
+    "tags": [
+      "books",
+      "french",
+      "reading"
+    ],
+    "retrieval_triggers": [
+      "french books"
+    ],
+    "content": "I read French classics in the original; Camus lately.",
+    "private": true
+  },
+  {
+    "id": "f_light_violin",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Plays violin in a community orchestra",
+    "summary": "This user plays violin in a local community orchestra.",
+    "tags": [
+      "violin",
+      "music",
+      "orchestra"
+    ],
+    "retrieval_triggers": [
+      "violin",
+      "orchestra"
+    ],
+    "content": "I play second violin in the community orchestra.",
+    "private": true
+  },
+  {
+    "id": "f_light_cat",
+    "user_id": "u_light",
+    "type": "fact",
+    "title": "Has two rescue cats",
+    "summary": "This user has two rescue cats named Maple and Sirop.",
+    "tags": [
+      "cats",
+      "pets"
+    ],
+    "content": "My two rescue cats, Maple and Sirop, run the apartment.",
+    "private": true
+  },
+  {
+    "id": "f_light_cycling_commute",
+    "user_id": "u_light",
+    "type": "pattern",
+    "title": "Walks to work daily",
+    "summary": "This user walks 20 minutes to work each day.",
+    "tags": [
+      "commute",
+      "walking",
+      "routine"
+    ],
+    "content": "I walk to work, twenty minutes each way, rain or shine.",
+    "private": true
+  },
+  {
+    "id": "f_light_baking",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Bakes maple-sweetened pastries",
+    "summary": "This user bakes pastries sweetened with local maple syrup.",
+    "tags": [
+      "baking",
+      "maple",
+      "food"
+    ],
+    "content": "I bake with maple syrup instead of sugar when I can.",
+    "private": true
+  },
+  {
+    "id": "f_light_snowshoe",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Snowshoes in winter",
+    "summary": "This user snowshoes through nearby parks in deep winter.",
+    "tags": [
+      "snowshoeing",
+      "winter",
+      "outdoors"
+    ],
+    "content": "When the snow piles up I strap on snowshoes and go.",
+    "private": true
+  },
+  {
+    "id": "f_light_chess",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Plays chess at a local club",
+    "summary": "This user attends a weekly in-person chess club.",
+    "tags": [
+      "chess",
+      "club",
+      "games"
+    ],
+    "content": "Thursday nights I play chess at the neighborhood club.",
+    "private": true
+  },
+  {
+    "id": "f_light_woodstove",
+    "user_id": "u_light",
+    "type": "fact",
+    "title": "Heats home with a wood stove",
+    "summary": "This user heats their apartment with a small wood stove.",
+    "tags": [
+      "home",
+      "heating",
+      "wood stove"
+    ],
+    "content": "A little wood stove keeps the place cozy all winter.",
+    "private": true
+  },
+  {
+    "id": "f_light_birding",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Watches winter birds at feeders",
+    "summary": "This user watches chickadees and cardinals at backyard feeders.",
+    "tags": [
+      "birds",
+      "winter",
+      "nature"
+    ],
+    "content": "I keep feeders stocked; chickadees visit all winter.",
+    "private": true
+  },
+  {
+    "id": "f_light_maplesyrup",
+    "user_id": "u_light",
+    "type": "pattern",
+    "title": "Taps maple trees in spring",
+    "summary": "This user taps neighborhood maples and boils sap each spring.",
+    "tags": [
+      "maple",
+      "spring",
+      "tradition"
+    ],
+    "content": "Come spring I tap a few maples and boil down syrup.",
+    "private": true
+  },
+  {
+    "id": "f_light_knitting",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Knits wool mittens",
+    "summary": "This user knits thick wool mittens for the cold.",
+    "tags": [
+      "knitting",
+      "wool",
+      "craft"
+    ],
+    "content": "I knit heavy wool mittens; you need them here.",
+    "private": true
+  },
+  {
+    "id": "f_light_curling",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Curls in a winter league",
+    "summary": "This user plays in a recreational curling league.",
+    "tags": [
+      "curling",
+      "sport",
+      "winter"
+    ],
+    "content": "Curling league runs all winter; it's more fun than it looks.",
+    "private": true
+  },
+  {
+    "id": "f_light_poutine",
+    "user_id": "u_light",
+    "type": "preference",
+    "title": "Loves classic poutine",
+    "summary": "This user loves classic poutine with fresh cheese curds.",
+    "tags": [
+      "poutine",
+      "food"
+    ],
+    "content": "Good poutine needs squeaky fresh curds; I'm picky about it.",
+    "private": true
+  },
+  {
+    "id": "f_light_busreading",
+    "user_id": "u_light",
+    "type": "pattern",
+    "title": "Reads on the metro commute",
+    "summary": "This user reads novels during the daily metro commute.",
+    "tags": [
+      "reading",
+      "commute",
+      "metro"
+    ],
+    "content": "My metro commute is reading time, a novel a week.",
+    "private": true
+  },
+  {
+    "id": "f_light_painting",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Paints winter landscapes in acrylic",
+    "summary": "This user paints snowy landscapes in acrylic.",
+    "tags": [
+      "painting",
+      "acrylic",
+      "art"
+    ],
+    "content": "I paint snowy scenes in acrylic on long winter nights.",
+    "private": true
+  },
+  {
+    "id": "f_light_iceskate",
+    "user_id": "u_light",
+    "type": "pattern",
+    "title": "Skates on the outdoor rink",
+    "summary": "This user ice skates at the outdoor community rink.",
+    "tags": [
+      "skating",
+      "winter",
+      "routine"
+    ],
+    "content": "Evenings I skate laps at the outdoor rink down the street.",
+    "private": true
+  },
+  {
+    "id": "f_light_cabin",
+    "user_id": "u_light",
+    "type": "fact",
+    "title": "Owns a small lakeside cabin",
+    "summary": "This user owns a modest cabin by a lake north of the city.",
+    "tags": [
+      "cabin",
+      "lake",
+      "property"
+    ],
+    "content": "We have a little cabin up north by a quiet lake.",
+    "private": true
+  },
+  {
+    "id": "f_light_fiddle",
+    "user_id": "u_light",
+    "type": "skill",
+    "title": "Plays traditional Quebecois fiddle",
+    "summary": "This user plays traditional Quebecois fiddle tunes.",
+    "tags": [
+      "fiddle",
+      "traditional",
+      "music"
+    ],
+    "content": "I play trad Quebecois fiddle; foot-stomping reels mostly.",
+    "private": true
+  }
+]

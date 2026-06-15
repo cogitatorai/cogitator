@@ -1,0 +1,72 @@
+[
+  {
+    "id": "enrich_pref_coffee",
+    "input": {
+      "title": "User prefers dark roast coffee",
+      "content": "I always go for dark roast when I can find it. Light roast just doesn't do it for me."
+    },
+    "expected": {
+      "node_type": "preference",
+      "tags": ["coffee", "dark roast", "food", "beverage", "preference"],
+      "tag_min_overlap": 0.2,
+      "summary_must_contain": ["dark roast"],
+      "summary_must_not_contain": []
+    }
+  },
+  {
+    "id": "enrich_fact_location",
+    "input": {
+      "title": "User lives in Portland",
+      "content": "I live in Portland, a city in the Pacific Northwest known for its rain and coffee culture."
+    },
+    "expected": {
+      "node_type": "fact",
+      "tags": ["location", "portland", "city", "residence"],
+      "tag_min_overlap": 0.2,
+      "summary_must_contain": ["Portland"],
+      "summary_must_not_contain": []
+    }
+  },
+  {
+    "id": "enrich_pref_hiking",
+    "input": {
+      "title": "User enjoys hiking",
+      "content": "I love going on hikes, especially in mountainous areas. Weekend hikes are my favorite way to unwind."
+    },
+    "expected": {
+      "node_type": "preference",
+      "tags": ["hiking", "outdoor", "mountains", "recreation", "nature"],
+      "tag_min_overlap": 0.2,
+      "summary_must_contain": ["hik"],
+      "summary_must_not_contain": []
+    }
+  },
+  {
+    "id": "enrich_fact_occupation",
+    "input": {
+      "title": "User works as a graphic designer",
+      "content": "I'm a graphic designer. I work mostly with Figma and Illustrator."
+    },
+    "expected": {
+      "node_type": "fact",
+      "tags": ["design", "graphic", "figma", "occupation", "creative"],
+      "tag_min_overlap": 0.2,
+      "summary_must_contain": ["design"],
+      "summary_must_not_contain": []
+    }
+  },
+  {
+    "id": "enrich_pref_mystery",
+    "input": {
+      "title": "User likes mystery novels",
+      "content": "I read a lot of mystery fiction, particularly classic whodunits and noir detective stories. Agatha Christie and Raymond Chandler are favorites."
+    },
+    "expected": {
+      "node_type": "preference",
+      "tags": ["mystery", "books", "reading", "fiction", "novels"],
+      "tag_min_overlap": 0.2,
+      "summary_must_contain": ["mystery"],
+      "summary_must_not_contain": []
+    }
+  }
+]

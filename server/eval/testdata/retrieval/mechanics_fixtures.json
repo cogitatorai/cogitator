@@ -1,0 +1,51 @@
+[
+  {
+    "id": "m_exact",
+    "type": "fact",
+    "title": "alpha bravo charlie delta",
+    "summary": "alpha bravo charlie delta",
+    "tags": ["alpha", "bravo"],
+    "content": "alpha bravo charlie delta"
+  },
+  {
+    "id": "m_partial",
+    "type": "fact",
+    "title": "alpha echo foxtrot golf",
+    "summary": "alpha echo foxtrot golf",
+    "tags": ["echo", "foxtrot"],
+    "content": "alpha echo foxtrot golf hotel india juliet kilo"
+  },
+  {
+    "id": "m_unrelated",
+    "type": "fact",
+    "title": "xray yankee zulu whiskey",
+    "summary": "xray yankee zulu whiskey",
+    "tags": ["xray", "yankee"],
+    "content": "xray yankee zulu whiskey victor uniform tango romeo"
+  },
+  {
+    "id": "m_pinned",
+    "type": "fact",
+    "title": "oscar pinned reference note",
+    "summary": "oscar pinned reference note",
+    "tags": ["oscar"],
+    "content": "oscar pinned reference note",
+    "pinned": true
+  },
+  {
+    "id": "m_pref_delta",
+    "type": "preference",
+    "title": "sierra mike november",
+    "summary": "sierra mike november",
+    "tags": ["sierra", "mike"],
+    "content": "sierra mike november"
+  },
+  {
+    "id": "m_pattern_delta",
+    "type": "pattern",
+    "title": "sierra mike november",
+    "summary": "sierra mike november",
+    "tags": ["sierra", "mike"],
+    "content": "sierra mike november"
+  }
+]

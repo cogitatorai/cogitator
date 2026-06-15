@@ -449,3 +449,12 @@ func TestLogConfigEnvOverride(t *testing.T) {
 		t.Errorf("Log.Format = %q, want json", cfg.Log.Format)
 	}
 }
+
+func TestRetrievalTraceEnvOverride(t *testing.T) {
+	t.Setenv("COGITATOR_RETRIEVAL_TRACE", "1")
+	cfg := Default()
+	cfg.ApplyEnv()
+	if !cfg.Memory.RetrievalTrace {
+		t.Error("Memory.RetrievalTrace = false, want true with env=1")
+	}
+}

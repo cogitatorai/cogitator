@@ -107,6 +107,8 @@ type Router struct {
 	pushTokens      *push.Store
 	store           secretstore.SecretStore
 	metricsRing     *metrics.Ring
+	retrievalStats  *metrics.RetrievalStats
+	retrievalTraces *memory.TraceRing
 	internalSecret  string
 	drainManager    *drain.Manager
 	reembedCancel        context.CancelFunc // cancels any in-flight re-embed goroutine
@@ -172,6 +174,8 @@ type RouterConfig struct {
 	PushTokens      *push.Store
 	Store           secretstore.SecretStore
 	MetricsRing     *metrics.Ring
+	RetrievalStats  *metrics.RetrievalStats
+	RetrievalTraces *memory.TraceRing
 	InternalSecret  string
 	DrainManager    *drain.Manager
 	VoiceRegistry        *voice.Registry
@@ -223,6 +227,8 @@ func NewRouter(cfg RouterConfig) *Router {
 		pushTokens:      cfg.PushTokens,
 		store:           cfg.Store,
 		metricsRing:     cfg.MetricsRing,
+		retrievalStats:  cfg.RetrievalStats,
+		retrievalTraces: cfg.RetrievalTraces,
 		internalSecret:  cfg.InternalSecret,
 		drainManager:    cfg.DrainManager,
 		voiceRegistry:        cfg.VoiceRegistry,

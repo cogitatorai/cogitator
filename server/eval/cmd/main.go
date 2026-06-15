@@ -41,6 +41,9 @@ func runCmd(args []string) {
 	stage := fs.String("stage", "", "run single stage (enrichment, retrieval, reflection)")
 	out := fs.String("out", "", "save JSON results to file")
 	noCache := fs.Bool("no-cache", false, "skip response cache")
+	embedderMode := fs.String("embedder", "deterministic", "retrieval embedder: deterministic | real")
+	offline := fs.Bool("offline", false, "forbid live embedding API calls (cache-only)")
+	embModel := fs.String("embedding-model", "", "embedding model for -embedder=real (default: config Memory.EmbeddingModel)")
 	fs.Parse(args)
 
 	godotenv.Load()
@@ -68,18 +71,39 @@ func runCmd(args []string) {
 		os.Exit(1)
 	}
 
-	apiKey := cfg.ProviderAPIKey(*providerName)
-	if apiKey == "" {
-		apiKey = os.Getenv("COGITATOR_API_KEY")
+	var prov provider.Provider
+	if apiKey := firstNonEmpty(cfg.ProviderAPIKey(*providerName), os.Getenv("COGITATOR_API_KEY")); apiKey != "" {
+		prov = provider.NewOpenAI(*providerName, apiKey)
 	}
-	if apiKey == "" {
-		fmt.Fprintf(os.Stderr, "error: no API key found for provider %q (check keychain, secrets.yaml, or COGITATOR_API_KEY env var)\n", *providerName)
-		os.Exit(1)
-	}
-
-	prov := provider.NewOpenAI(*providerName, apiKey)
 
 	dataDir := findDataDir()
+
+	var embedder provider.Embedder
+	var embeddingModel string
+	switch *embedderMode {
+	case "deterministic":
+		embedder = eval.NewDeterministicEmbedder(0)
+		embeddingModel = "deterministic"
+	case "real":
+		embeddingModel = *embModel
+		if embeddingModel == "" {
+			embeddingModel = cfg.Memory.EmbeddingModel
+		}
+		embDir := filepath.Join(dataDir, "embeddings")
+		var inner provider.Embedder
+		if !*offline {
+			apiKey := firstNonEmpty(cfg.ProviderAPIKey(*providerName), os.Getenv("COGITATOR_API_KEY"))
+			if apiKey == "" {
+				fmt.Fprintf(os.Stderr, "error: -embedder=real without -offline needs an API key for %q (keychain, secrets.yaml, or COGITATOR_API_KEY)\n", *providerName)
+				os.Exit(1)
+			}
+			inner = provider.NewOpenAI(*providerName, apiKey)
+		}
+		embedder = eval.NewCachedEmbedder(inner, embeddingModel, embDir, *offline)
+	default:
+		fmt.Fprintf(os.Stderr, "error: unknown -embedder %q (want deterministic|real)\n", *embedderMode)
+		os.Exit(1)
+	}
 
 	var stages []string
 	if *stage != "" {
@@ -92,12 +116,14 @@ func runCmd(args []string) {
 	}
 
 	report, err := eval.Run(context.Background(), eval.RunConfig{
-		Provider:     prov,
-		ProviderName: *providerName,
-		Model:        *model,
-		DataDir:      dataDir,
-		CacheDir:     cacheDir,
-		Stages:       stages,
+		Provider:       prov,
+		ProviderName:   *providerName,
+		Model:          *model,
+		DataDir:        dataDir,
+		CacheDir:       cacheDir,
+		Stages:         stages,
+		Embedder:       embedder,
+		EmbeddingModel: embeddingModel,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -115,6 +141,19 @@ func runCmd(args []string) {
 		defer f.Close()
 		eval.WriteJSON(f, report)
 		fmt.Fprintf(os.Stderr, "Results saved to %s\n", *out)
+	}
+
+	failed := 0
+	for _, st := range report.Stages {
+		for _, r := range st.Results {
+			if !r.Pass {
+				failed++
+			}
+		}
+	}
+	if failed > 0 {
+		fmt.Fprintf(os.Stderr, "%d case(s) below threshold\n", failed)
+		os.Exit(1)
 	}
 }
 
@@ -172,6 +211,13 @@ func findDataDir() string {
 	return filepath.Join("testdata", "eval")
 }
 
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
 func printUsage() {
 	fmt.Fprintln(os.Stderr, `Usage: cogitator-eval <command> [flags]
 
@@ -185,5 +231,8 @@ Run flags:
   -model      Model name (gpt-4o, claude-sonnet, etc.)
   -stage      Run single stage (enrichment, retrieval, reflection)
   -out        Save JSON results to file
-  -no-cache   Skip response cache`)
+  -no-cache   Skip response cache
+  -embedder   Retrieval embedder: deterministic | real (default: deterministic)
+  -offline    Forbid live embedding API calls (cache-only)
+  -embedding-model  Embedding model for -embedder=real (default: config Memory.EmbeddingModel)`)
 }

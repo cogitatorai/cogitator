@@ -12,6 +12,7 @@ import (
 
 	"github.com/cogitatorai/cogitator/server/internal/auth"
 	"github.com/cogitatorai/cogitator/server/internal/metrics"
+	"github.com/cogitatorai/cogitator/server/internal/reqctx"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -26,8 +27,7 @@ const (
 // requestLogMiddleware, or "" when absent (e.g. unit tests that hit a
 // handler directly).
 func RequestIDFromContext(ctx context.Context) string {
-	id, _ := ctx.Value(requestIDKey).(string)
-	return id
+	return reqctx.RequestID(ctx)
 }
 
 // routeInfo is planted in the request context by requestLogMiddleware and
@@ -83,6 +83,7 @@ func requestLogMiddleware(ring *metrics.Ring) func(http.Handler) http.Handler {
 			id := ulid.Make().String()
 			info := &routeInfo{}
 			ctx := context.WithValue(r.Context(), requestIDKey, id)
+			ctx = reqctx.WithRequestID(ctx, id)
 			ctx = context.WithValue(ctx, routeInfoKey, info)
 			w.Header().Set("X-Request-Id", id)
 

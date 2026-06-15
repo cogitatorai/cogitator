@@ -65,7 +65,7 @@ func (r *Router) handleChat(w http.ResponseWriter, req *http.Request) {
 
 	ctx := req.Context()
 	var traceHolder *memory.TraceHolder
-	if userRole == "admin" && req.URL.Query().Get("debug") == "retrieval" {
+	if isAdmin(req) && req.URL.Query().Get("debug") == "retrieval" {
 		ctx, traceHolder = memory.WithTrace(ctx)
 	}
 

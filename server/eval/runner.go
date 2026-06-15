@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 
+	"github.com/cogitatorai/cogitator/server/internal/config"
 	"github.com/cogitatorai/cogitator/server/internal/database"
 	"github.com/cogitatorai/cogitator/server/internal/memory"
 	"github.com/cogitatorai/cogitator/server/internal/provider"
@@ -28,6 +30,12 @@ type RunConfig struct {
 	// Stages lists which stages to run: "enrichment", "retrieval", "reflection".
 	// If empty, all stages with a cases.json present are run.
 	Stages []string
+
+	// Retrieval embedding. Embedder is used for both seeding fixtures and the
+	// query. EmbeddingModel labels stored vectors. When Embedder is nil the
+	// retrieval stage falls back to the legacy no-embedder (LLM) path.
+	Embedder       provider.Embedder
+	EmbeddingModel string
 }
 
 // Run executes the evaluation and returns a Report.
@@ -204,52 +212,107 @@ func runRetrieval(ctx context.Context, cfg RunConfig, casesPath string) (StageRe
 		}
 	}
 
-	// Open an in-memory SQLite database and seed it with fixtures.
-	db, err := database.Open(":memory:", database.Options{})
+	// Open a temp-file SQLite database and seed it with fixtures. A file path
+	// (rather than ":memory:") is required because the database uses separate
+	// writer and reader connections; an in-memory database is isolated per
+	// connection, so the reader would not see tables seeded by the writer (e.g.
+	// node_embeddings on the vector path).
+	tmpDir, _ := os.MkdirTemp("", "eval-retrieval-*")
+	defer os.RemoveAll(tmpDir)
+
+	db, err := database.Open(filepath.Join(tmpDir, "eval.db"), database.Options{})
 	if err != nil {
-		return StageResult{}, fmt.Errorf("open in-memory db: %w", err)
+		return StageResult{}, fmt.Errorf("open eval db: %w", err)
 	}
 	defer db.Close()
 
 	store := memory.NewStore(db)
-	tmpDir, _ := os.MkdirTemp("", "eval-retrieval-*")
-	defer os.RemoveAll(tmpDir)
 	cm := memory.NewContentManager(tmpDir)
 
 	// fixtureIDMap maps fixture ID (from JSON) to the actual node ID assigned
 	// by CreateNode. This remapping is necessary because CreateNode generates
 	// its own ULID and ignores any pre-set ID.
 	fixtureIDMap := make(map[string]string, len(fixtures))
-	titleToActualID := make(map[string]string, len(fixtures))
+
+	// When an embedder is configured, seed embeddings via the production
+	// NodeEmbedder so retrieval exercises the real vector path.
+	var nodeEmbedder *memory.NodeEmbedder
+	if cfg.Embedder != nil {
+		nodeEmbedder = memory.NewNodeEmbedder(store, cm, cfg.Embedder, cfg.EmbeddingModel, slog.Default())
+	}
 
 	for _, f := range fixtures {
 		n := &memory.Node{
-			Type:             memory.NodeType(f.Type),
-			Title:            f.Title,
-			Summary:          f.Summary,
-			Tags:             f.Tags,
-			EnrichmentStatus: memory.EnrichmentComplete,
-			Confidence:       1.0,
+			Type:              memory.NodeType(f.Type),
+			Title:             f.Title,
+			Summary:           f.Summary,
+			Tags:              f.Tags,
+			RetrievalTriggers: f.RetrievalTriggers,
+			Pinned:            f.Pinned,
+			EnrichmentStatus:  memory.EnrichmentComplete,
+			Confidence:        1.0,
+		}
+		if f.UserID != "" {
+			uid := f.UserID
+			n.UserID = &uid
 		}
 		actualID, cerr := store.CreateNode(n)
 		if cerr != nil {
 			return StageResult{}, fmt.Errorf("seed fixture %q: %w", f.ID, cerr)
 		}
-		// Write content if provided.
+		n.ID = actualID
+		// Write content if provided, and record the content path on the node so
+		// the embedder includes the body text.
 		if f.Content != "" {
-			if _, werr := cm.Write(actualID, f.Content); werr != nil {
+			path, werr := cm.Write(actualID, f.Content)
+			if werr != nil {
 				return StageResult{}, fmt.Errorf("write fixture content %q: %w", f.ID, werr)
+			}
+			n.ContentPath = path
+		}
+		if nodeEmbedder != nil {
+			if eerr := nodeEmbedder.EmbedNode(ctx, n); eerr != nil {
+				return StageResult{}, fmt.Errorf("embed fixture %q: %w", f.ID, eerr)
 			}
 		}
 		fixtureIDMap[f.ID] = actualID
-		titleToActualID[f.Title] = actualID
 	}
 
+	// Seed edges after all fixture IDs are mapped so cross-references resolve.
+	for _, f := range fixtures {
+		src, ok := fixtureIDMap[f.ID]
+		if !ok {
+			continue
+		}
+		for _, e := range f.Edges {
+			tgt, ok := fixtureIDMap[e.Target]
+			if !ok {
+				return StageResult{}, fmt.Errorf("fixture %q edge target %q not found", f.ID, e.Target)
+			}
+			if cerr := store.CreateEdge(&memory.Edge{
+				SourceID: src,
+				TargetID: tgt,
+				Relation: memory.RelRelatedTo,
+				Weight:   e.Weight,
+			}); cerr != nil {
+				return StageResult{}, fmt.Errorf("seed edge %q->%q: %w", f.ID, e.Target, cerr)
+			}
+		}
+	}
+
+	mem := config.Default().Memory
 	retriever := memory.NewRetriever(memory.RetrieverConfig{
-		Store:    store,
-		Content:  cm,
-		Provider: cfg.Provider,
-		Model:    cfg.Model,
+		Store:          store,
+		Content:        cm,
+		Provider:       cfg.Provider,
+		Model:          cfg.Model,
+		Embedder:       cfg.Embedder,
+		EmbeddingModel: cfg.EmbeddingModel,
+		TopK:           mem.RetrievalTopK,
+		TokenBudget:    mem.RetrievalTokenBudget,
+		MinSimilarity:  mem.RetrievalMinSimilarity,
+		TypeBoost:      mem.RetrievalTypeBoost,
+		ContextWindow:  mem.ContextWindow,
 	})
 
 	stage := StageResult{
@@ -303,22 +366,56 @@ func remapIDs(c RetrievalCase, idMap map[string]string) RetrievalCase {
 	return out
 }
 
+// TraceCandidateView is a minimal view of a trace candidate used to build
+// drop diagnostics for expected-but-missed nodes.
+type TraceCandidateView struct {
+	DropReason string
+	Similarity float64
+}
+
 func runRetrievalCase(ctx context.Context, cfg RunConfig, retriever *memory.Retriever, c RetrievalCase) CaseResult {
 	cr := CaseResult{ID: c.ID, Stage: "retrieval", Scores: make(map[string]float64)}
 
-	result, err := retriever.Retrieve(ctx, "", c.Query, nil)
+	// Request a trace for this turn so we can explain why expected nodes were
+	// dropped on the vector path.
+	tctx, holder := memory.WithTrace(ctx)
+
+	result, err := retriever.Retrieve(tctx, c.UserID, c.Query, c.History)
 	if err != nil {
 		cr.Error = err.Error()
 		return cr
 	}
 
 	var returnedIDs []string
+	injected := make(map[string]bool, len(result.Nodes))
 	for _, n := range result.Nodes {
 		returnedIDs = append(returnedIDs, n.Node.ID)
+		injected[n.Node.ID] = true
 	}
 
 	cr.Scores = ScoreRetrieval(c, returnedIDs)
 	cr.Pass = cr.Scores["precision"] >= c.MinPrecision && cr.Scores["recall"] >= c.MinRecall
+
+	// Build a candidate lookup from the trace, then attach a diagnostic for each
+	// expected node that was not injected.
+	candidates := make(map[string]TraceCandidateView)
+	if tr := holder.Get(); tr != nil {
+		for _, tc := range tr.Candidates {
+			candidates[tc.NodeID] = TraceCandidateView{DropReason: tc.DropReason, Similarity: tc.Similarity}
+		}
+	}
+	for _, id := range c.ExpectedIDs {
+		if injected[id] {
+			continue
+		}
+		d := DropDiagnostic{NodeID: id, DropReason: "not_a_candidate"}
+		if cv, ok := candidates[id]; ok {
+			d.DropReason = cv.DropReason
+			d.Similarity = cv.Similarity
+		}
+		cr.Diagnostics = append(cr.Diagnostics, d)
+	}
+
 	return cr
 }
 

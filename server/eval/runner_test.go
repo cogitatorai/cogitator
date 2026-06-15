@@ -80,3 +80,45 @@ func TestRunReflection(t *testing.T) {
 		t.Errorf("signal_accuracy = %f, want 1.0", report.Stages[0].Metrics["signal_accuracy"])
 	}
 }
+
+func TestRunRetrievalVectorPathDeterministic(t *testing.T) {
+	dir := t.TempDir()
+	rdir := filepath.Join(dir, "retrieval")
+	if err := os.MkdirAll(rdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixtures := `[
+	  {"id":"n_coffee","type":"preference","title":"prefers dark roast coffee","summary":"dark roast coffee preference","tags":["coffee","beverage"],"content":"I always pick dark roast coffee."},
+	  {"id":"n_hike","type":"fact","title":"enjoys mountain hiking","summary":"mountain hiking hobby","tags":["hiking","outdoors"],"content":"Weekend mountain hiking trips."}
+	]`
+	cases := `[
+	  {"id":"c_coffee","query":"what coffee does the user like dark roast","expected_node_ids":["n_coffee"],"expected_not_ids":["n_hike"],"min_precision":0.5,"min_recall":1.0}
+	]`
+	if err := os.WriteFile(filepath.Join(rdir, "fixtures.json"), []byte(fixtures), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rdir, "cases.json"), []byte(cases), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stage, err := runRetrieval(context.Background(), RunConfig{
+		Embedder:       NewDeterministicEmbedder(128),
+		EmbeddingModel: "det",
+	}, filepath.Join(rdir, "cases.json"))
+	if err != nil {
+		t.Fatalf("runRetrieval: %v", err)
+	}
+	if len(stage.Results) != 1 {
+		t.Fatalf("results = %d, want 1", len(stage.Results))
+	}
+	r := stage.Results[0]
+	if r.Error != "" {
+		t.Fatalf("case error: %s", r.Error)
+	}
+	if r.Scores["recall"] < 1.0 {
+		t.Errorf("recall = %v, want 1.0 (coffee node should be retrieved on the vector path)", r.Scores["recall"])
+	}
+	if r.Scores["exclusion"] != 1.0 {
+		t.Errorf("exclusion = %v, want 1.0 (hiking node must not appear)", r.Scores["exclusion"])
+	}
+}

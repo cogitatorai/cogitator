@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/cogitatorai/cogitator/server/internal/provider"
@@ -113,5 +114,64 @@ func TestNoTraceWhenDisabled(t *testing.T) {
 	}
 	if got := ring.Snapshot(); len(got) != 0 {
 		t.Errorf("ring recorded %d traces with flag off, want 0", len(got))
+	}
+}
+
+// TestLLMTraceClassifiesDrops seeds >topK node summaries with NO embedder so the
+// retriever uses the llm-fallback path. The provider returns 2 of the 3 ids in
+// priority order; TopK:1 forces the 1st returned id injected, the 2nd
+// outside_top_k, and the unreturned 3rd llm_not_selected.
+func TestLLMTraceClassifiesDrops(t *testing.T) {
+	db := testDB(t)
+	store := NewStore(db)
+
+	id1, err := store.CreateNode(&Node{Type: NodeFact, Title: "first", Confidence: 0.9})
+	if err != nil {
+		t.Fatalf("CreateNode first: %v", err)
+	}
+	id2, err := store.CreateNode(&Node{Type: NodeFact, Title: "second", Confidence: 0.9})
+	if err != nil {
+		t.Fatalf("CreateNode second: %v", err)
+	}
+	if _, err := store.CreateNode(&Node{Type: NodeFact, Title: "third", Confidence: 0.9}); err != nil {
+		t.Fatalf("CreateNode third: %v", err)
+	}
+
+	// LLM returns id1 then id2 (priority order); id3 is never selected.
+	chosen, err := json.Marshal([]string{id1, id2})
+	if err != nil {
+		t.Fatalf("marshal chosen ids: %v", err)
+	}
+	prov := provider.NewMock(provider.Response{Content: string(chosen)})
+
+	ring := NewTraceRing(8)
+	r := NewRetriever(RetrieverConfig{
+		Store:        store,
+		Provider:     prov,
+		Model:        "test",
+		TopK:         1, // force outside_top_k
+		TraceEnabled: true,
+		TraceSink:    ring,
+	})
+	if _, err := r.Retrieve(context.Background(), "u1", "q", nil); err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+	traces := ring.Snapshot()
+	if len(traces) != 1 || traces[0].Path != "llm-fallback" {
+		t.Fatalf("traces=%d path=%v", len(traces), traces)
+	}
+	var sawInjected, sawTopK, sawNotSel bool
+	for _, c := range traces[0].Candidates {
+		switch {
+		case c.Injected:
+			sawInjected = true
+		case c.DropReason == DropOutsideTopK:
+			sawTopK = true
+		case c.DropReason == DropLLMNotSelected:
+			sawNotSel = true
+		}
+	}
+	if !sawInjected || !sawTopK || !sawNotSel {
+		t.Errorf("dispositions injected=%v topk=%v notsel=%v", sawInjected, sawTopK, sawNotSel)
 	}
 }

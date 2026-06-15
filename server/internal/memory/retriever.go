@@ -541,6 +541,9 @@ func (r *Retriever) retrieveLLM(ctx context.Context, userID, message string) (*R
 	model := r.model
 	r.mu.RUnlock()
 
+	holder := traceHolderFrom(ctx)
+	traceOn := r.traceEnabled || holder != nil
+
 	if p == nil {
 		return &RetrievedContext{}, nil
 	}
@@ -570,9 +573,9 @@ func (r *Retriever) retrieveLLM(ctx context.Context, userID, message string) (*R
 		return &RetrievedContext{}, nil
 	}
 
-	r.logger.Info("retrieval: LLM path nodes selected",
-		"node_ids", nodeIDs,
-		"count", len(nodeIDs),
+	r.logger.Debug("retrieval: llm path",
+		"request_id", reqctx.RequestID(ctx),
+		"selected", len(nodeIDs),
 	)
 
 	r.mu.RLock()
@@ -580,6 +583,7 @@ func (r *Retriever) retrieveLLM(ctx context.Context, userID, message string) (*R
 	minWeight := r.edgeMinWeight
 	r.mu.RUnlock()
 
+	selectedAll := append([]string(nil), nodeIDs...) // full LLM order, pre-truncation
 	if len(nodeIDs) > topK {
 		nodeIDs = nodeIDs[:topK]
 	}
@@ -625,6 +629,49 @@ func (r *Retriever) retrieveLLM(ctx context.Context, userID, message string) (*R
 				Title:   target.Title,
 				Summary: target.Summary,
 			})
+		}
+	}
+
+	if traceOn {
+		injected := make(map[string]bool, len(nodeIDs))
+		for _, id := range nodeIDs {
+			injected[id] = true
+		}
+		truncated := make(map[string]bool)
+		for _, id := range selectedAll {
+			if !injected[id] {
+				truncated[id] = true
+			}
+		}
+		tr := &RetrievalTrace{
+			RequestID:  reqctx.RequestID(ctx),
+			SessionKey: reqctx.SessionKey(ctx),
+			UserID:     userID,
+			Path:       "llm-fallback",
+			QueryChars: len(message),
+		}
+		for _, s := range summaries {
+			tc := TraceCandidate{
+				NodeID:   s.ID,
+				Title:    s.Title,
+				Type:     s.Type,
+				Injected: injected[s.ID],
+			}
+			switch {
+			case tc.Injected:
+				tr.InjectedIDs = append(tr.InjectedIDs, s.ID)
+			case truncated[s.ID]:
+				tc.DropReason = DropOutsideTopK
+			default:
+				tc.DropReason = DropLLMNotSelected
+			}
+			tr.Candidates = append(tr.Candidates, tc)
+		}
+		if holder != nil {
+			holder.Set(tr)
+		}
+		if r.traceEnabled && r.traceSink != nil {
+			r.traceSink.Record(tr)
 		}
 	}
 
